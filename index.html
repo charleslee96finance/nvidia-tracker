@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="refresh" content="900">
+<title>NVIDIA 每日追踪 · 2026-05-11 03:48 UTC</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#050810;--bg2:#0b0f1e;--border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.15);--text:#e8edf5;--text2:#8a9ab8;--text3:#4a5a78;--green:#00e5a0;--blue:#4da6ff;--amber:#f5a623;--fire:#ff4d00;--purple:#a78bfa}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(77,166,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(77,166,255,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+.wrap{max-width:1200px;margin:0 auto;padding:40px 20px 60px;position:relative;z-index:1}
+.hero{margin-bottom:36px}
+.hero-eyebrow{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--blue);margin-bottom:12px;opacity:.8}
+.hero-title{font-size:clamp(32px,5vw,48px);font-weight:800;line-height:1.05;background:linear-gradient(135deg,#fff 0%,#4da6ff 50%,#00e5a0 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-1px;margin-bottom:8px}
+.hero-sub{font-size:14px;color:var(--text2)}
+.hero-time{display:inline-block;margin-top:10px;font-family:'Space Mono',monospace;font-size:11px;color:var(--text3);border:1px solid var(--border2);padding:4px 14px;border-radius:20px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:36px}
+.stat{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:18px 20px;text-align:center}
+.stat-label{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:8px}
+.stat-val{font-size:24px;font-weight:700}
+.stat-val.green{color:var(--green)}.stat-val.blue{color:var(--blue)}.stat-val.amber{color:var(--amber)}.stat-val.fire{color:var(--fire)}
+.section-label{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:var(--text3);margin:32px 0 14px;display:flex;align-items:center;gap:10px}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border)}
+.signal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+.signal-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:18px;transition:border-color .2s}
+.signal-card:hover{border-color:var(--border2)}
+.signal-new{border-color:rgba(0,229,160,.4);background:linear-gradient(135deg,var(--bg2) 0%,rgba(0,229,160,.05) 100%)}
+.signal-target{font-size:18px;font-weight:700;color:var(--fire);margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.signal-title{font-size:13px;margin-bottom:6px;line-height:1.4}
+.signal-title a{color:var(--text);text-decoration:none}
+.signal-title a:hover{color:var(--blue)}
+.signal-meta{font-size:11px;color:var(--text3);font-family:'Space Mono',monospace}
+.sec-grid{display:flex;flex-direction:column;gap:8px}
+.sec-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;display:grid;grid-template-columns:90px 100px 1fr;gap:14px;align-items:center;text-decoration:none;color:var(--text);transition:border-color .2s}
+.sec-card:hover{border-color:var(--border2)}
+.sec-form{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;padding:3px 8px;border-radius:4px;text-align:center}
+.sec-8k{background:rgba(255,77,0,.15);color:var(--fire)}
+.sec-10{background:rgba(77,166,255,.1);color:var(--blue)}
+.sec-13{background:rgba(0,229,160,.15);color:var(--green)}
+.sec-13f{background:rgba(167,139,250,.15);color:var(--purple)}
+.sec-default{background:rgba(255,255,255,.06);color:var(--text2)}
+.sec-date{font-family:'Space Mono',monospace;font-size:12px;color:var(--text3)}
+.sec-desc{font-size:13px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.news-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:12px}
+.news-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px;transition:border-color .2s}
+.news-card:hover{border-color:var(--border2)}
+.news-new{border-color:rgba(77,166,255,.3)}
+.news-source{font-family:'Space Mono',monospace;font-size:10px;color:var(--blue);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.news-title{display:block;font-size:14px;font-weight:600;color:var(--text);text-decoration:none;line-height:1.4;margin-bottom:8px}
+.news-title:hover{color:var(--blue)}
+.news-summary{font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:8px}
+.news-date{font-family:'Space Mono',monospace;font-size:10px;color:var(--text3)}
+.badge{font-size:9px;padding:2px 7px;border-radius:20px;font-weight:700;letter-spacing:.5px}
+.badge-new{background:var(--green);color:#000}
+.empty{padding:40px;text-align:center;color:var(--text3);background:var(--bg2);border:1px dashed var(--border2);border-radius:12px}
+.footer{text-align:center;font-size:11px;color:var(--text3);line-height:1.8;padding-top:24px;margin-top:40px;border-top:1px solid var(--border)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div class="hero-eyebrow">Daily Tracker · Auto-Updated</div>
+    <h1 class="hero-title">NVIDIA 每日追踪</h1>
+    <p class="hero-sub">新闻 · 投资信号 · SEC 文件 · 自动每 2 小时更新</p>
+    <span class="hero-time" id="time-badge">最近更新：2026-05-11 03:48 UTC</span>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="stat-label">总新闻</div><div class="stat-val blue">93</div></div>
+    <div class="stat"><div class="stat-label">本次新增</div><div class="stat-val green">93</div></div>
+    <div class="stat"><div class="stat-label">投资信号</div><div class="stat-val fire">2</div></div>
+    <div class="stat"><div class="stat-label">SEC 文件</div><div class="stat-val amber">0</div></div>
+  </div>
+  <div class="section-label">🔥 投资 / 收购 / 合作信号</div>
+  <div class="signal-grid">
+    <div class="signal-card signal-new">
+      <div class="signal-target">up <span class="badge badge-new">NEW</span></div>
+      <div class="signal-title"><a href="https://news.google.com/rss/articles/CBMie0FVX3lxTE1xMF9lM1Jud3g3VGxDVl9QVmtYMXRsNm53c2J1ZVVraWZUNEVrdXZXQU9HbzlHTUhsS3BXcG5meUpQVFFWZ0JZeFdoX0JRVW90NFhDWnk5Vk9fajNheW1pOW1Yc2hZaXBNLW9SOFdKS0J2dXgydjFyNF9Scw?oc=5" target="_blank" rel="noopener">Nvidia invests up to $2.1 billion in IREN AI data center deal - qz.com</a></div>
+      <div class="signal-meta">Google News (Investments) · Fri, 08 May 2026 11:23:08 GMT</div>
+    </div>
+    <div class="signal-card signal-new">
+      <div class="signal-target">Corning <span class="badge badge-new">NEW</span></div>
+      <div class="signal-title"><a href="https://news.google.com/rss/articles/CBMiowFBVV95cUxPS0s5bVFxRUhPeUx1U0RlSktzZHF2OVJFQVpneW1wVmFSTmZ4OXlfek94VVlLNWVQYS1xTWlQckk0YXhEN2tJNGxITk4tMmxZWXM2aUxTMVJOSnhXOFp4dlkxRl9Hb0VPbFdLeVRfOGZtczZZSTBNbExXUVV1dzFlZXJ0bHh4ZkNiTGNJTjFKcVpfLWhSMENxVDc1OGg3OUw0RGVj?oc=5" target="_blank" rel="noopener">Nvidia to Invest $500 Million in Corning, Expand Fiber Optic Manufacturing - WSJ</a></div>
+      <div class="signal-meta">Google News (Investments) · Wed, 06 May 2026 12:19:00 GMT</div>
+    </div></div>
+  <div class="section-label">📋 SEC 官方文件（NVIDIA Corp · CIK 0001045810）</div>
+  <div class="sec-grid"><div class="empty">无新文件。</div></div>
+  <div class="section-label">📰 全部新闻（最新 80 条）</div>
+  <div class="news-grid">
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMisgFBVV95cUxOejd1bnJwTGFDVU5IdVlaNFhXTzRQNTdDRW03S2dlbWhhX0VITDNBUTBmZElCUE15SU1XN1BxLThyb1hIS2kyanZLVDJpVkhtUG5pSVE2SU9DZDVUa3BhcWl2U2llVkd2a2VndlNCWDBaQ01TMF9pdUZxQTFwN0wtRlZ0T3pmTWlHLXc5ai1DcFdITEcydWZzTXJiSUo2bldkVDBRNHZ3MHNGU0hodlpfVWtn?oc=5" target="_blank" rel="noopener">Nvidia co-founder Jensen Huang delivers commencement keynote at Carnegie Mellon University - Pittsburgh Post-Gazette</a>
+      <div class="news-summary">Nvidia co-founder Jensen Huang delivers commencement keynote at Carnegie Mellon University &amp;nbsp;&amp;nbsp; Pittsburgh Post-Gazette</div>
+      <div class="news-date">Mon, 11 May 2026 03:36:21 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Yahoo Finance NVDA <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://www.fool.com/retirement/2026/05/10/56-million-americans-dont-have-a-workplace-retirem/?.tsrc=rss" target="_blank" rel="noopener">56 Million Americans Don&#x27;t Have a Workplace Retirement Plan. Trump&#x27;s New Executive Order Targets That Gap</a>
+      <div class="news-summary">President Donald Trump wants you to save for retirement, so he&#x27;s highlighting the incentives intended to get you into the saving habit.</div>
+      <div class="news-date">Mon, 11 May 2026 03:35:00 +0000</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Yahoo Finance NVDA <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://finance.yahoo.com/m/43e846fc-d46c-369d-9e19-8d3e1dfaa28f/dow-jones-futures-fall%2C-oil.html?.tsrc=rss" target="_blank" rel="noopener">Dow Jones Futures Fall, Oil Prices Jump To $100; Trump Says Iran Response &#x27;Totally Unacceptable&#x27;</a>
+      <div class="news-summary">President Donald Trump said Iran&#x27;s response to a U.S. peace offer is &quot;totally unacceptable.&quot; The Xi summit is on tap..</div>
+      <div class="news-date">Mon, 11 May 2026 03:05:22 +0000</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (Investments) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMi4wFBVV95cUxPVm9UTDlMRGhMS1BRNEh6aWZPVnIwMXh5UWtMRUhzRS16OUtJZm1YUHg5bnlWTVFEeW93OXQtdGpSeWt0dXZjb0ZXaFFuRnBXTUM1VFc1WURYQ2RCSUxuemNHNjdsd2JFU2xnYkVUYnNpOXBrWXdsZzJlenFGWE5ud2Q1bWV1Zk5yVjNoOXBndTFMbFptYWV5bVZCektZVnJlOTJGVzhHTlB5OWtZcW0xeDJJMDNxdTgtRldDSEpOSVE2dzhrUzE0ZXB5ZW5SNlFUMkMxNTBRWlRHdDRpYkhQNTZvSQ?oc=5" target="_blank" rel="noopener">Suncoast Equity Management trims Nvidia stake by 23,304 shares - The Globe and Mail</a>
+      <div class="news-summary">Suncoast Equity Management trims Nvidia stake by 23,304 shares &amp;nbsp;&amp;nbsp; The Globe and Mail</div>
+      <div class="news-date">Mon, 11 May 2026 03:04:22 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (Investments) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMixgFBVV95cUxNZ2NXZTVaOWpvLWdjbmFXd2MzQUVhcHlxX0Y4MmVXQ0Z1WWZnN1Bxazl3ek5jYXJfM0JuQVJlNk91YkluMFA1TTFWUXVOMXctcUNsR21mSnBfQ3VmVnoxU0JEQnFxbG1qekRmWmlJRmRReWZ2MnJSVDE0YXdvNUpQdm9MSFVYX3dwSXQycVNtaDhReUVCLU5mTHBDNEtmdzhfYlIxeUNPRnJCWC1aOFh0RWlxdm9CUWZ1VzRYVVZSeGp0bmZweUHSAcsBQVVfeXFMTk9lQXB6T3V5SFhWYTJ6cFQ3V3lZNE1ZTUswSUJaWnpNNDhPMVdWb1lkTVp3RG95Wm5pdlVVbFZNV0JPaVFDLVZmNDdTc1BHTUxCV2MtZ2RtRnlOaHpvWG81UWpfWW5PMlRaZFlNVmFfLXhEYTd6WDA0NjZoVEpEM2VDOTVWaGduMHpCd0NzLU5kWVlXenUwUk55YXJaTFluTDZZNWZWLW90S0lmTXZoYko1MVVFOXRjM0ZvT1JQbVlMTTlFRVNvZVhJQW8?oc=5" target="_blank" rel="noopener">A Look At Iren (BIT:IRE) Valuation After Nvidia’s €2.1b AI Infrastructure Partnership - simplywall.st</a>
+      <div class="news-summary">A Look At Iren (BIT:IRE) Valuation After Nvidia’s €2.1b AI Infrastructure Partnership &amp;nbsp;&amp;nbsp; simplywall.st</div>
+      <div class="news-date">Mon, 11 May 2026 03:02:30 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Yahoo Finance NVDA <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://www.fool.com/investing/2026/05/10/3-top-stocks-to-buy-in-may/?.tsrc=rss" target="_blank" rel="noopener">3 Top Stocks to Buy in May</a>
+      <div class="news-summary">These are all demonstrating impressive performance now and have long-term tailwinds.</div>
+      <div class="news-date">Mon, 11 May 2026 02:50:00 +0000</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Yahoo Finance NVDA <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://www.fool.com/investing/2026/05/10/the-world-is-burning-through-oil-with-no-resupply/?.tsrc=rss" target="_blank" rel="noopener">The World Is Burning Through Oil With No Resupply in Sight. Is SHEL Stock a Buy Before the Squeeze Gets Worse?</a>
+      <div class="news-summary">Shell&#x27;s CEO is warning that the world has a 1 billion-barrel hole to dig out of, and it could get worse before it gets better.</div>
+      <div class="news-date">Mon, 11 May 2026 02:35:00 +0000</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Yahoo Finance NVDA <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://www.fool.com/investing/2026/05/10/i-ran-the-numbers-on-vong-and-2-vanguard-etfs/?.tsrc=rss" target="_blank" rel="noopener">I Ran the Numbers on VONG, and These 2 Vanguard ETFs Came Out Ahead</a>
+      <div class="news-summary">This tech-focused fund is not the best option.</div>
+      <div class="news-date">Mon, 11 May 2026 01:03:00 +0000</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMimAFBVV95cUxObWhPUkJna0NwTm1WSVFrQ3BORG55MjRDVXZPWDY2TGdpV2F0TlpDNXJjSWtnYktpR2Y4WkZKVmhXaHJULUNzUlZBQ2RQNHdmamxNYl90VGR2bEdYaWw3dnNWRDMybmNZdXZXWVJkTTcxdVFJQnUyd1c2ZDZvaTZObnUwZXM1dXhMUUh6bG1pZ25ZWTVPTnU4aQ?oc=5" target="_blank" rel="noopener">Nvidia Reports Earnings in May. Here&#x27;s Why I&#x27;m Loading Up Before the Report. - The Motley Fool</a>
+      <div class="news-summary">Nvidia Reports Earnings in May. Here&#x27;s Why I&#x27;m Loading Up Before the Report. &amp;nbsp;&amp;nbsp; The Motley Fool</div>
+      <div class="news-date">Mon, 11 May 2026 00:38:35 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Yahoo Finance NVDA <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://www.fool.com/investing/2026/05/10/nvidia-reports-earnings-in-may-heres-why-im-loadin/?.tsrc=rss" target="_blank" rel="noopener">Nvidia Reports Earnings in May. Here&#x27;s Why I&#x27;m Loading Up Before the Report.</a>
+      <div class="news-summary">Nvidia&#x27;s next earnings report could show whether the AI infrastructure boom is still in its early innings.</div>
+      <div class="news-date">Mon, 11 May 2026 00:20:00 +0000</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (Investments) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMipAFBVV95cUxObFFhYk1CRDFJaFlGdlhsRDROaDlVLVp0ekY5Z0VEbU50clNtRWJENllCWFdnV0VCMWRkdTR5ZVFWSld1eUE1WVB2ZXpWMTRid2xPYk80NEwtU0g0c1FueUloR0p3a3hKRm5HTzRLMHBydFJkeGx0VENHdkpNTzZVMXYzZG1fUTNnbkF3ZFJZRnR1dmRIaXZ5Q21UblI1aWRPZ0U5OQ?oc=5" target="_blank" rel="noopener">Nvidia backs IREN in 5GW AI infrastructure push tied to US$2.1 billion stake - digitimes</a>
+      <div class="news-summary">Nvidia backs IREN in 5GW AI infrastructure push tied to US$2.1 billion stake &amp;nbsp;&amp;nbsp; digitimes</div>
+      <div class="news-date">Mon, 11 May 2026 00:11:17 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Yahoo Finance NVDA <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://247wallst.com/investing/2026/05/10/iran-may-have-found-a-new-way-to-threaten-trumps-economy-and-its-not-oil/?.tsrc=rss" target="_blank" rel="noopener">Iran May Have Found a New Way to Threaten Trump’s Economy — And It’s Not Oil</a>
+      <div class="news-summary">The stock market has spent much of 2026 acting like geopolitical risk is just background noise. The S&amp;amp;P 500 keeps pushing toward record highs, AI spending remains red hot, and investors have largely shrugged off the widening conflict involving Iran. But what if Tehran found a...</div>
+      <div class="news-date">Sun, 10 May 2026 22:35:36 +0000</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Yahoo Finance NVDA <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://www.fool.com/investing/2026/05/10/planet-fitness-stock-plunged-following-earnings-sh/?.tsrc=rss" target="_blank" rel="noopener">Planet Fitness Stock Plunged Following Earnings. Should You Buy?</a>
+      <div class="news-summary">The gym chain lost almost one-third of its value as the market digested its Q1 numbers.</div>
+      <div class="news-date">Sun, 10 May 2026 22:22:00 +0000</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMitAFBVV95cUxNWEFyR2FNOG5QNl9TS1NqUFNaNXVyXzF2alRBMExQSUZLVWNudGRYbHdNci1EMXhzU2hCdG03eU9jaEQtM21tbFVVbXRfdGV2dU85OWRCVE1iTDZzQW9TZlVKN19qQmJvZmtIR0VzY19VVGpoN1hTTHRZWXZHbkF6SThKZC1WYjhDU0M4bDY4LUg3VVVCOV85TENLOXhYeDNyUXd6WFJnaFpIMU5uZFJwR1g1SXc?oc=5" target="_blank" rel="noopener">‘Your Career Starts at the Beginning of the AI Revolution,’ NVIDIA CEO Tells Graduates - NVIDIA Blog</a>
+      <div class="news-summary">‘Your Career Starts at the Beginning of the AI Revolution,’ NVIDIA CEO Tells Graduates &amp;nbsp;&amp;nbsp; NVIDIA Blog</div>
+      <div class="news-date">Sun, 10 May 2026 22:14:09 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">NVIDIA Blog <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://blogs.nvidia.com/blog/nvidia-ceo-carnegie-mellon-commencement-address/" target="_blank" rel="noopener">‘Your Career Starts at the Beginning of the AI Revolution,’ NVIDIA CEO Tells Graduates</a>
+      <div class="news-summary">“You are entering the world at an extraordinary moment,” NVIDIA founder and CEO Jensen Huang told graduates as he delivered the keynote address at Carnegie Mellon University&amp;#8217;s 128th commencement ceremony on Sunday. “A new industry is being born. A new era of science and dis...</div>
+      <div class="news-date">Sun, 10 May 2026 22:00:50 +0000</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMiswFBVV95cUxNTFlZdFR3VVJWNndSRm8wR0I0Z0hKbVFWTFJLNTYwTnlUYlMyNzBUejRBTEl3RVpvUktLd204em5vWUExd0hpX0F2RWJ4SEpPRmllR1RDZ2RWQ3N6eEg2aWlkYkU0ZmN2VnVCNWRBUl80aGNKTExueUxJam1PbUxiaG8zclJiX3REODNIMFQwMzR1alE2MXFCZC1JOFotS2pxc1pnSEFSTFpMNG90YnduQmdYMNIBuAFBVV95cUxPLUN3ZXItMXI0MUpJbDNVUlJ0cWtTWmJrUjV6Q1k2czFrZm00ckhlMGxUU3MtMXZzczJfQ0N2dVZiaHpDc3lMSTZ4TDYzMW5yOGR2QlpSQk1udDJsQzgxOWppVERJeEJUdzFzMmlxVEk3MDNDTDJDOXpWTkVJWENON3JEYXVkaFVibXhGWDJyby1YdXFsWVU0aHA0aHNoWlcyMlNvbWQ2S2FNR25CX2gtUTc5MXItV3k2?oc=5" target="_blank" rel="noopener">NVIDIA’s V100, An 8-Year Old GPU, Now Sells for $100 and Crushes Modern Consumer Cards in AI LLM Workloads - Wccftech</a>
+      <div class="news-summary">NVIDIA’s V100, An 8-Year Old GPU, Now Sells for $100 and Crushes Modern Consumer Cards in AI LLM Workloads &amp;nbsp;&amp;nbsp; Wccftech</div>
+      <div class="news-date">Sun, 10 May 2026 22:00:00 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMijgFBVV95cUxQVnY2cmRDREtZcTZoNnJJTTlwR2tTZTBzVEtERUhNbDdHYXdHRkJXMlJPT254bTdjaHpXV1U2SzhwUEsydDNGYlRyclJhOWo2d3FrUGNyT3Y3SnJscTVEancwQ0JRREdpel9UNzlvd1FXcDZzQzJOQjlacmJpMHpZUHZLOWo2SXY3amRqRGFR?oc=5" target="_blank" rel="noopener">Jensen Huang tells new grads there is no better time to start a career - Business Insider</a>
+      <div class="news-summary">Jensen Huang tells new grads there is no better time to start a career &amp;nbsp;&amp;nbsp; Business Insider</div>
+      <div class="news-date">Sun, 10 May 2026 21:35:00 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Yahoo Finance NVDA <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://www.fool.com/investing/2026/05/10/is-nuscale-going-to-120/?.tsrc=rss" target="_blank" rel="noopener">Is NuScale Power Going to $120?</a>
+      <div class="news-summary">The stock has been gaining some momentum. Could this nuclear energy provider rise tenfold?</div>
+      <div class="news-date">Sun, 10 May 2026 21:05:00 +0000</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Yahoo Finance NVDA <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://www.fool.com/investing/2026/05/10/att-should-investors-buy-into-the-turnaround/?.tsrc=rss" target="_blank" rel="noopener">AT&amp;T: Should Investors Buy Into the Turnaround?</a>
+      <div class="news-summary">This stock has risen from the ashes to become a compelling buy-and-hold dividend investment.</div>
+      <div class="news-date">Sun, 10 May 2026 20:50:00 +0000</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Yahoo Finance NVDA <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://finance.yahoo.com/markets/stocks/articles/jim-cramer-says-nvidia-tough-203128088.html?.tsrc=rss" target="_blank" rel="noopener">Jim Cramer Says Nvidia Is &#x27;Tough To Beat&#x27; On Corning Deal, Points Out Google, Amazon Still Have An &#x27;Opponent With Multiple Legs Up&#x27;</a>
+      <div class="news-summary">Nvidia Corp. has deepened its grip on the AI infrastructure race with a $500 million investment in Corning Inc., a move that addresses critical networking bottlenecks even as Amazon.com, Inc. and Alphabet Inc.&#x27;s Google intensify efforts to challenge its dominance....</div>
+      <div class="news-date">Sun, 10 May 2026 20:31:28 +0000</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMilwFBVV95cUxNb0ppZGtHVlEwaGNycklDd3NTSHFfWG5sSERFakZ5SkZrUmQ0QXVYenhkdi1GTElBdlJhbTJuRjU5OVBKSldVRG5yYVpJRkRrTzhiNl8wZmZIOTlJTXBqQXJOVE52N2k3cUo2cXV0bWRVb2xHWU1teGpKQnhYSjF1WS1GRENEejEzZ2NVU2RWQ2lPQ0ItX2pr?oc=5" target="_blank" rel="noopener">If You&#x27;d Invested Just $5,000 in Nvidia 10 Years Ago, You&#x27;d Be Sitting on This Fortune Today - The Motley Fool</a>
+      <div class="news-summary">If You&#x27;d Invested Just $5,000 in Nvidia 10 Years Ago, You&#x27;d Be Sitting on This Fortune Today &amp;nbsp;&amp;nbsp; The Motley Fool</div>
+      <div class="news-date">Sun, 10 May 2026 20:30:00 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Yahoo Finance NVDA <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://www.fool.com/investing/2026/05/10/how-buying-oklo-stock-today-could-10x-your-net-wor/?.tsrc=rss" target="_blank" rel="noopener">How Buying Oklo Stock Today Could 10X Your Net Worth</a>
+      <div class="news-summary">Oklo is chasing a multitrillion-dollar opportunity.</div>
+      <div class="news-date">Sun, 10 May 2026 20:30:00 +0000</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMirAFBVV95cUxNWmZ1RU9ycm1uaU1yTmpuUlh5V0ZJcm0xbHlyWWRna1J4R3JFdFBCVllmS1NLRk54OXRWb2N2UFZSOVFsaGMycl8zaEpGV3FZVjlwaWhCdTl3dHdDZE1QcmxOYWJydll2dk9XMlZ3b0ZHWlVRVXhxR1Q3TGpFa1hCYVd2NW1LSk9ydHcxWWpaeGRiUzYwckNnOHRrTDZISW1pRXp4TmQ0WWNGWWRa0gGyAUFVX3lxTE9aTnFLNk5OdjdPeVZlY0VlbXo3SDRXQ1ZPUTExNGlZdXk4T0Z4d1BEb3Q3VERuY01sOEFOa0dGQ2NzREU1dmZIRF9RREZSUW5mS1BPWXNlbDdCWUs2RHpHdWJVWFVacjFWamNPWFhPa1EzbnlYUmNQQTVBWnkwbkx0bEZ6N0h5Tjg3OTZLZ2ptbm9XRnd4TTFib0VoVk1fZ2R3aHNEUGFXMVNJb0FTcmduaXc?oc=5" target="_blank" rel="noopener">Intel’s Lip-Bu Tan Teases “Exciting New Products” With NVIDIA as He Hoods Jensen Huang at Carnegie Mellon Doctorate Ceremony - Wccftech</a>
+      <div class="news-summary">Intel’s Lip-Bu Tan Teases “Exciting New Products” With NVIDIA as He Hoods Jensen Huang at Carnegie Mellon Doctorate Ceremony &amp;nbsp;&amp;nbsp; Wccftech</div>
+      <div class="news-date">Sun, 10 May 2026 20:20:00 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Yahoo Finance NVDA <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://www.fool.com/investing/2026/05/10/2-top-stocks-long-term-investors-should-buy-in-may/?.tsrc=rss" target="_blank" rel="noopener">2 Top Stocks Long-Term Investors Should Buy in May</a>
+      <div class="news-summary">Amazon and Shopify look like two great stocks to buy for the long term.</div>
+      <div class="news-date">Sun, 10 May 2026 20:20:00 +0000</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Yahoo Finance NVDA <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://www.fool.com/investing/2026/05/10/could-buying-stock-stock-today-set-you-up-for-life/?.tsrc=rss" target="_blank" rel="noopener">Could Buying Oklo Stock Today Set You Up for Life?</a>
+      <div class="news-summary">Oklo is sitting on a trillion-dollar opportunity. Could it turn today&#x27;s investors into millionaires?</div>
+      <div class="news-date">Sun, 10 May 2026 20:10:00 +0000</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMi4wFBVV95cUxNaWs3QWRkNjM0azlGQkp1and2dTd3YlJRVVpBVWdSSUxzcVN2aGxEa1l2SlN3aWViMVhycThRRkFXT0Zab0hUcnF0WkpCcDBpenFueWYweXNSSDBkRHlTRGdWQ3FWZXNpX3hWTHZwZ1JHTXVkY3FMckVFTFAwYnAxVW1KTGxKNVR5ZTh5XzQ2cTZiU3JnVW14X3BZNFVoeHVrTkFtWndHcS12aUVDSV84eUhBZGpBQ0hJMkZzRG9peEdzbVJZcjdBMVVDOGp3RXFzT2pvOExLbE1CekNBLTVYNWlBWQ?oc=5" target="_blank" rel="noopener">NVIDIA Founder, CEO Jensen Huang to Carnegie Mellon University Graduates: &#x27;Shape What Comes Next&#x27; - PR Newswire</a>
+      <div class="news-summary">NVIDIA Founder, CEO Jensen Huang to Carnegie Mellon University Graduates: &#x27;Shape What Comes Next&#x27; &amp;nbsp;&amp;nbsp; PR Newswire</div>
+      <div class="news-date">Sun, 10 May 2026 20:06:00 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Yahoo Finance NVDA <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://finance.yahoo.com/sectors/technology/articles/nvidia-founder-ceo-jensen-huang-200600458.html?.tsrc=rss" target="_blank" rel="noopener">NVIDIA Founder, CEO Jensen Huang to Carnegie Mellon University Graduates: &#x27;Shape What Comes Next&#x27;</a>
+      <div class="news-summary">Carnegie Mellon University conferred more than 5,800 undergraduate and graduate degrees at its 128th Commencement ceremony on Sunday, May 10. Bridging the gap between technological innovation and the transformative power of the arts, these new alumni are ready to address society&#x27;...</div>
+      <div class="news-date">Sun, 10 May 2026 20:06:00 +0000</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Yahoo Finance NVDA <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://www.fool.com/investing/2026/05/10/if-youd-invested-just-5000-in-nvidia-10-years-ago/?.tsrc=rss" target="_blank" rel="noopener">If You&#x27;d Invested Just $5,000 in Nvidia 10 Years Ago, You&#x27;d Be Sitting on This Fortune Today</a>
+      <div class="news-summary">Nvidia has worked magic for investors over the last decade; it may still have some gas in the tank.</div>
+      <div class="news-date">Sun, 10 May 2026 19:50:00 +0000</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Yahoo Finance NVDA <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://finance.yahoo.com/sectors/technology/articles/coreweave-ceo-says-nvidia-must-193110849.html?.tsrc=rss" target="_blank" rel="noopener">CoreWeave CEO Says Nvidia Must Expand AI Capacity Or Risk Losing Customers To AMD As IREN Deal Boosts Infrastructure</a>
+      <div class="news-summary">Nvidia Corp.&#x27;s latest partnership with IREN Ltd. underscores the chip giant&#x27;s aggressive strategy to scale AI infrastructure globally as demand surges and competitive pressure from Advanced Micro Devices, Inc. intensifies. Nvidia Expands AI Infrastructure To Defend Market Leaders...</div>
+      <div class="news-date">Sun, 10 May 2026 19:31:10 +0000</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Yahoo Finance NVDA <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://www.fool.com/investing/2026/05/10/dara-khosrowshahi-delivered-news-uber-stock-invest/?.tsrc=rss" target="_blank" rel="noopener">Dara Khosrowshahi Just Delivered Incredible News for Uber Stock Investors</a>
+      <div class="news-summary">Autonomous vehicles could transform Uber&#x27;s business over the long term.</div>
+      <div class="news-date">Sun, 10 May 2026 19:20:00 +0000</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMi3AFBVV95cUxOYUhqZjFabFB2UFJPZ25HejF3OFM3d2N4aFEzNkNGSGRCNkNaUlU0RkVNT0RDeFFRdXBlc1duVUM0MUc4a3ZveWZtcTllbUc4ellOQmYxSG9WSUx3Y2E1X2RPSVFqd3Zmdk5lTElRd2hVaENDV0VmRDByUmVIZ3kxZU81ZnR5Mk9ZNnVzaHZvSWVUYWJ6MURyaDVTa25zbjNEU0F3Ym9Eb0VvakpndDRZbG0tSm5zX01pQkpXVjVGc0F2YVBOcno4cDNCNzRuZWZhUTNQQVlyRkttSEJw?oc=5" target="_blank" rel="noopener">NVIDIA Founder, CEO Jensen Huang to Carnegie Mellon University Graduates: ‘Shape What Comes Next’ - Carnegie Mellon University</a>
+      <div class="news-summary">NVIDIA Founder, CEO Jensen Huang to Carnegie Mellon University Graduates: ‘Shape What Comes Next’ &amp;nbsp;&amp;nbsp; Carnegie Mellon University</div>
+      <div class="news-date">Sun, 10 May 2026 19:00:00 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Yahoo Finance NVDA <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://www.fool.com/investing/2026/05/10/is-taiwan-semiconductor-manufacturing-a-buy-sell-o/?.tsrc=rss" target="_blank" rel="noopener">Is Taiwan Semiconductor Manufacturing a Buy, Sell, or Hold in 2026?</a>
+      <div class="news-summary">The AI play remains as unstoppable in 2026 as it was in 2025, and Taiwan Semiconductor is one of the most dominant stocks in the space.</div>
+      <div class="news-date">Sun, 10 May 2026 18:20:00 +0000</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Yahoo Finance NVDA <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://247wallst.com/investing/2026/05/10/the-sp-500-just-did-something-its-only-done-3-times-before-why-trumps-ai-rally-is-in-danger/?.tsrc=rss" target="_blank" rel="noopener">The S&amp;P 500 Just Did Something It’s Only Done 3 Times Before. Why Trump’s AI Rally Is in Danger</a>
+      <div class="news-summary">The stock market keeps climbing walls investors barely seem to notice anymore. The S&amp;amp;P 500 just hit another all-time high, extending a rally that has added nearly 50% since the tariff-driven panic low in April 2025. President Donald Trump’s tax cuts, deregulation push, and pr...</div>
+      <div class="news-date">Sun, 10 May 2026 18:03:25 +0000</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMixAFBVV95cUxPdHlWeUJnbU41RmgtX0pOTDRTbjNkWjF5eDNoX19SeWJPMkszTENKS2RVd0huRUUxTXlVZmJHR01aa0NNOS1QN3ZyVF9EMWdaSFJJd2dyLUFUcl9UQ1J1SDVoQmJLRzdaUHVTU0kzckVLSnhiLVBpbzlHdWtqYkt1UGNXZktlU1F1WnNWbDVkWk04WGJpS2hpS09sdlNyTkt1OHdicnFyUjNVMHhRZXh4allsd2tGVGRhQl9jR2pIOXhqYnNQ?oc=5" target="_blank" rel="noopener">NVIDIA’s Huang says AI will make intelligence a commodity for billions - Investing.com</a>
+      <div class="news-summary">NVIDIA’s Huang says AI will make intelligence a commodity for billions &amp;nbsp;&amp;nbsp; Investing.com</div>
+      <div class="news-date">Sun, 10 May 2026 16:57:00 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMimAFBVV95cUxNZ2E3R2RRaGlHTnJyX0NVVHZjaXVlMW1HQkQ0MjdUNjdpVlppTVd0VGNNeW1qYUhMdVliWVVYcm1ocW01cG1QNDVNUG5GTGk2N2Rad2ZzcEh5aXVxNURWdk9GNlZJbmNEbmp6dmY2UHlfS19UR3ZVVHFnWmZZc1pPZTZCYUxYOHhqcHdCeVMyOWUtQ1dzLUdsZQ?oc=5" target="_blank" rel="noopener">Should You Buy Nvidia Stock Before May 20? Here&#x27;s What History Says. - The Motley Fool</a>
+      <div class="news-summary">Should You Buy Nvidia Stock Before May 20? Here&#x27;s What History Says. &amp;nbsp;&amp;nbsp; The Motley Fool</div>
+      <div class="news-date">Sun, 10 May 2026 13:29:00 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMimAFBVV95cUxOX0NRdk5Gc3B1TVFQeTRFcTZNMmpfeUNPQWJxclMtN2tFYWtzSXRULW9TdTNlRVBta09FN0ZpVHY4QjdyR2RKZGdKLWEyS2QyemZUM1R6MU5YMUUwa21VUnNhMmpWbWQtWmR2REZqaHI2bTlSMlpIdXllbDAzOXpQRmg1U0V2aXpqbWpobmlZMEpVcDJsUk5RNA?oc=5" target="_blank" rel="noopener">Prediction: This Nvidia-Backed Artificial Intelligence (AI) Company Might Be the Next Meme Stock. Here&#x27;s Why It&#x27;s Actually a Buy at $13 Per Share. - The Motley Fool</a>
+      <div class="news-summary">Prediction: This Nvidia-Backed Artificial Intelligence (AI) Company Might Be the Next Meme Stock. Here&#x27;s Why It&#x27;s Actually a Buy at $13 Per Share. &amp;nbsp;&amp;nbsp; The Motley Fool</div>
+      <div class="news-date">Sun, 10 May 2026 11:31:00 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMiiwNBVV95cUxOZW5NZE9rUFRrRFJzbHNMTnVIUFgwUXVHeG40ZmJqcVFScV8zSXlvWEEwdWJ2RlNSNWY3ZzdUai02TVZlVXlNZHBIMjROYm9DLTVtdHVZSjhma1NzcDRSbnJIMWZWQ3R6RktfVVZxMndhLTFJQWVaSUgwWE9oaUczUXlxVVl6cE12ejNUcWJEMTM3WWtxS0hhanRxU191MTJSOGVGbGE3czFQY0s3X1VnM2Z4aUwzQXhBbzFmdFU4ZGJCLUZ6WTVpR1RoYkU2RWFEZUI2M0UtM0xsa2VBTFlhUU5meUdZV3NTTmN1M3ZmZ3BCSDRrY2FwUThxcEJJNmp6TFF3Z3loUHlkbnhZTFdJN2RRSWNXNEhNekhEVk9VMTBpSXhYUXI1dGtFVk5CRl9ic0pORTR2VWZXeHhFZkdRNURZcE41NU1TaFBsT25CTEg4YWhFODhvR0xjNW9WdUcxLVJVVlBPNVNmRVNzdVJlcGw1U2hXeE1TcGxWQ2dpLVFibC1pR0gwclFUSQ?oc=5" target="_blank" rel="noopener">$200 &#x27;socketed&#x27; Nvidia AI GPU for servers hacked into a PCIe card with custom PCB and 3D-printed cooling — modded Tesla V100 SMX data center GPU runs AI LLMs and is more efficient than many modern midrange offerings in AI inference - Tom&#x27;s Hardware</a>
+      <div class="news-summary">$200 &#x27;socketed&#x27; Nvidia AI GPU for servers hacked into a PCIe card with custom PCB and 3D-printed cooling — modded Tesla V100 SMX data center GPU runs AI LLMs and is more efficient than many modern midrange offerings in AI inference &amp;nbsp;&amp;nbsp; Tom&#x27;s Hardware</div>
+      <div class="news-date">Sun, 10 May 2026 10:50:00 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMimAFBVV95cUxPTlI2WUxFazdsLTF0SHMwVEJiZml4NkVVRW5yaE9hVjUzS0VRN3pZOEN1SlBKMGh0d1pTZTFkMnhlbG1pVVdOLUt4ZWR3azNHNGZnWVdLZ1BxVkhoV1FMdkRIdm0yREwyMFJabTktUGFEZWtyOWpjVXFHMmx2alhrdEhGUzJDcHJuTkZQT0hoZUVuM3ZQT3RkUg?oc=5" target="_blank" rel="noopener">Prediction: Nvidia Will Outperform Alphabet and Amazon Combined Over the Next 3 Years - The Motley Fool</a>
+      <div class="news-summary">Prediction: Nvidia Will Outperform Alphabet and Amazon Combined Over the Next 3 Years &amp;nbsp;&amp;nbsp; The Motley Fool</div>
+      <div class="news-date">Sun, 10 May 2026 10:38:00 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMikwFBVV95cUxNLTY5Rmp2S0NDTkRQWFVpaU5FTFNLUkYtSzJhcUNaNEF6dE1uRlZNOGFCUVJvbURqZjFYZV92bG9XNHM2NVc0VjcxNk1MNU53N2kwMWZZcERrMjl6R0EwTW9nYTRlN1J0MFlUWkhPWHRBTW9uX2wtTUlncDN5RzBsX19Sd0MwdkR4c3ZVWHFQbFgycDg?oc=5" target="_blank" rel="noopener">Nvidia Stock Investors Just Got Great News From Wall Street Experts (Hint: It Could Be a $20 Trillion Company) - The Motley Fool</a>
+      <div class="news-summary">Nvidia Stock Investors Just Got Great News From Wall Street Experts (Hint: It Could Be a $20 Trillion Company) &amp;nbsp;&amp;nbsp; The Motley Fool</div>
+      <div class="news-date">Sun, 10 May 2026 09:48:00 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMinAFBVV95cUxQUVdMbzVnR1ZIS2Z2dnpxY0RJMXpRN2xRbnJodGpqbmtjVDJ6VWY5RnhTbHpKYUh2QUE4di1pSml2Ry0zb2k3M2pPQTh4Y2dSQnhXLXdXbXV1MWJLZDg3d3l3eUNxSFJvbGpWR0xoZ3FZcTA5ZVVaZVYwRmgtMVJNdWNaMGY1NW8tRmxSQ1VDZ0IteGpIVm1QdmdkNGw?oc=5" target="_blank" rel="noopener">Nvidia Stock Investors Just Got Great News From Wall Street Experts (Hint: It Could Be a $20 Trillion Company) - Yahoo Finance</a>
+      <div class="news-summary">Nvidia Stock Investors Just Got Great News From Wall Street Experts (Hint: It Could Be a $20 Trillion Company) &amp;nbsp;&amp;nbsp; Yahoo Finance</div>
+      <div class="news-date">Sun, 10 May 2026 09:08:00 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (Investments) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMiygFBVV95cUxOZldCU1ZUeV8tX253VDB6dVZSNk1FUmZCNHFPdUI5V3BhQjMtVDhjWG1lekRRUkFiRTFvWUwzWTB2TjNFUXlBajlobnlXYWNZVTFZX3U5NXBtUG51VWpCNlZPdjI0NnVpSXRRbkpWSGh2Y05zcGRtcHZ0ODlXSWltVVRBNHBWcDV3emZNTXpJbm1nLWdDa3RMY0pEUEJRUzVqdnFYSWc5a1VSTExEb29fVlp2WGM2OTR2cnFuazFlVUphX0I4ai1ULWln?oc=5" target="_blank" rel="noopener">Leisure Capital Management Decreases Stake in NVIDIA Corporation $NVDA - MarketBeat</a>
+      <div class="news-summary">Leisure Capital Management Decreases Stake in NVIDIA Corporation $NVDA &amp;nbsp;&amp;nbsp; MarketBeat</div>
+      <div class="news-date">Sun, 10 May 2026 08:46:12 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (Investments) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMizgFBVV95cUxQTlFQV2hON2E1M00yd2JkeTdvbWhlSEE3d2Q5b1BHc1BVMldiemw2SXFsckhVblRkX01RUTZJMlhuQ1AwN25zVVBhTlZHM21DYVVOdU83NHpUNVhXbjBWQmZSZ0g3c0FTbUlVTTJ3dzlMaF9NejNLRmtyUHZEcjRtM3ZTOHRkWnpCOHFkRXN6LVNKMVFDV2d2SnE0ajNYRjVGdWpFcHVDNFhFMTBZd21qQ0h1VWF1WkxTRmpabnJlVXkzTThZYlp5amhMa0U0Zw?oc=5" target="_blank" rel="noopener">Horst &amp; Graben Wealth Management LLC Cuts Stake in NVIDIA Corporation $NVDA - MarketBeat</a>
+      <div class="news-summary">Horst &amp; Graben Wealth Management LLC Cuts Stake in NVIDIA Corporation $NVDA &amp;nbsp;&amp;nbsp; MarketBeat</div>
+      <div class="news-date">Sun, 10 May 2026 08:46:11 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (Investments) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMiswFBVV95cUxPY0FEcmpSbWFnRGw1d2x1Sy1EUnZUbW9iRVNLY2RrbVJSenk1ZkhwMFVSa01YS1Zvc1lzWk9KeE9IVUJpdjdkNzY4NXRPV1VGOXk4eTYyMUsycE1CSUYyQXhEWG9IUnhnckZ0UDdzSDByUXdZa2dIc0ktNElXak9zbXRrdEh0N1BXcS03U3NsNTRuSzZwSHRiSUJrclQtZFFVX3hGUUtiMEVyYVpDUWJlMGU0RQ?oc=5" target="_blank" rel="noopener">Suncoast Equity Management trims Nvidia stake by 23,304 shares - TipRanks</a>
+      <div class="news-summary">Suncoast Equity Management trims Nvidia stake by 23,304 shares &amp;nbsp;&amp;nbsp; TipRanks</div>
+      <div class="news-date">Sun, 10 May 2026 03:05:38 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMijwJBVV95cUxQa2IzYW1qTkRFX0JzSGVTX0JRMDNSdXhRVWNwcWZxblZXTTVQYkJmaEpqSUVmMHp6b3FlUW0tNF9NNWQ5YkRIX2RqRmprODRzUm1Vb2FJRWJxVE13MkNGR05lcFdTZjNETXJFWjUtRGJFeTRnSEVMRXV3Q1M3TDdJcWZBdnQwbDNDT2U5YlpMQ0wwWFlDOThrbGlxMTJ1V3dRM1pUTGw3VmhmWkNsLTJjZTM0NGtJRmZkeldkWGpqRzc1TmZXOGtGTVZpelFjZnhvbnNWYUUwdnp0TElMN0V1d2cwdWtlN3hqZWdMdHJtMVZNM2d3MDFKRENESlZlUk9adWNabnF3OVdObzZHanlB0gGUAkFVX3lxTE83aWhjcXgtWlFZdWV1NzN2Ui1zSlBfRF9mdlVMYVpkVllycXpGY2ZVUVJORUNZdTVTZmlPSlhiNlZ0alZTeS1TZ25WZ2t1YUthU0g1dy0ta2hjRGM3bmtzR3p5YXZqaE10dk9CSzZaQUJTd1R1amM4NlRBZjF6Q3Z3bmdkRU1DcDNJc1c4T1RlRHNVdjBqNFBzWXRVOFh0ZHktNGtLY3JkUWlSNm9kaThTWHIyRWNnTlRUSjFPZm9DN2hjd045bTVqS2NQT3E3eTBQNmZtZ09qUmxEdllpX3VkTmhFV3gyUWZ0Z2phekNBaDVlQjdHeEtfZF9GeUU2NE5zSkdYVGthMEV3SmRVeDhvMUdHZQ?oc=5" target="_blank" rel="noopener">Nvidia CEO Jensen Huang on what excites him to most when it comes to robotics and physical AI: ‘We need a - The Times of India</a>
+      <div class="news-summary">Nvidia CEO Jensen Huang on what excites him to most when it comes to robotics and physical AI: ‘We need a &amp;nbsp;&amp;nbsp; The Times of India</div>
+      <div class="news-date">Sun, 10 May 2026 02:01:00 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMikAFBVV95cUxPZmstcHY4U01UY2kwWUU0ZkFMNWRPdmJ5NFlNSWh4NHBEMl9naHNnYnlrNUE5blJyeWYzWk5BdFhVc1hqdGIzcjNhUnBaa0RkWTlSTkJvandTbTEzTWJ4akNrOTNZczJXLUVwdGs0VGpLWXRyYVlFWlk4QmdyYVJqajhUUUtWU0ZHWExHQ2xnakI?oc=5" target="_blank" rel="noopener">Jensen Huang Just Made a Major Announcement. Here&#x27;s What It Means for Nvidia Investors. - The Motley Fool</a>
+      <div class="news-summary">Jensen Huang Just Made a Major Announcement. Here&#x27;s What It Means for Nvidia Investors. &amp;nbsp;&amp;nbsp; The Motley Fool</div>
+      <div class="news-date">Sat, 09 May 2026 18:05:00 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (Investments) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMioAFBVV95cUxOYURERWVLX21ISEpMQjBZMFdLa3pjMU8wY0lpNDZCVDc5SDFKWkFxM0tyNG1zVThzcGtuQVQzRFZ0MDJpVEtkeHBldkgxWTZVX21CR2N3V1huRXJCTkw3N2tvUmRXeXZvYjZJaUZEZHFLVmJVa2VaUUppQmRlak5HRmtzWlBLX1lmOTlYOG9PMm9NcVkxUTV4Q05XR3NIT242?oc=5" target="_blank" rel="noopener">NVIDIA: ‘The Party Is Going to End Soon’ According to CNBC - 24/7 Wall St.</a>
+      <div class="news-summary">NVIDIA: ‘The Party Is Going to End Soon’ According to CNBC &amp;nbsp;&amp;nbsp; 24/7 Wall St.</div>
+      <div class="news-date">Sat, 09 May 2026 17:29:31 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMimAFBVV95cUxNbVZNWmRTT3hZdnZfekVLcWllUjZMVy1yYjRYUU9RemJUNVdkQW5Ubm82UlZuTzh6bE5aWkFFTmlpZ2lNM05sUUthNDVsWVdqcUh4M2VzT2F2LWQtWXUwUkI0dnJHbDZTMUhxVTV2UGJIc3dadFlNdldhQm9VUkdPOHgwTklkWl9PMEtMcnY4WnhnbDF4SExCMw?oc=5" target="_blank" rel="noopener">Jensen Huang Just Made a Major Announcement. Here&#x27;s What It Means for Nvidia Investors. - Yahoo Finance</a>
+      <div class="news-summary">Jensen Huang Just Made a Major Announcement. Here&#x27;s What It Means for Nvidia Investors. &amp;nbsp;&amp;nbsp; Yahoo Finance</div>
+      <div class="news-date">Sat, 09 May 2026 17:25:00 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMipgFBVV95cUxPOWstdkxlNEs5aUZkLVNSZDZnb0drM0JSbS14VFVGQ1ltWnJRVy14bWZWaFkwbjFteUJUZ2N1VFhXOFk1d2VZaWJHT0xURGgwb1EwbFlCd2pjLXVreXRyQVNkWWxyRnpvRmhJQWp5ZjFkaWxkSnFET3BPQ0JFLVJqM2w2VjJBbDdLbmVsM3NPX1pMbzhQbk9pNk5EVnd4Vk1Bb2ltcEJ30gGrAUFVX3lxTFBrMF9RX21ZMFRNNTBwbDVoTW93N2xjeGhlSEh6ZDZtY2FiZHVxTjlfaklmTnVLWlNoeWIybGxlLUpDQTVwLXVyTW5oei0xWDFBcjZUdjNRZzlrZVd4VDBxc3k0dDdTaW9Vd0wtc0lxYXBxS3EtVkVxUDdZelJIRllUbHhxRnJ2VTc1Q1AyMmdYM3dUXzlUajE4cnBxNkFHSGJoS3g2RUxRajVYUQ?oc=5" target="_blank" rel="noopener">Nvidia embraces role of AI investor, pushing past $40 billion in equity bets this year - CNBC</a>
+      <div class="news-summary">Nvidia embraces role of AI investor, pushing past $40 billion in equity bets this year &amp;nbsp;&amp;nbsp; CNBC</div>
+      <div class="news-date">Sat, 09 May 2026 12:00:01 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (Investments) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMi2wFBVV95cUxONDBXN1VDZUxiM3pQbmM0Y3FQLXoxQVF1NVlwUDFJeU43NzhZU0JkV2k1TjE3VVNMbGVTNWprTUhkbmVyeldGWnBvN3J1WWY2MnB3MXlqYzFIX054REdHTmpVWkNWeXF3RV91ZlB3Q1c2OXlFMWlQdTUwaF8xVWdpczFRTEV3aUR1ZFVzYkNKdHlOajFyZlhvVjJWZ2lYdGFYNU5mNDh5a2hNTk1uSFlyS2R6R09FcW9kMHNzZFJBczZSOVQtcngzY3RjX0dFNktRbk9yQTJNRy15TVE?oc=5" target="_blank" rel="noopener">Stock Market Today, May 8: Iren Jumps After Announcing Multi-Year Nvidia Partnership - The Motley Fool</a>
+      <div class="news-summary">Stock Market Today, May 8: Iren Jumps After Announcing Multi-Year Nvidia Partnership &amp;nbsp;&amp;nbsp; The Motley Fool</div>
+      <div class="news-date">Fri, 08 May 2026 21:51:00 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (Investments) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMinwFBVV95cUxNbGEtaDdGZHdzVkVlUWQwcm1nc0NWbzduVkpwSk9xREhtR0xIWUs3VWEwU3lTdWV1VjdmSDV0MUdPMkFxa1ZJLVlXVkRGQlRrV3Bac3hsM2xBRkR5d1VqZXFHaUpqQ09iVk9ZRm9sSTVyeFZaTGdKMF9OQWZIckdXY180aDdqOW9Fc29UT2RaS2lSYlNyLWhIS05ialNZalk?oc=5" target="_blank" rel="noopener">A Look At Corning (GLW) Valuation After The NVIDIA AI Data Center Partnership - Yahoo Finance</a>
+      <div class="news-summary">A Look At Corning (GLW) Valuation After The NVIDIA AI Data Center Partnership &amp;nbsp;&amp;nbsp; Yahoo Finance</div>
+      <div class="news-date">Fri, 08 May 2026 21:30:01 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMiiAFBVV95cUxNdUJLTjZPa3JkcHlDVE9fZGU2c0tJeW8xOWpHSmIwVUNuVUNyUnlqVndZMWpVYnFfNzAzeFB0Nk01c2xMMmpJQ0s3Yzk0dlU4M0Eta29FLXAxbEhvTWpUNi0ydmtDRGYzb0xFX2g4amhadlVDWmpWRnVlWlRBT0N4V3hSc0Z3M0RQ?oc=5" target="_blank" rel="noopener">Nvidia CEO Jensen Huang doubles down on living in California, again - SFGATE</a>
+      <div class="news-summary">Nvidia CEO Jensen Huang doubles down on living in California, again &amp;nbsp;&amp;nbsp; SFGATE</div>
+      <div class="news-date">Fri, 08 May 2026 19:09:39 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (Investments) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMiyAFBVV95cUxNSEU1RDNXSm9hMlN5TTlxTV9vUU9qbHg1Z004YlMwVEJ1WXgxNDZvWFh3VGpPaGtyNWh0NG1fVFplNU5jT3I2QzkzZ1Y0Rm1Gb2VKa2FadWtjWFZkeVM0WV9UZUJQREFETDdtZl96MktqWUd0bXlvbU01S2NvYWs1ak5Md1RPcW93alJjNEVJMmRWdmhITHAxVFZQdFJBeVBMeUFteFFGY3V2WHBObm05QWt3WDBaWFBaemVoNU4tZC0yOUJJV2hXaw?oc=5" target="_blank" rel="noopener">IREN&#x27;s Next Stop Could Be $100 Thanks To Nvidia Partnership: Bernstein - Benzinga</a>
+      <div class="news-summary">IREN&#x27;s Next Stop Could Be $100 Thanks To Nvidia Partnership: Bernstein &amp;nbsp;&amp;nbsp; Benzinga</div>
+      <div class="news-date">Fri, 08 May 2026 18:32:09 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMimwJBVV95cUxNbFI0c2o2eGZ0bG9idi0ydjBBOVF1cS11eEY5Rl9OaEZ1NUY3VWwxWVB4MVItTU9iX2oyUWFRU2xGVWpfRXNiNjlPeHVSVkx3T2RaWWZBSFBsWG1IUEpsbGpqbExKOTE0d05yeW95OE8tUUdsQmhsS2RwV3Bjc0hJR1IySFBpUjFFTFp0NkRZamcySlF0ZzJESUtIM2RIU2pqYUtPQ3B2VGQ0R3BUQ0RtOGRyRTFRbTRJLXpuaHVBTENfeUt5WjYxSEtNZ3hSN1lLR3p0SnNNRFVtN05tS0xRS0hxV3hxSGhSVXlBblBNUkR2NUN5ZTU4anV0b0dVa0JPZTY5SFpMLW9hYWRrTDRfOXlQdU5VWGRqSWZv?oc=5" target="_blank" rel="noopener">Jensen Huang says new Nvidia AI partnership will ‘revitalize American manufacturing’ - TechRadar</a>
+      <div class="news-summary">Jensen Huang says new Nvidia AI partnership will ‘revitalize American manufacturing’ &amp;nbsp;&amp;nbsp; TechRadar</div>
+      <div class="news-date">Fri, 08 May 2026 17:25:00 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMilgFBVV95cUxNd21XLUxzcF9CZWdCQ2t3REV6TGE5d1huanRjZ2tndG9pWTdfdUtxS0VXRDBEVzNORTBsVGo4SE1hREI1VmZ6MGdYemlMVWJ1NE1KWU1uV3JDd2k5ZVhMMDRTNE04TXJCWUk0UDRVaTVMNXNuTEJTM2pJZ2dzYU1YOTl6Y0RHeGVMeXBNNFpDVmktQXAzQkE?oc=5" target="_blank" rel="noopener">Nvidia’s AI dominance faces uncomfortable new reality - thestreet.com</a>
+      <div class="news-summary">Nvidia’s AI dominance faces uncomfortable new reality &amp;nbsp;&amp;nbsp; thestreet.com</div>
+      <div class="news-date">Fri, 08 May 2026 15:17:00 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (Investments) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMiygFBVV95cUxPb2hRZFdudDNMdDFfcHdXQWZ5WWFoVUNRcVZZd1FqYjZDMWR5TVRhY2o0cDNqazBSRkZ6NFkxTi1OSng1OHJXbFFZNmFZY2RNMnBpTWdGUkMwdE5XRUFsLWpXdU9McWtDZGJQTUIwLTdDLXJ2WUx1RzVzblFqTDE3bks3UEVweklHMzlPTEd5V2JIS0ZkcVlSbkRLWmRpUmRPcTFJbHN0bjBEWnB2S3ZFc3p5Qy1GQVBIVTU2ZUs0YzRYNnN6SHQ5MGl3?oc=5" target="_blank" rel="noopener">Cantor Fitzgerald raises IREN stock price target on Nvidia partnership - Investing.com</a>
+      <div class="news-summary">Cantor Fitzgerald raises IREN stock price target on Nvidia partnership &amp;nbsp;&amp;nbsp; Investing.com</div>
+      <div class="news-date">Fri, 08 May 2026 14:51:24 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (Investments) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMinwFBVV95cUxQNFdLZEUtQzRSd0dUM09oc3IzWlA5TzIzcHBidFJpNUZVVnJEcWViNkpmU1R0OWFUV054cmZNQ0I0dzFyU1ZVcEFkQVZIYzFCZDJobEh6VDRDRmZEX25yWlhwRm9LRm5tTEhuaGxneTJKVTBsNDA4OVN4Qk56M0txZHludTBydGgzaERQek9aOTM5YjM2Q1JuM2x4ajhMRTg?oc=5" target="_blank" rel="noopener">IREN Stock Rallies On Nvidia Partnership For AI Deployments - Investor&#x27;s Business Daily</a>
+      <div class="news-summary">IREN Stock Rallies On Nvidia Partnership For AI Deployments &amp;nbsp;&amp;nbsp; Investor&#x27;s Business Daily</div>
+      <div class="news-date">Fri, 08 May 2026 14:03:00 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMimAFBVV95cUxPdDkzRjI0YWgxd2ZPTC1EWEMtRW5CcTRXS09kdnlZN1ppM2VGWXNoWFIxZlNBeE02cEQ3V1dxNFJZNktkTzFjeXN3Z2dVVmJLbENmRkFHYmRoSlFQT3RrdWNXM0hBSmE2ZmlseVJ3MmFsTlp2YWExSW8zZ2NYTmV3Z0lySlh2TXdlSXU5WXVQVmJrTEo0VHI1UA?oc=5" target="_blank" rel="noopener">What Happens to Nvidia If Jensen Huang Steps Down? - 24/7 Wall St.</a>
+      <div class="news-summary">What Happens to Nvidia If Jensen Huang Steps Down? &amp;nbsp;&amp;nbsp; 24/7 Wall St.</div>
+      <div class="news-date">Fri, 08 May 2026 11:25:12 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (Investments) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMie0FVX3lxTE1xMF9lM1Jud3g3VGxDVl9QVmtYMXRsNm53c2J1ZVVraWZUNEVrdXZXQU9HbzlHTUhsS3BXcG5meUpQVFFWZ0JZeFdoX0JRVW90NFhDWnk5Vk9fajNheW1pOW1Yc2hZaXBNLW9SOFdKS0J2dXgydjFyNF9Scw?oc=5" target="_blank" rel="noopener">Nvidia invests up to $2.1 billion in IREN AI data center deal - qz.com</a>
+      <div class="news-summary">Nvidia invests up to $2.1 billion in IREN AI data center deal &amp;nbsp;&amp;nbsp; qz.com</div>
+      <div class="news-date">Fri, 08 May 2026 11:23:08 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (Investments) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMiqwFBVV95cUxOcEhPZDNLV2VBNVJZc0hzalpEMlJiU1FfMERHZkE3ZFBIQWJ4dWRUbk8xQ2E5X3ZVSXliSU1QYkZhbEU3Ui1GamZ6dDJMUWpGanpmWjBOcmZxYWRZaXdhZUoyYmwwbk5aMjdBMnkyQUhRTEMxc2ZhcHRGaU1GUjZqOVVLa1A2cEdFS2lLaTgyMkt5S2E1c1NYSDZpaDYyNjFRWlphMjhnZVZlX1k?oc=5" target="_blank" rel="noopener">Nvidia could bring thousands of jobs to Austin. Here&#x27;s how. - Austin American-Statesman</a>
+      <div class="news-summary">Nvidia could bring thousands of jobs to Austin. Here&#x27;s how. &amp;nbsp;&amp;nbsp; Austin American-Statesman</div>
+      <div class="news-date">Fri, 08 May 2026 10:09:22 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMi4gFBVV95cUxOWUlUT1F5eFJRbjBvYVA2bzhUV3NUSExnMTNFVDVHZWlISzR2SV9mcXQzN2ZmRzJPcE84Z2xXVjVRTzhzd21ubkFuX0UxdHhPeG96dE5McTJJcklMR2VWWnNYV0FlZHRsUkZwNlg2NERiaTRGbFQ3WWs4V1dPbjdzdVNBcmlXWVVyczNuS2hwcTRSZEJnS0hVYXp5amZ3R0habHc3bktzeW9aMC1hY3RKUnBibVZlS2JaZTNnQmVjT3lkbnNjUlB0SnE4SGtaRm9Bd1I3REY1SnRMRGNmLTV4bWtn?oc=5" target="_blank" rel="noopener">NVIDIA and IREN Announce Strategic Partnership to Accelerate Deployment of up to 5 Gigawatts of AI Infrastructure - NVIDIA Newsroom</a>
+      <div class="news-summary">NVIDIA and IREN Announce Strategic Partnership to Accelerate Deployment of up to 5 Gigawatts of AI Infrastructure &amp;nbsp;&amp;nbsp; NVIDIA Newsroom</div>
+      <div class="news-date">Fri, 08 May 2026 04:34:42 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMirwFBVV95cUxNUDB5Mk9UZFpEOUVQU09RcEZXU0lrVUNuQ3ZkTFl6anJNN2JwbHBVZUNKSWowQUJTTUV2aU11cUJ5NmdSMm55OXhEZ0lhYzctZHk2V3VuRDlWX212dWZiRTktVFlkQ3IwZkV5NmFhZDcxZ3ZEZlNVWkdHSWxzbmFUV0tYczJZU3p0T053ZWppZXFmSENqNTRySEJQSWZpWXVrNTJOdmxUazY2QjVsRGFj?oc=5" target="_blank" rel="noopener">Nvidia CEO Says He Would Join Trump’s China Trip If Invited - Bloomberg.com</a>
+      <div class="news-summary">Nvidia CEO Says He Would Join Trump’s China Trip If Invited &amp;nbsp;&amp;nbsp; Bloomberg.com</div>
+      <div class="news-date">Fri, 08 May 2026 00:18:00 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (Investments) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMiuwFBVV95cUxQQWhwcGp5c2hzYU1zMUJzYlRfZTA3MjNjUTV5QjE0ZWRZX3ZKVGI4M1RyczFqRkhhSWlHQ0Y0aFlhVWNKMWpsMVNFLTNCNnFwcGJzX09rbXpmVi13Qm8xM0NYcm1TcjFOM19wVklMRXVTblhVcFJKMHU0WkNiYXUxczNfdVhSVHVjQlVSNUZsaU5aMnpVNW1qOXd6cWNrQnRuR3o2czRSTlpNcEU1S0d1YzA2M3BxRUdtRy1V?oc=5" target="_blank" rel="noopener">Jim Cramer sits down with the CEOs of Nvidia and Corning to talk partnership - CNBC</a>
+      <div class="news-summary">Jim Cramer sits down with the CEOs of Nvidia and Corning to talk partnership &amp;nbsp;&amp;nbsp; CNBC</div>
+      <div class="news-date">Thu, 07 May 2026 23:53:00 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (Investments) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMiygFBVV95cUxNNXlHMEhVUlkxakNBdDJyTWUyLTVORW5mTmh2ZGpNd3NWd1RFbzllelRmandGWS10UDNSUmpCWGQ0WUpYbjA0UnMzSmVSQW1ILURzTFozWXlicktZRF8xWG4yaFpxVUd3ZFg1aFBMMDJrV0FUUG1CUEVoSjFRNWExWXNra0twVTV2NW1SeDgwa3RDclRqcE5id3BSVGR1RTVhaXlobFJVUXBxY2JFMW1pRmtZemFQNFZXZFdkaFFjdlBXcDgzNHQ0dDJn?oc=5" target="_blank" rel="noopener">Nvidia CEO Jensen Huang says Corning partnership will &#x27;revitalize American manufacturing&#x27; - CNBC</a>
+      <div class="news-summary">Nvidia CEO Jensen Huang says Corning partnership will &#x27;revitalize American manufacturing&#x27; &amp;nbsp;&amp;nbsp; CNBC</div>
+      <div class="news-date">Thu, 07 May 2026 23:52:00 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMipwFBVV95cUxON0swZkZDZG5KN2JuUG0tOHdWNXlwM2lvMmNLZ2tnemp2RVUwaGR0MmJJdkYzYlZFM3llMGpqdWtocE1MSTl4Yk14ZnRfZ1lOc2l1eDl1WG1UekdCbmlmd1Vtd0FyT3k1aDNwcER3MklnOVBPTE1qNlJYTUI2WE95RmVWX1o1YmYyLVV6OVBCMnkyOVhfOVRjUWFnTGl5d0pzelpQTVVjc9IBrAFBVV95cUxOZklvODFHRFNuVEJDbVBLLWw4QVA1M0pYU3NNNThER2hKZlZTa1lyZjdxNm5tU0lNZ0llenZ3NDlOVjBfeUpGeVM5TFVITWVpcUxuZHVISlY1WVZBV3ZXSGJ5MUNuQUZNVlBoOHlRZ05vR3JhTW81N0IzeExfbm9MakZMZTM0ODRvMnNNR1R4SlRQTVh3d3lQeW9LRUhfaGRibURPVDkyMEEwNWpY?oc=5" target="_blank" rel="noopener">Nvidia CEO says AI partnership with Corning will &#x27;revitalize American manufacturing&#x27; - CNBC</a>
+      <div class="news-summary">Nvidia CEO says AI partnership with Corning will &#x27;revitalize American manufacturing&#x27; &amp;nbsp;&amp;nbsp; CNBC</div>
+      <div class="news-date">Thu, 07 May 2026 22:49:28 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (Investments) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMifEFVX3lxTE1Ibjd6aUM3QzlEZVplTXQ1MjJrZVVCR1F3VlBsNzZGWXVQQW5mZXkyaUxwNWJUUVc4UGRJUkx1RXYwVTQzRFFhSE0tTlVNQWVvMG04MXRZRU02YldrR3JGWXdxOE1KYUdsdU9QU1MtNmp6OFdpbWFCdWc0R1XSAYIBQVVfeXFMTjlkVTZERGZmNEwyQ1lFT1F4T0k2MmI5QVQxaGR6T3FOMkJyUHJFMmVSdS1RSGtsYkxkSTFjUm1Rd3ZCNUtzRlE4MGRlZktSWE40TWNzWFZsbEpmeW5OQXRYa2ZCN1IwbGdlRndjRGhxRHNtWGZOUE5FVmk4WFcySnE1Zw?oc=5" target="_blank" rel="noopener">IREN inks AI infrastructure deal with Nvidia - CNBC</a>
+      <div class="news-summary">IREN inks AI infrastructure deal with Nvidia &amp;nbsp;&amp;nbsp; CNBC</div>
+      <div class="news-date">Thu, 07 May 2026 21:28:19 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (Investments) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMimwFBVV95cUxNTHBaZlVJZ29yYzg0QjF6bXlZRmEyU2NyN3c0NzZEb0k5dXpEd2owRjk0c1FTMVJQWVZYdThBaDRPd1drVGRlcnZDR21KZjNYS3hnQUkzYWdmM1dQV3RkZGsyS1pzT0RYYWdyeW1DVmJERXpIWWxnRjA0bUNjNzBTSnlsZjlhaUJCbWlBLWlGX09hMWRpaE1WRFVUcw?oc=5" target="_blank" rel="noopener">Nvidia to invest up to $2.1 billion in IREN in partnership that deploys as much as 5 gigawatts of its AI infrastructure - Sherwood News</a>
+      <div class="news-summary">Nvidia to invest up to $2.1 billion in IREN in partnership that deploys as much as 5 gigawatts of its AI infrastructure &amp;nbsp;&amp;nbsp; Sherwood News</div>
+      <div class="news-date">Thu, 07 May 2026 21:21:50 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (Investments) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMixwFBVV95cUxNVHlZaEF2bXRvQ1pWdFdrZUpCOEN0YTdWNnZ3MjY1OWQ2SndMX3lieF9wUk43NERkOEV4ald2eExPRHdFdEFsX3Z6YzJwS3pHX05JRG9NNVQ0eUxEbXRZN2pTNlE1YWljMVdFZjEtdW9qMzhuZU5wd2dneGpfV2NuMHR1UkgxVm0zb0hybm9TSjg4cWt3RmdyMU5PY3FqQndOb3ljNEJocFNuTzZzeU9KbDhvZk56eDNuN2ZndXh3dUNMUnpyMW84?oc=5" target="_blank" rel="noopener">NVIDIA and IREN Announce AI Infrastructure Partnership With Potential $2.1 Billion Investment - Quiver Quantitative</a>
+      <div class="news-summary">NVIDIA and IREN Announce AI Infrastructure Partnership With Potential $2.1 Billion Investment &amp;nbsp;&amp;nbsp; Quiver Quantitative</div>
+      <div class="news-date">Thu, 07 May 2026 21:16:00 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (Investments) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMixAFBVV95cUxNd052aVdMQVdlNF9YYnZ4U2lZZ0JEWm1zbHhELVU2UTNuY19LTjk4NHJqTzRYNzVNb0tXcjhFdHg2VFI0UEMwdkFXWDRFQldEV1lZcW51SGNSSmtjS1JMXzJ2MWN5WVZ5eVU5MXlTWmNCVmRhamZ0U3lDNGxRc0pOSjJBZHBacmVScFl2WVVyZ09jR2lGWWY2UGhEVGwxcHJpMk1MNVk1R0lodmp5OHE2OGhIY0FGR01ubFY4TG1hRmdTcFZZ?oc=5" target="_blank" rel="noopener">IREN stock surges 27% on Nvidia partnership for AI infrastructure - Investing.com</a>
+      <div class="news-summary">IREN stock surges 27% on Nvidia partnership for AI infrastructure &amp;nbsp;&amp;nbsp; Investing.com</div>
+      <div class="news-date">Thu, 07 May 2026 20:54:07 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">NVIDIA Blog <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://blogs.nvidia.com/blog/energy-secretary-chris-wright-ian-buck/" target="_blank" rel="noopener">Powering the Next American Century: US Energy Secretary Chris Wright and NVIDIA’s Ian Buck on the Genesis Mission</a>
+      <div class="news-summary">AI will help build the energy it needs. That’s the case U.S. Energy Secretary Chris Wright and NVIDIA Vice President of Hyperscale and High-Performance Computing Ian Buck made Thursday morning at the SCSP AI+ Expo. The 30-minute fireside chat, moderated by SCSP president Ylli Baj...</div>
+      <div class="news-date">Thu, 07 May 2026 19:14:38 +0000</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">NVIDIA Blog <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://blogs.nvidia.com/blog/geforce-now-thursday-gaijin-sso/" target="_blank" rel="noopener">Linked and Loaded: Gaijin Single Sign-On Now Available on GeForce NOW</a>
+      <div class="news-summary">Less typing, more tanking. Faster logins mean more time in the gaming action — and this week provides GeForce NOW members with a smoother path straight into the battlefield. Cloud gaming is all about instant access to titles across devices, and the latest GeForce NOW update remov...</div>
+      <div class="news-date">Thu, 07 May 2026 13:00:27 +0000</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (Investments) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMi1wFBVV95cUxNN1p2MHozb3NJRnNIbUFvUG52eDM5cXo1STV3Nm1JNjhSNGtRZjBlNU04SXhrRzlSbFBKN3p2WFVoZk5YdHc5UUZ3dHA0OEhMcXpya21fYVZpY1AzcDZVRDFIVmpjbVJ5cVY0MHlSaTl5OGdsOFljWndVVEhMTVVhdDZqWTR6c19TMFpPZXlHdjdZU2U5b1BUNkFGWDJZMy1rdzFpYXZPcTNCN0dScmh3NGs0TTIyOVZPYzRPendkRHdlMXZIa0VvYjkwdzhqYVF0U2Z1cTdNSQ?oc=5" target="_blank" rel="noopener">Amazon (NASDAQ: AMZN) CEO Reaffirms Nvidia Partnership as AI Infrastructure Demand Accelerates - foreignpolicyjournal.com</a>
+      <div class="news-summary">Amazon (NASDAQ: AMZN) CEO Reaffirms Nvidia Partnership as AI Infrastructure Demand Accelerates &amp;nbsp;&amp;nbsp; foreignpolicyjournal.com</div>
+      <div class="news-date">Wed, 06 May 2026 18:49:52 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMiWEFVX3lxTFBycWdOYzJvN2VReDVWSllHaVo3Qm9mYXJUaTR3eU8tbmNyY3R6T0laMi1zV2l0aTlRcXFNLTVkc2ZHMmZ1M3VaOENlMkl1UU9ua2pxUkN3Ukw?oc=5" target="_blank" rel="noopener">Jensen Huang - Britannica</a>
+      <div class="news-summary">Jensen Huang &amp;nbsp;&amp;nbsp; Britannica</div>
+      <div class="news-date">Wed, 06 May 2026 16:56:00 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (Investments) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMimgFBVV95cUxOV3hISzljMlAzcS1JWllHR29XSnRZdTY3YkFYeTZGd1ZWWkJ2V1lTQWVWMmRJQ25JX0QyamVRRExocDJybHc5dDZ5TkpxUHAwa0Y2ZkQxbmRBQllLODN1M18zdk1nR1BHdWxDaU42M3VUb0drNFpDSzhyQThtN0JDTXd6SE9Ua2p2c1A3UmRMX0JRVVIteHZjWWpn?oc=5" target="_blank" rel="noopener">Nvidia Deal Will Help Corning Increase Optical Capacity Tenfold. Its Stock Gets a Boost, Too. - Barron&#x27;s</a>
+      <div class="news-summary">Nvidia Deal Will Help Corning Increase Optical Capacity Tenfold. Its Stock Gets a Boost, Too. &amp;nbsp;&amp;nbsp; Barron&#x27;s</div>
+      <div class="news-date">Wed, 06 May 2026 15:46:00 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (Investments) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMiqgFBVV95cUxPeEUzNVNUVUpZQ1JjRTNsdjg5Z1pSVnM1bm5QVGhTQzRfYk1GTmxjbmdvUExQRTNtZDF2WGdvZm9hT2JlZkp3WlJLc2VoVlpNY2gyTDRBSW9WUDBqdDlMcVVlcHk3a00zV2xCbDNQMlFfMVVyTWpKYWhBaFkzMlMyM1Y0LVc4d21CMUhYLVEzTE5nN1I1UjJJdlZEZmp4WDNFSlZESnRsTEpvQQ?oc=5" target="_blank" rel="noopener">Corning spikes after Nvidia invests $500 million in the fiber-optics company - Sherwood News</a>
+      <div class="news-summary">Corning spikes after Nvidia invests $500 million in the fiber-optics company &amp;nbsp;&amp;nbsp; Sherwood News</div>
+      <div class="news-date">Wed, 06 May 2026 15:16:16 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (Investments) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMiowFBVV95cUxPS0s5bVFxRUhPeUx1U0RlSktzZHF2OVJFQVpneW1wVmFSTmZ4OXlfek94VVlLNWVQYS1xTWlQckk0YXhEN2tJNGxITk4tMmxZWXM2aUxTMVJOSnhXOFp4dlkxRl9Hb0VPbFdLeVRfOGZtczZZSTBNbExXUVV1dzFlZXJ0bHh4ZkNiTGNJTjFKcVpfLWhSMENxVDc1OGg3OUw0RGVj?oc=5" target="_blank" rel="noopener">Nvidia to Invest $500 Million in Corning, Expand Fiber Optic Manufacturing - WSJ</a>
+      <div class="news-summary">Nvidia to Invest $500 Million in Corning, Expand Fiber Optic Manufacturing &amp;nbsp;&amp;nbsp; WSJ</div>
+      <div class="news-date">Wed, 06 May 2026 12:19:00 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMiZEFVX3lxTE9Md0cwSmo3NGlrR2E4YTAtNFN2VmtBS1Y5c0RCMmJaTFBvUmJrN1dueDlWQzQ2d254UklucGVaYkNwcTRrUVZ6cXlVdGZTNHhEYWp2dTdldW5jRXdjUU1scjZVZ1I?oc=5" target="_blank" rel="noopener">NVIDIA Spectrum-X — the Open, AI-Native Ethernet Fabric — Sets the Standard for Gigascale AI, Now With MRC - NVIDIA Blog</a>
+      <div class="news-summary">NVIDIA Spectrum-X — the Open, AI-Native Ethernet Fabric — Sets the Standard for Gigascale AI, Now With MRC &amp;nbsp;&amp;nbsp; NVIDIA Blog</div>
+      <div class="news-date">Wed, 06 May 2026 11:37:19 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (NVIDIA) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMi0wFBVV95cUxQZ0ZxZHZ5VG96czVMOGU0RzZIaW5JdmtmZmdxM0tJUE1ybXFPME8tdllfdXZYYmstWDNieGF2eDJtZnNmbzBjSjYxNkZiWEdjRzVkdXhEQ293ajFaWHI0UnJuUV8xNEFET1ZNY0J3N1FRbE5vaHo4V2UtN3B2RVlNSEo2bGRqYnZ0S0ZkeDc4bWhHa01ER21OS3dDMmxqYmFTQmxMSGdsSGpqaUhnTkI4YUZESFh0SEh1dWs4NGxRbXE3RzhvM2hLVG9EcDI1STNVdENZ?oc=5" target="_blank" rel="noopener">NVIDIA and Corning Announce Long-Term Partnership to Strengthen US Manufacturing for AI Infrastructure - NVIDIA Newsroom</a>
+      <div class="news-summary">NVIDIA and Corning Announce Long-Term Partnership to Strengthen US Manufacturing for AI Infrastructure &amp;nbsp;&amp;nbsp; NVIDIA Newsroom</div>
+      <div class="news-date">Wed, 06 May 2026 11:35:55 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">NVIDIA Blog <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://blogs.nvidia.com/blog/spectrum-x-ethernet-mrc/" target="_blank" rel="noopener">NVIDIA Spectrum-X — the Open, AI-Native Ethernet Fabric — Sets the Standard for Gigascale AI, Now With MRC</a>
+      <div class="news-summary">The race to build the world’s most powerful AI factories demands networking that keeps pace with the ambitions of AI itself. NVIDIA Spectrum-X Ethernet scale-out infrastructure stands at the forefront of that race as the most advanced AI networking technology available today, dep...</div>
+      <div class="news-date">Wed, 06 May 2026 11:30:20 +0000</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">Google News (Investments) <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMiiAFBVV95cUxORDJQc25TbUZNY2JMUmg4MjRheTV4TVQ3bWJtMkcyblFDMVdwWEE3M3FtOVVyT0xaV2cwSzFXQmk0U0l6MHp6UFMwYi1sYzdheTVadlhMMUJzVGtMeXhQa0Y5Y2dVem1EUTYzaVp0eGpoWTJSNkhFekdkb2Z5ZDNocENuMjFSWTcw0gGOAUFVX3lxTFBHZW01bV8tRUNsVEFWVno1WklTNmRVZTFueGxiM241MWRVTFFsN0JFS0Jxb3VxLTRMQkk5RWVxYXd1U2xTS1JTQy03T1c2b1VIUm9icllPWEhXVDk5SlBkZk1DWk95aF9nVG92SGVtODBrQm1SMDdHTlJxZWtWaXplU3JZdU1raldIZmpBVEE?oc=5" target="_blank" rel="noopener">Nvidia to invest up to $3.2 billion in Corning as part of massive optical fiber deal with 3 new factories focused on AI - CNBC</a>
+      <div class="news-summary">Nvidia to invest up to $3.2 billion in Corning as part of massive optical fiber deal with 3 new factories focused on AI &amp;nbsp;&amp;nbsp; CNBC</div>
+      <div class="news-date">Wed, 06 May 2026 11:30:01 GMT</div>
+    </div>
+    <div class="news-card news-new">
+      <div class="news-source">NVIDIA Blog <span class="badge badge-new">NEW</span></div>
+      <a class="news-title" href="https://blogs.nvidia.com/blog/servicenow-autonomous-ai-agents-enterprises/" target="_blank" rel="noopener">NVIDIA and ServiceNow Partner on New Autonomous AI Agents for Enterprises</a>
+      <div class="news-summary">Enterprise AI has learned to generate. It has learned to reason. Now companies are asking the next question: How should AI act? Early agent systems have shown what’s possible, moving beyond simple prompts to take on more complex tasks. The next step is bringing those capabilities...</div>
+      <div class="news-date">Tue, 05 May 2026 17:00:40 +0000</div>
+    </div></div>
+  <div class="footer">
+    数据源：Google News · Yahoo Finance · NVIDIA Blog · SEC EDGAR<br>
+    由 GitHub Actions 自动构建 · 不构成投资建议
+  </div>
+</div>
+<script>
+// Convert UTC timestamp to viewer's local time
+const badge = document.getElementById('time-badge');
+const utc = '2026-05-11T03:48:13.035275+00:00';
+if (utc) {
+  try {
+    const d = new Date(utc);
+    const local = d.toLocaleString('zh-CN', { dateStyle: 'medium', timeStyle: 'short' });
+    badge.textContent = '最近更新：' + local + '（你本地时间）';
+  } catch (e) {}
+}
+</script>
+</body>
+</html>
