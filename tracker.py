@@ -59,20 +59,96 @@ COMPANIES = [
     },
 ]
 
+# Quantifier prefixes we want to skip between the verb and the target name.
+# Example: "invests *up to $2.1 billion in* IREN AI" → skip the bold part.
+_QUANT = r"(?:up\s+to\s+|over\s+|nearly\s+|approximately\s+|about\s+|around\s+|more\s+than\s+)?"
+_MONEY = r"(?:[\$\d.,]+\s*(?:billion|million|trillion|B|M|K)?\s+)?"
+_PREP  = r"(?:in|into|on)?\s*"
+# Target capture is *case-sensitive* (uses (?-i:...)) so it won't grab
+# lowercase prepositions like "up" or "in" even though the rest is case-insensitive.
+# Captures up to 4 capitalized words in a row → handles multi-word names like "IREN AI", "Habana Labs".
+_TARGET = r"(?-i:([A-Z][\w&.\-]+(?:\s+[A-Z][\w&.\-]+){0,3}))"
+
 INVEST_PATTERN_TEMPLATES = [
-    r"(?:{co})\s+(?:invests?|invested|to invest|investing)\s+(?:[\$\d.,]+\s*(?:billion|million|B|M)?\s*(?:in|into)\s+)?([A-Z][\w\s&.\-]+?)(?=[\s.,;:!?]|$)",
-    r"(?:{co})\s+(?:acquires?|acquired|to acquire|acquiring)\s+([A-Z][\w\s&.\-]+?)(?=[\s.,;:!?]|$)",
-    r"(?:{co})\s+(?:takes?|took|taking)\s+(?:a\s+)?(?:[\$\d.,]+\s*(?:billion|million|B|M)?\s*)?stake\s+in\s+([A-Z][\w\s&.\-]+?)(?=[\s.,;:!?]|$)",
-    r"(?:{co})\s+(?:backs?|backed|backing|leads?|led|leading)\s+([A-Z][\w\s&.\-]+?)\s+(?:funding|round|Series|investment)",
-    r"(?:{co})\s+(?:partners?|partnered|partnering)\s+with\s+([A-Z][\w\s&.\-]+?)(?=[\s.,;:!?]|$)",
+    rf"(?:{{co}})\s+(?:invests?|invested|to invest|investing)\s+{_QUANT}{_MONEY}{_PREP}{_TARGET}",
+    rf"(?:{{co}})\s+(?:acquires?|acquired|to acquire|acquiring)\s+{_TARGET}",
+    rf"(?:{{co}})\s+(?:takes?|took|taking)\s+(?:a\s+)?{_MONEY}stake\s+in\s+{_TARGET}",
+    rf"(?:{{co}})\s+(?:backs?|backed|backing|leads?|led|leading)\s+{_TARGET}(?:'s)?\s+(?:funding|round|series|investment)",
+    rf"(?:{{co}})\s+(?:partners?|partnered|partnering)\s+with\s+{_TARGET}",
 ]
 
-STOP_WORDS = {"the", "a", "an", "this", "that", "its", "their", "our", "your",
-              "and", "or", "but", "new", "more", "with", "to", "of", "us", "ai"}
+# Words that should never be a "target company" on their own.
+# Also stripped from the START or END of multi-word captures.
+STOP_WORDS = {
+    # Articles & determiners
+    "the", "a", "an", "this", "that", "these", "those",
+    # Pronouns
+    "its", "their", "our", "your", "his", "her", "my", "we", "you", "they",
+    # Conjunctions
+    "and", "or", "but", "nor", "yet", "so",
+    # Prepositions (these get capitalized in title-case headlines)
+    "in", "on", "at", "by", "to", "of", "with", "from", "into", "onto",
+    "for", "over", "up", "down", "as", "about", "via", "around", "through",
+    # Be/aux verbs
+    "is", "are", "was", "were", "be", "been", "being",
+    "have", "has", "had", "do", "does", "did",
+    # Headline verbs / modals
+    "says", "said", "announces", "announced", "reports", "reported",
+    "plans", "planned", "will", "would", "could", "may", "might",
+    "expects", "expected", "warns", "warned", "raises", "raised",
+    # Comparatives / quantifiers
+    "new", "more", "less", "most", "least", "many", "few", "several",
+    "first", "next", "last", "recent", "latest", "another", "other",
+    # Money / numbers
+    "billion", "million", "trillion", "b", "m", "k",
+    # Common short caps in headlines
+    "ai", "ml", "ar", "vr", "ev", "iot", "us", "usa", "uk", "eu",
+    "ceo", "cto", "cfo", "ipo", "vc", "pe", "ir",
+    # Generic business nouns (almost never the actual company name)
+    "company", "companies", "firm", "startup", "business", "team",
+    "report", "deal", "investment", "investments", "stake", "shares",
+    "inc", "corp", "ltd", "llc", "co",
+    # Time / dates
+    "today", "yesterday", "tomorrow", "year", "month", "week", "day",
+    "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+    "january", "february", "march", "april", "may", "june",
+    "july", "august", "september", "october", "november", "december",
+    # Common gerunds that show up after generic nouns
+    "building", "making", "running", "doing", "working", "trying", "driving",
+}
+
+
+def clean_target(raw, parent_co_regex):
+    """Strip junk from captured target. Returns cleaned string or None if not a plausible company."""
+    target = (raw or "").strip(" \t\n.,;:!?\"'")
+    if not target:
+        return None
+    # Strip leading and trailing stop words, preserve middle (e.g. "Bank of America")
+    words = target.split()
+    while words and words[0].lower() in STOP_WORDS:
+        words = words[1:]
+    while words and words[-1].lower() in STOP_WORDS:
+        words = words[:-1]
+    if not words:
+        return None
+    cleaned = " ".join(words)
+    if not (2 <= len(cleaned) <= 80):
+        return None
+    if not cleaned[0].isupper():
+        return None
+    if cleaned.lower() in STOP_WORDS:
+        return None
+    if not any(ch.isalpha() for ch in cleaned):
+        return None
+    # Reject if the entire cleaned target is the parent company itself
+    # (e.g., "NVIDIA" or first word matches NVIDIA)
+    if parent_co_regex.fullmatch(cleaned) or parent_co_regex.fullmatch(words[0]):
+        return None
+    return cleaned
 
 # Build per-company patterns + feeds
 for c in COMPANIES:
-    c["patterns"] = [t.format(co=c["name_regex"]) for t in INVEST_PATTERN_TEMPLATES]
+    c["patterns"] = [t.replace("{co}", c["name_regex"]) for t in INVEST_PATTERN_TEMPLATES]
     c["self_regex"] = re.compile(c["name_regex"], re.IGNORECASE)
     feeds = [
         (f"Google News · {c['name']}",
@@ -189,13 +265,8 @@ def detect_investments(items):
         for c in COMPANIES:
             for pat in c["patterns"]:
                 for m in re.finditer(pat, text, re.IGNORECASE):
-                    target = m.group(1).strip(" .,;:!?")
-                    if not (2 <= len(target) <= 60):
-                        continue
-                    if target.lower() in STOP_WORDS:
-                        continue
-                    # Skip if the "target" is just the parent company name itself
-                    if c["self_regex"].fullmatch(target):
+                    target = clean_target(m.group(1), c["self_regex"])
+                    if target is None:
                         continue
                     key = target.lower()
                     if key in seen_targets[c["name"]]:
