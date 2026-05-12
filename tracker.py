@@ -122,6 +122,85 @@ INVEST_PATTERN_TEMPLATES = [
     rf"(?:{{co}})\s+(?:partners?|partnered|partnering)\s+with\s+{_TARGET}",
 ]
 
+# --- Sentiment scoring for "why did the stock move" analysis ----------------
+POSITIVE_WORDS = [
+    # Stock movement
+    "surge", "surged", "surges", "soar", "soared", "soars", "jump", "jumped", "jumps",
+    "rally", "rallied", "rallies", "rebound", "rebounded", "rebounds", "climb", "climbed", "climbs",
+    "rose", "rises", "gain", "gained", "gains", "advance", "advanced",
+    # Outcomes
+    "beat", "beats", "beating", "exceeded", "exceeds", "exceed", "record", "outperform", "outperformed",
+    "raise", "raised", "raises", "hike", "hiked", "lifts", "lifted", "boost", "boosted", "boosts",
+    "win", "won", "wins", "secured", "secures", "achieves", "achieved",
+    # Events / business
+    "launch", "launches", "launched", "unveil", "unveils", "unveiled", "debut", "debuts",
+    "breakthrough", "milestone", "agree", "agreed", "partner", "partners", "partnership",
+    "deal", "deals", "contract", "contracts", "expansion", "expand", "expanded",
+    "invest", "invests", "invested", "invests", "acquire", "acquires", "acquired",
+    "approval", "approved", "approve", "wins", "wins",
+    # Sentiment / forecast
+    "upgrade", "upgraded", "upgrades", "bullish", "optimistic", "strong", "robust",
+    "growth", "growing", "grow", "profit", "profits", "profitable",
+    "buy", "outperform", "overweight",
+]
+
+NEGATIVE_WORDS = [
+    # Stock movement
+    "drop", "dropped", "drops", "fall", "fell", "falls", "plunge", "plunged", "plunges",
+    "tumble", "tumbled", "tumbles", "slip", "slipped", "slips", "sink", "sank",
+    "decline", "declined", "declines", "slump", "slumped", "slumps", "crash", "crashed",
+    "tank", "tanked", "slide", "slid",
+    # Outcomes
+    "miss", "missed", "misses", "missing", "cut", "cuts", "slash", "slashed", "slashes",
+    "lose", "lost", "loses", "lower", "lowered", "reduce", "reduced", "halt", "halted",
+    "suspend", "suspended", "underperform", "underperformed",
+    # Events / business
+    "warn", "warns", "warning", "concern", "concerns", "fear", "fears", "lawsuit", "sue", "sued",
+    "fine", "fined", "probe", "investigation", "fraud", "scandal", "recall", "recalled",
+    "breach", "leak", "delay", "delayed", "cancel", "cancelled", "canceled", "layoff", "layoffs",
+    "fired", "resign", "resigned", "exit", "exits",
+    # Sentiment / forecast
+    "downgrade", "downgraded", "downgrades", "bearish", "weak", "weaker", "weakness",
+    "recession", "slowdown", "struggle", "struggling", "trouble", "crisis", "risk", "risks",
+    "sell", "underweight",
+]
+
+POS_RE = re.compile(r'\b(?:' + '|'.join(POSITIVE_WORDS) + r')\b', re.IGNORECASE)
+NEG_RE = re.compile(r'\b(?:' + '|'.join(NEGATIVE_WORDS) + r')\b', re.IGNORECASE)
+
+
+def score_sentiment(text):
+    """Count of positive minus negative keyword hits in text."""
+    if not text:
+        return 0
+    return len(POS_RE.findall(text)) - len(NEG_RE.findall(text))
+
+
+def build_sentiment_news(news_items):
+    """For each company, identify the most positive and most negative news."""
+    by_ticker = {}
+    for c in COMPANIES:
+        company_news = [n for n in news_items if n["primary_company"] == c["name"]]
+        scored = []
+        for n in company_news:
+            text = f"{n['title']}. {n['summary']}"
+            score = score_sentiment(text)
+            if score != 0:
+                scored.append((score, n))
+        positive = sorted([s for s in scored if s[0] > 0], key=lambda x: -x[0])[:5]
+        negative = sorted([s for s in scored if s[0] < 0], key=lambda x: x[0])[:5]
+        def pack(items):
+            return [{
+                "title": n["title"], "link": n["link"], "source": n["source"],
+                "date": n["published"], "score": s,
+            } for s, n in items]
+        by_ticker[c["ticker"]] = {
+            "positive": pack(positive),
+            "negative": pack(negative),
+        }
+    return by_ticker
+
+
 STOP_WORDS = {
     "the", "a", "an", "this", "that", "these", "those",
     "its", "their", "our", "your", "his", "her", "my", "we", "you", "they",
@@ -664,6 +743,24 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .modal-stat-label{font-family:'Space Mono',monospace;font-size:9px;color:var(--text3);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:4px}
 .modal-stat-val{font-size:16px;font-weight:700;font-family:'Space Mono',monospace}
 .modal-stat-val.up{color:#00e5a0}.modal-stat-val.down{color:#ff6b6b}
+.modal-reasons{margin:18px 0;padding-top:16px;border-top:1px solid var(--border)}
+.modal-reasons-title{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:14px;text-align:center}
+.reasons-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:600px){.reasons-grid{grid-template-columns:1fr}}
+.reason-col{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px}
+.reason-label{font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:1px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.reason-label.up{color:#00e5a0}
+.reason-label.down{color:#ff6b6b}
+.reason-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px}
+.reason-item{font-size:12px;line-height:1.45;padding:6px 0;border-bottom:1px dashed var(--border)}
+.reason-item:last-child{border-bottom:none}
+.reason-item a{color:var(--text);text-decoration:none;display:block;margin-bottom:3px}
+.reason-item a:hover{color:var(--blue)}
+.reason-meta{font-size:10px;color:var(--text3);font-family:'Space Mono',monospace;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.reason-score{padding:1px 6px;border-radius:10px;font-weight:700}
+.reason-score.up{background:rgba(0,229,160,.15);color:#00e5a0}
+.reason-score.down{background:rgba(255,107,107,.15);color:#ff6b6b}
+.reason-empty{font-size:11px;color:var(--text3);text-align:center;padding:14px;font-style:italic}
 .modal-meta{font-family:'Space Mono',monospace;font-size:10px;color:var(--text3);text-align:center;padding-top:12px;border-top:1px solid var(--border)}
 </style>
 </head>
@@ -727,6 +824,21 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       <div class="chart-tooltip" id="chartTooltip"></div>
     </div>
     <div class="modal-stats" id="modalStats"></div>
+
+    <div class="modal-reasons">
+      <div class="modal-reasons-title">📊 涨跌可能原因（基于近期新闻情绪分析）</div>
+      <div class="reasons-grid">
+        <div class="reason-col">
+          <div class="reason-label up">📈 利好新闻（可能推升价格）</div>
+          <ul class="reason-list" id="reasonsPos"></ul>
+        </div>
+        <div class="reason-col">
+          <div class="reason-label down">📉 利空新闻（可能压低价格）</div>
+          <ul class="reason-list" id="reasonsNeg"></ul>
+        </div>
+      </div>
+    </div>
+
     <div class="modal-meta">数据来源：Yahoo Finance · 每 2 小时自动刷新 · 鼠标悬停折线图查看每日价格</div>
   </div>
 </div>
@@ -802,8 +914,33 @@ function openPriceModal(ticker) {
   ).join('');
 
   renderLargeChart(closes, tss);
+  renderReasons(d.positive_news || [], d.negative_news || []);
   modalEl.classList.add('open');
   modalEl.setAttribute('aria-hidden', 'false');
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderReasons(pos, neg) {
+  const posEl = document.getElementById('reasonsPos');
+  const negEl = document.getElementById('reasonsNeg');
+  const renderList = (arr, dir) => {
+    if (!arr.length) {
+      return '<li class="reason-empty">本周期未检测到明显' + (dir==='up'?'利好':'利空') + '新闻</li>';
+    }
+    return arr.map(n => {
+      const score = (n.score >= 0 ? '+' : '') + n.score;
+      return '<li class="reason-item">' +
+        '<a href="' + escapeHtml(n.link) + '" target="_blank" rel="noopener">' + escapeHtml(n.title) + '</a>' +
+        '<div class="reason-meta"><span>' + escapeHtml(n.source) + '</span>' +
+        '<span class="reason-score ' + dir + '">情绪 ' + score + '</span></div>' +
+        '</li>';
+    }).join('');
+  };
+  posEl.innerHTML = renderList(pos, 'up');
+  negEl.innerHTML = renderList(neg, 'down');
 }
 
 function closePriceModal() {
@@ -914,11 +1051,13 @@ def render_html(news, investments_by_co, sec_by_co, prices_by_co):
     sec_sections = render_sec_sections(sec_by_co)
 
     # Embed price data as JSON for the click-to-detail modal.
+    sentiment_news = build_sentiment_news(news)
     price_data_for_js = {}
     for c in COMPANIES:
         d = prices_by_co.get(c["name"])
         if not d or d.get("price") is None:
             continue
+        sent = sentiment_news.get(c["ticker"], {"positive": [], "negative": []})
         price_data_for_js[c["ticker"]] = {
             "name": c["name"],
             "color": c["color"],
@@ -926,6 +1065,8 @@ def render_html(news, investments_by_co, sec_by_co, prices_by_co):
             "prev_close": d["prev_close"],
             "closes": d["closes"],
             "timestamps": d["timestamps"],
+            "positive_news": sent["positive"],
+            "negative_news": sent["negative"],
         }
     price_json = json.dumps(price_data_for_js, ensure_ascii=False)
 
