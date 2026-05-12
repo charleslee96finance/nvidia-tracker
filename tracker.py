@@ -384,8 +384,12 @@ def fetch_price(ticker):
         data = r.json()
         result = data["chart"]["result"][0]
         meta = result["meta"]
-        closes = result["indicators"]["quote"][0].get("close", []) or []
-        closes = [c for c in closes if c is not None]
+        raw_closes = result["indicators"]["quote"][0].get("close", []) or []
+        raw_ts = result.get("timestamp", []) or []
+        # Keep only timestamp/close pairs where close is non-null
+        pairs = [(t, c) for t, c in zip(raw_ts, raw_closes) if c is not None]
+        timestamps = [p[0] for p in pairs]
+        closes = [p[1] for p in pairs]
         # Yesterday's close = second-to-last daily close. Yahoo's
         # meta.previousClose is often null on multi-day range queries, and
         # meta.chartPreviousClose is the price BEFORE the chart window (1 month ago) —
@@ -399,6 +403,7 @@ def fetch_price(ticker):
             "prev_close": day_baseline,
             "currency": meta.get("currency", "USD"),
             "closes": closes,
+            "timestamps": timestamps,
         }
     except Exception as e:
         print(f"price error {ticker}: {e}", file=sys.stderr)
@@ -451,7 +456,7 @@ def render_price_cards(prices_by_co, category):
         data = prices_by_co.get(c["name"])
         if not data or data["price"] is None:
             parts.append(f'''
-    <div class="price-card">
+    <div class="price-card disabled">
       <div class="price-head">
         <span class="price-ticker">{escape(c["ticker"])}</span>
         {co_badge_inline(c["name"])}
@@ -472,7 +477,7 @@ def render_price_cards(prices_by_co, category):
         m_sign = "+" if month_chg_pct >= 0 else ""
         m_cls = "up" if month_chg_pct >= 0 else "down"
         parts.append(f'''
-    <div class="price-card">
+    <div class="price-card clickable" data-ticker="{escape(c["ticker"])}" role="button" tabindex="0" aria-label="点击查看 {escape(c["name"])} 详情">
       <div class="price-head">
         <span class="price-ticker">{escape(c["ticker"])}</span>
         {co_badge_inline(c["name"])}
@@ -483,6 +488,7 @@ def render_price_cards(prices_by_co, category):
       </div>
       <div class="price-spark">{spark}</div>
       <div class="price-month">1 个月: <span class="{m_cls}">{m_sign}{month_chg_pct:.2f}%</span></div>
+      <div class="price-hint">👆 点击查看大图</div>
     </div>''')
     return "".join(parts)
 
@@ -633,6 +639,32 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .filter-btn{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;padding:6px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;transition:all .2s}
 .filter-btn:hover{color:var(--text)}
 .filter-btn.active{background:var(--text);color:var(--bg);border-color:var(--text)}
+.price-card.clickable{cursor:pointer}
+.price-card.clickable:hover{transform:translateY(-2px);border-color:var(--border2);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.price-card.disabled{opacity:.5}
+.price-hint{font-family:'Space Mono',monospace;font-size:9px;color:var(--text3);margin-top:6px;text-align:right;opacity:.6}
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);display:none;z-index:1000;align-items:center;justify-content:center;padding:20px;animation:fadeIn .2s}
+.modal-backdrop.open{display:flex}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:18px;padding:28px;max-width:780px;width:100%;max-height:92vh;overflow-y:auto;position:relative;animation:slideUp .25s cubic-bezier(0.22,1,0.36,1)}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-close{position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:50%;border:1px solid var(--border2);background:transparent;color:var(--text2);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;line-height:1}
+.modal-close:hover{background:var(--border2);color:var(--text)}
+.modal-header{display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap;padding-right:40px}
+.modal-ticker{font-family:'Space Mono',monospace;font-size:14px;font-weight:700;color:var(--text2);letter-spacing:2px}
+.modal-name{font-size:22px;font-weight:700}
+.modal-price-row{display:flex;align-items:baseline;gap:16px;margin-bottom:18px;flex-wrap:wrap}
+.modal-price{font-size:42px;font-weight:800}
+.modal-chg{font-family:'Space Mono',monospace;font-size:14px;font-weight:700}
+.modal-chart-wrap{position:relative;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:18px}
+.modal-chart{width:100%;height:240px;display:block}
+.chart-tooltip{position:absolute;display:none;background:var(--bg2);border:1px solid var(--border2);border-radius:6px;padding:6px 10px;font-family:'Space Mono',monospace;font-size:11px;pointer-events:none;white-space:nowrap;z-index:10;color:var(--text);box-shadow:0 4px 12px rgba(0,0,0,.4)}
+.modal-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:14px}
+.modal-stat{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.modal-stat-label{font-family:'Space Mono',monospace;font-size:9px;color:var(--text3);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:4px}
+.modal-stat-val{font-size:16px;font-weight:700;font-family:'Space Mono',monospace}
+.modal-stat-val.up{color:#00e5a0}.modal-stat-val.down{color:#ff6b6b}
+.modal-meta{font-family:'Space Mono',monospace;font-size:10px;color:var(--text3);text-align:center;padding-top:12px;border-top:1px solid var(--border)}
 </style>
 </head>
 <body>
@@ -677,6 +709,28 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
     由 GitHub Actions 自动构建 · 不构成投资建议
   </div>
 </div>
+
+<div class="modal-backdrop" id="priceModal" role="dialog" aria-labelledby="modalName" aria-hidden="true">
+  <div class="modal">
+    <button class="modal-close" id="modalClose" aria-label="关闭">×</button>
+    <div class="modal-header">
+      <span class="modal-ticker" id="modalTicker">—</span>
+      <span class="modal-name" id="modalName">—</span>
+      <span id="modalCoBadge"></span>
+    </div>
+    <div class="modal-price-row">
+      <span class="modal-price" id="modalPrice">$0.00</span>
+      <span class="modal-chg" id="modalChg">—</span>
+    </div>
+    <div class="modal-chart-wrap">
+      <svg class="modal-chart" id="modalChart" viewBox="0 0 600 240" preserveAspectRatio="none"></svg>
+      <div class="chart-tooltip" id="chartTooltip"></div>
+    </div>
+    <div class="modal-stats" id="modalStats"></div>
+    <div class="modal-meta">数据来源：Yahoo Finance · 每 2 小时自动刷新 · 鼠标悬停折线图查看每日价格</div>
+  </div>
+</div>
+
 <script>
 const badge = document.getElementById('time-badge');
 const utc = '{{NOW_ISO}}';
@@ -697,6 +751,149 @@ buttons.forEach(btn => btn.addEventListener('click', () => {
     c.style.display = (f === 'all' || c.dataset.company === f) ? '' : 'none';
   });
 }));
+
+// ===== Price detail modal =====
+const PRICE_DATA = {{PRICE_JSON}};
+const modalEl = document.getElementById('priceModal');
+const mTicker = document.getElementById('modalTicker');
+const mName = document.getElementById('modalName');
+const mBadge = document.getElementById('modalCoBadge');
+const mPrice = document.getElementById('modalPrice');
+const mChg = document.getElementById('modalChg');
+const mChart = document.getElementById('modalChart');
+const mStats = document.getElementById('modalStats');
+const tooltip = document.getElementById('chartTooltip');
+
+function fmtDate(ts) {
+  return new Date(ts * 1000).toLocaleDateString('zh-CN', {month:'short', day:'numeric'});
+}
+
+function openPriceModal(ticker) {
+  const d = PRICE_DATA[ticker];
+  if (!d) return;
+  mTicker.textContent = ticker;
+  mName.textContent = d.name;
+  mBadge.innerHTML = '<span class="co-badge" style="background:'+d.color+'22;color:'+d.color+';border:1px solid '+d.color+'55">'+d.name+'</span>';
+  const closes = d.closes, tss = d.timestamps;
+  const cur = d.price;
+  const prev = d.prev_close || cur;
+  const chg = cur - prev;
+  const chgPct = prev ? (chg/prev*100) : 0;
+  const up = chg >= 0;
+  mPrice.textContent = '$' + cur.toFixed(2);
+  mChg.textContent = (up?'+':'') + chg.toFixed(2) + ' (' + (up?'+':'') + chgPct.toFixed(2) + '%)';
+  mChg.className = 'modal-chg ' + (up?'up':'down');
+
+  const monthPct = (closes.length && closes[0]) ? ((closes[closes.length-1]-closes[0])/closes[0]*100) : 0;
+  const weekIdx = Math.max(0, closes.length - 6);
+  const weekBase = closes[weekIdx];
+  const weekPct = weekBase ? ((closes[closes.length-1]-weekBase)/weekBase*100) : 0;
+  const hi = Math.max.apply(null, closes), lo = Math.min.apply(null, closes);
+  const stats = [
+    ['当日涨跌', (chg>=0?'+':'')+chgPct.toFixed(2)+'%', chg>=0?'up':'down'],
+    ['1 周涨跌', (weekPct>=0?'+':'')+weekPct.toFixed(2)+'%', weekPct>=0?'up':'down'],
+    ['1 月涨跌', (monthPct>=0?'+':'')+monthPct.toFixed(2)+'%', monthPct>=0?'up':'down'],
+    ['月内最高', '$'+hi.toFixed(2), ''],
+    ['月内最低', '$'+lo.toFixed(2), ''],
+    ['昨日收盘', '$'+prev.toFixed(2), '']
+  ];
+  mStats.innerHTML = stats.map(s =>
+    '<div class="modal-stat"><div class="modal-stat-label">'+s[0]+'</div><div class="modal-stat-val '+s[2]+'">'+s[1]+'</div></div>'
+  ).join('');
+
+  renderLargeChart(closes, tss);
+  modalEl.classList.add('open');
+  modalEl.setAttribute('aria-hidden', 'false');
+}
+
+function closePriceModal() {
+  modalEl.classList.remove('open');
+  modalEl.setAttribute('aria-hidden', 'true');
+  tooltip.style.display = 'none';
+}
+
+function renderLargeChart(closes, tss) {
+  const W = 600, H = 240, padL = 50, padR = 16, padT = 12, padB = 30;
+  const cw = W - padL - padR, ch = H - padT - padB;
+  if (closes.length < 2) {
+    mChart.innerHTML = '<text x="'+(W/2)+'" y="'+(H/2)+'" text-anchor="middle" fill="#4a5a78" font-size="12">数据不足</text>';
+    return;
+  }
+  const lo = Math.min.apply(null, closes), hi = Math.max.apply(null, closes);
+  const rng = (hi-lo) || 1;
+  const n = closes.length;
+  const pts = closes.map((c,i) => [padL + i*cw/(n-1), padT + ch - ((c-lo)/rng)*ch]);
+  const ptsStr = pts.map(p => p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  const up = closes[n-1] >= closes[0];
+  const lineColor = up ? '#00e5a0' : '#ff6b6b';
+  const fillColor = up ? 'rgba(0,229,160,0.10)' : 'rgba(255,107,107,0.10)';
+  const areaPts = padL+','+(padT+ch) + ' ' + ptsStr + ' ' + (padL+cw)+','+(padT+ch);
+
+  const gridY = [padT, padT+ch/2, padT+ch];
+  const gridLab = [hi.toFixed(2), ((hi+lo)/2).toFixed(2), lo.toFixed(2)];
+  let gridSvg = '';
+  for (let i=0; i<3; i++) {
+    gridSvg += '<line x1="'+padL+'" y1="'+gridY[i]+'" x2="'+(padL+cw)+'" y2="'+gridY[i]+'" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>';
+    gridSvg += '<text x="'+(padL-6)+'" y="'+(gridY[i]+3)+'" text-anchor="end" font-family="Space Mono" font-size="10" fill="#4a5a78">$'+gridLab[i]+'</text>';
+  }
+
+  const dateAt = [[padL, fmtDate(tss[0]), 'start'],
+                  [padL+cw/2, fmtDate(tss[Math.floor(n/2)]), 'middle'],
+                  [padL+cw, fmtDate(tss[n-1]), 'end']];
+  let dateSvg = '';
+  dateAt.forEach(d => {
+    dateSvg += '<text x="'+d[0]+'" y="'+(H-8)+'" text-anchor="'+d[2]+'" font-family="Space Mono" font-size="10" fill="#4a5a78">'+d[1]+'</text>';
+  });
+
+  mChart.innerHTML =
+    gridSvg +
+    '<polygon fill="'+fillColor+'" points="'+areaPts+'"/>' +
+    '<polyline fill="none" stroke="'+lineColor+'" stroke-width="2" points="'+ptsStr+'"/>' +
+    dateSvg +
+    '<line id="hLine" x1="0" y1="'+padT+'" x2="0" y2="'+(padT+ch)+'" stroke="rgba(255,255,255,0.3)" stroke-width="1" visibility="hidden"/>' +
+    '<circle id="hDot" r="5" fill="'+lineColor+'" stroke="#fff" stroke-width="2" visibility="hidden"/>' +
+    '<rect id="hOverlay" x="'+padL+'" y="'+padT+'" width="'+cw+'" height="'+ch+'" fill="transparent" style="cursor:crosshair"/>';
+
+  const hLine = document.getElementById('hLine');
+  const hDot = document.getElementById('hDot');
+  const hOverlay = document.getElementById('hOverlay');
+
+  hOverlay.addEventListener('mousemove', e => {
+    const rect = mChart.getBoundingClientRect();
+    const xSvg = (e.clientX - rect.left) * W / rect.width;
+    let best = 0, bestDist = Infinity;
+    for (let i=0; i<n; i++) {
+      const dd = Math.abs(pts[i][0] - xSvg);
+      if (dd < bestDist) { bestDist = dd; best = i; }
+    }
+    hLine.setAttribute('x1', pts[best][0]);
+    hLine.setAttribute('x2', pts[best][0]);
+    hLine.setAttribute('visibility', 'visible');
+    hDot.setAttribute('cx', pts[best][0]);
+    hDot.setAttribute('cy', pts[best][1]);
+    hDot.setAttribute('visibility', 'visible');
+    tooltip.style.display = 'block';
+    tooltip.textContent = fmtDate(tss[best]) + ' · $' + closes[best].toFixed(2);
+    const tipX = Math.min(rect.width - 140, Math.max(8, e.clientX - rect.left + 12));
+    tooltip.style.left = tipX + 'px';
+    tooltip.style.top = '14px';
+  });
+  hOverlay.addEventListener('mouseleave', () => {
+    hLine.setAttribute('visibility', 'hidden');
+    hDot.setAttribute('visibility', 'hidden');
+    tooltip.style.display = 'none';
+  });
+}
+
+document.querySelectorAll('.price-card.clickable').forEach(card => {
+  card.addEventListener('click', () => openPriceModal(card.dataset.ticker));
+  card.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPriceModal(card.dataset.ticker); }
+  });
+});
+document.getElementById('modalClose').addEventListener('click', closePriceModal);
+modalEl.addEventListener('click', e => { if (e.target === modalEl) closePriceModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePriceModal(); });
 </script>
 </body>
 </html>
@@ -715,6 +912,22 @@ def render_html(news, investments_by_co, sec_by_co, prices_by_co):
     price_mag7 = render_price_cards(prices_by_co, "mag7")
     inv_sections = render_investment_sections(investments_by_co)
     sec_sections = render_sec_sections(sec_by_co)
+
+    # Embed price data as JSON for the click-to-detail modal.
+    price_data_for_js = {}
+    for c in COMPANIES:
+        d = prices_by_co.get(c["name"])
+        if not d or d.get("price") is None:
+            continue
+        price_data_for_js[c["ticker"]] = {
+            "name": c["name"],
+            "color": c["color"],
+            "price": d["price"],
+            "prev_close": d["prev_close"],
+            "closes": d["closes"],
+            "timestamps": d["timestamps"],
+        }
+    price_json = json.dumps(price_data_for_js, ensure_ascii=False)
 
     # Filter buttons for news (one per company)
     filter_btns = "".join(
@@ -750,6 +963,7 @@ def render_html(news, investments_by_co, sec_by_co, prices_by_co):
         "{{SEC_TOTAL}}": str(sec_total),
         "{{PRICE_CHIP}}": price_chip,
         "{{PRICE_MAG7}}": price_mag7,
+        "{{PRICE_JSON}}": price_json,
         "{{INV_SECTIONS}}": inv_sections,
         "{{SEC_SECTIONS}}": sec_sections,
         "{{FILTER_BTNS}}": filter_btns,
