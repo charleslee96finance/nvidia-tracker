@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="refresh" content="900">
-<title>美股巨头 · 投资追踪 · 2026-05-12 03:02 UTC</title>
+<title>美股巨头 · 投资追踪 · 2026-05-12 03:18 UTC</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#050810;--bg2:#0b0f1e;--border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.15);--text:#e8edf5;--text2:#8a9ab8;--text3:#4a5a78;--green:#00e5a0;--blue:#4da6ff;--amber:#f5a623;--fire:#ff4d00;--purple:#a78bfa}
@@ -80,6 +80,32 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .filter-btn{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;padding:6px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;transition:all .2s}
 .filter-btn:hover{color:var(--text)}
 .filter-btn.active{background:var(--text);color:var(--bg);border-color:var(--text)}
+.price-card.clickable{cursor:pointer}
+.price-card.clickable:hover{transform:translateY(-2px);border-color:var(--border2);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.price-card.disabled{opacity:.5}
+.price-hint{font-family:'Space Mono',monospace;font-size:9px;color:var(--text3);margin-top:6px;text-align:right;opacity:.6}
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);display:none;z-index:1000;align-items:center;justify-content:center;padding:20px;animation:fadeIn .2s}
+.modal-backdrop.open{display:flex}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:18px;padding:28px;max-width:780px;width:100%;max-height:92vh;overflow-y:auto;position:relative;animation:slideUp .25s cubic-bezier(0.22,1,0.36,1)}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-close{position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:50%;border:1px solid var(--border2);background:transparent;color:var(--text2);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;line-height:1}
+.modal-close:hover{background:var(--border2);color:var(--text)}
+.modal-header{display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap;padding-right:40px}
+.modal-ticker{font-family:'Space Mono',monospace;font-size:14px;font-weight:700;color:var(--text2);letter-spacing:2px}
+.modal-name{font-size:22px;font-weight:700}
+.modal-price-row{display:flex;align-items:baseline;gap:16px;margin-bottom:18px;flex-wrap:wrap}
+.modal-price{font-size:42px;font-weight:800}
+.modal-chg{font-family:'Space Mono',monospace;font-size:14px;font-weight:700}
+.modal-chart-wrap{position:relative;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:18px}
+.modal-chart{width:100%;height:240px;display:block}
+.chart-tooltip{position:absolute;display:none;background:var(--bg2);border:1px solid var(--border2);border-radius:6px;padding:6px 10px;font-family:'Space Mono',monospace;font-size:11px;pointer-events:none;white-space:nowrap;z-index:10;color:var(--text);box-shadow:0 4px 12px rgba(0,0,0,.4)}
+.modal-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:14px}
+.modal-stat{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.modal-stat-label{font-family:'Space Mono',monospace;font-size:9px;color:var(--text3);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:4px}
+.modal-stat-val{font-size:16px;font-weight:700;font-family:'Space Mono',monospace}
+.modal-stat-val.up{color:#00e5a0}.modal-stat-val.down{color:#ff6b6b}
+.modal-meta{font-family:'Space Mono',monospace;font-size:10px;color:var(--text3);text-align:center;padding-top:12px;border-top:1px solid var(--border)}
 </style>
 </head>
 <body>
@@ -88,21 +114,21 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
     <div class="hero-eyebrow">US Mega Tracker · Mag 7 + Chips</div>
     <h1 class="hero-title">美股巨头 · 投资追踪</h1>
     <p class="hero-sub">价格走势 · 新闻 · 投资信号 · SEC 文件 · 自动每 2 小时更新</p>
-    <span class="hero-time" id="time-badge">最近更新：2026-05-12 03:02 UTC</span>
+    <span class="hero-time" id="time-badge">最近更新：2026-05-12 03:18 UTC</span>
   </div>
 
   <div class="stats">
     <div class="stat"><div class="stat-label">追踪公司</div><div class="stat-val blue">9</div></div>
     <div class="stat"><div class="stat-label">总新闻</div><div class="stat-val blue">661</div></div>
-    <div class="stat"><div class="stat-label">本次新增</div><div class="stat-val green">17</div></div>
-    <div class="stat"><div class="stat-label">投资信号</div><div class="stat-val fire">19</div></div>
+    <div class="stat"><div class="stat-label">本次新增</div><div class="stat-val green">4</div></div>
+    <div class="stat"><div class="stat-label">投资信号</div><div class="stat-val fire">21</div></div>
     <div class="stat"><div class="stat-label">SEC 文件</div><div class="stat-val amber">43</div></div>
   </div>
 
   <div class="section-label">📈 股价 · 1 个月走势</div>
   <div class="subgroup-label">🔬 芯片股 (Chips)</div>
   <div class="price-grid">
-    <div class="price-card">
+    <div class="price-card clickable" data-ticker="NVDA" role="button" tabindex="0" aria-label="点击查看 NVIDIA 详情">
       <div class="price-head">
         <span class="price-ticker">NVDA</span>
         <span class="co-badge" style="background:#76b90022;color:#76b900;border:1px solid #76b90055">NVIDIA</span>
@@ -113,8 +139,9 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       </div>
       <div class="price-spark"><svg viewBox="0 0 140 36" width="100%" height="36" preserveAspectRatio="none"><polygon fill="rgba(0,229,160,0.10)" points="0,36 0.0,33.0 7.0,25.8 14.0,23.5 21.0,24.0 28.0,20.7 35.0,20.3 42.0,22.5 49.0,19.9 56.0,22.7 63.0,14.1 70.0,5.8 77.0,9.2 84.0,13.1 91.0,22.8 98.0,23.9 105.0,23.9 112.0,25.8 119.0,14.6 126.0,10.9 133.0,7.2 140.0,3.0 140.0,36"/><polyline fill="none" stroke="#00e5a0" stroke-width="1.5" points="0.0,33.0 7.0,25.8 14.0,23.5 21.0,24.0 28.0,20.7 35.0,20.3 42.0,22.5 49.0,19.9 56.0,22.7 63.0,14.1 70.0,5.8 77.0,9.2 84.0,13.1 91.0,22.8 98.0,23.9 105.0,23.9 112.0,25.8 119.0,14.6 126.0,10.9 133.0,7.2 140.0,3.0"/></svg></div>
       <div class="price-month">1 个月: <span class="up">+15.92%</span></div>
+      <div class="price-hint">👆 点击查看大图</div>
     </div>
-    <div class="price-card">
+    <div class="price-card clickable" data-ticker="INTC" role="button" tabindex="0" aria-label="点击查看 Intel 详情">
       <div class="price-head">
         <span class="price-ticker">INTC</span>
         <span class="co-badge" style="background:#0071c522;color:#0071c5;border:1px solid #0071c555">Intel</span>
@@ -125,8 +152,9 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       </div>
       <div class="price-spark"><svg viewBox="0 0 140 36" width="100%" height="36" preserveAspectRatio="none"><polygon fill="rgba(0,229,160,0.10)" points="0,36 0.0,32.4 7.0,33.0 14.0,32.5 21.0,30.9 28.0,30.9 35.0,32.1 42.0,31.9 49.0,32.3 56.0,31.6 63.0,24.4 70.0,23.3 77.0,23.5 84.0,18.9 91.0,19.0 98.0,16.6 105.0,18.4 112.0,12.7 119.0,10.5 126.0,12.1 133.0,5.1 140.0,3.0 140.0,36"/><polyline fill="none" stroke="#00e5a0" stroke-width="1.5" points="0.0,32.4 7.0,33.0 14.0,32.5 21.0,30.9 28.0,30.9 35.0,32.1 42.0,31.9 49.0,32.3 56.0,31.6 63.0,24.4 70.0,23.3 77.0,23.5 84.0,18.9 91.0,19.0 98.0,16.6 105.0,18.4 112.0,12.7 119.0,10.5 126.0,12.1 133.0,5.1 140.0,3.0"/></svg></div>
       <div class="price-month">1 个月: <span class="up">+98.59%</span></div>
+      <div class="price-hint">👆 点击查看大图</div>
     </div>
-    <div class="price-card">
+    <div class="price-card clickable" data-ticker="AMD" role="button" tabindex="0" aria-label="点击查看 AMD 详情">
       <div class="price-head">
         <span class="price-ticker">AMD</span>
         <span class="co-badge" style="background:#ed1c2422;color:#ed1c24;border:1px solid #ed1c2455">AMD</span>
@@ -137,10 +165,11 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       </div>
       <div class="price-spark"><svg viewBox="0 0 140 36" width="100%" height="36" preserveAspectRatio="none"><polygon fill="rgba(0,229,160,0.10)" points="0,36 0.0,33.0 7.0,31.8 14.0,31.4 21.0,28.6 28.0,28.5 35.0,29.0 42.0,27.7 49.0,25.0 56.0,24.7 63.0,18.7 70.0,20.6 77.0,22.2 84.0,20.2 91.0,17.8 98.0,16.9 105.0,19.6 112.0,17.7 119.0,8.3 126.0,10.1 133.0,3.5 140.0,3.0 140.0,36"/><polyline fill="none" stroke="#00e5a0" stroke-width="1.5" points="0.0,33.0 7.0,31.8 14.0,31.4 21.0,28.6 28.0,28.5 35.0,29.0 42.0,27.7 49.0,25.0 56.0,24.7 63.0,18.7 70.0,20.6 77.0,22.2 84.0,20.2 91.0,17.8 98.0,16.9 105.0,19.6 112.0,17.7 119.0,8.3 126.0,10.1 133.0,3.5 140.0,3.0"/></svg></div>
       <div class="price-month">1 个月: <span class="up">+85.87%</span></div>
+      <div class="price-hint">👆 点击查看大图</div>
     </div></div>
   <div class="subgroup-label">⭐ Magnificent 7（除 NVIDIA 外）</div>
   <div class="price-grid">
-    <div class="price-card">
+    <div class="price-card clickable" data-ticker="AAPL" role="button" tabindex="0" aria-label="点击查看 Apple 详情">
       <div class="price-head">
         <span class="price-ticker">AAPL</span>
         <span class="co-badge" style="background:#c9cfd622;color:#c9cfd6;border:1px solid #c9cfd655">Apple</span>
@@ -151,8 +180,9 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       </div>
       <div class="price-spark"><svg viewBox="0 0 140 36" width="100%" height="36" preserveAspectRatio="none"><polygon fill="rgba(0,229,160,0.10)" points="0,36 0.0,32.7 7.0,33.0 14.0,26.4 21.0,29.0 28.0,23.1 35.0,20.6 42.0,26.6 49.0,20.5 56.0,20.3 63.0,22.4 70.0,25.4 77.0,22.7 84.0,23.1 91.0,22.1 98.0,14.5 105.0,17.3 112.0,11.0 119.0,8.1 126.0,8.1 133.0,3.0 140.0,3.6 140.0,36"/><polyline fill="none" stroke="#00e5a0" stroke-width="1.5" points="0.0,32.7 7.0,33.0 14.0,26.4 21.0,29.0 28.0,23.1 35.0,20.6 42.0,26.6 49.0,20.5 56.0,20.3 63.0,22.4 70.0,25.4 77.0,22.7 84.0,23.1 91.0,22.1 98.0,14.5 105.0,17.3 112.0,11.0 119.0,8.1 126.0,8.1 133.0,3.0 140.0,3.6"/></svg></div>
       <div class="price-month">1 个月: <span class="up">+12.92%</span></div>
+      <div class="price-hint">👆 点击查看大图</div>
     </div>
-    <div class="price-card">
+    <div class="price-card clickable" data-ticker="MSFT" role="button" tabindex="0" aria-label="点击查看 Microsoft 详情">
       <div class="price-head">
         <span class="price-ticker">MSFT</span>
         <span class="co-badge" style="background:#5db1ff22;color:#5db1ff;border:1px solid #5db1ff55">Microsoft</span>
@@ -163,8 +193,9 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       </div>
       <div class="price-spark"><svg viewBox="0 0 140 36" width="100%" height="36" preserveAspectRatio="none"><polygon fill="rgba(0,229,160,0.10)" points="0,36 0.0,33.0 7.0,27.6 14.0,16.4 21.0,10.8 28.0,9.3 35.0,12.2 42.0,8.4 49.0,3.0 56.0,13.6 63.0,8.1 70.0,8.0 77.0,5.3 84.0,8.2 91.0,18.5 98.0,14.4 105.0,14.9 112.0,16.3 119.0,14.7 126.0,10.5 133.0,14.0 140.0,15.5 140.0,36"/><polyline fill="none" stroke="#00e5a0" stroke-width="1.5" points="0.0,33.0 7.0,27.6 14.0,16.4 21.0,10.8 28.0,9.3 35.0,12.2 42.0,8.4 49.0,3.0 56.0,13.6 63.0,8.1 70.0,8.0 77.0,5.3 84.0,8.2 91.0,18.5 98.0,14.4 105.0,14.9 112.0,16.3 119.0,14.7 126.0,10.5 133.0,14.0 140.0,15.5"/></svg></div>
       <div class="price-month">1 个月: <span class="up">+7.36%</span></div>
+      <div class="price-hint">👆 点击查看大图</div>
     </div>
-    <div class="price-card">
+    <div class="price-card clickable" data-ticker="GOOGL" role="button" tabindex="0" aria-label="点击查看 Alphabet 详情">
       <div class="price-head">
         <span class="price-ticker">GOOGL</span>
         <span class="co-badge" style="background:#fbbc0422;color:#fbbc04;border:1px solid #fbbc0455">Alphabet</span>
@@ -175,8 +206,9 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       </div>
       <div class="price-spark"><svg viewBox="0 0 140 36" width="100%" height="36" preserveAspectRatio="none"><polygon fill="rgba(0,229,160,0.10)" points="0,36 0.0,33.0 7.0,28.6 14.0,27.0 21.0,27.4 28.0,25.3 35.0,26.9 42.0,28.9 49.0,26.2 56.0,26.4 63.0,24.3 70.0,22.0 77.0,22.3 84.0,22.2 91.0,9.0 98.0,8.7 105.0,9.6 112.0,7.7 119.0,4.0 126.0,4.1 133.0,3.0 140.0,7.6 140.0,36"/><polyline fill="none" stroke="#00e5a0" stroke-width="1.5" points="0.0,33.0 7.0,28.6 14.0,27.0 21.0,27.4 28.0,25.3 35.0,26.9 42.0,28.9 49.0,26.2 56.0,26.4 63.0,24.3 70.0,22.0 77.0,22.3 84.0,22.2 91.0,9.0 98.0,8.7 105.0,9.6 112.0,7.7 119.0,4.0 126.0,4.1 133.0,3.0 140.0,7.6"/></svg></div>
       <div class="price-month">1 个月: <span class="up">+20.95%</span></div>
+      <div class="price-hint">👆 点击查看大图</div>
     </div>
-    <div class="price-card">
+    <div class="price-card clickable" data-ticker="AMZN" role="button" tabindex="0" aria-label="点击查看 Amazon 详情">
       <div class="price-head">
         <span class="price-ticker">AMZN</span>
         <span class="co-badge" style="background:#ff990022;color:#ff9900;border:1px solid #ff990055">Amazon</span>
@@ -187,8 +219,9 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       </div>
       <div class="price-spark"><svg viewBox="0 0 140 36" width="100%" height="36" preserveAspectRatio="none"><polygon fill="rgba(0,229,160,0.10)" points="0,36 0.0,33.0 7.0,25.2 14.0,25.6 21.0,24.6 28.0,23.9 35.0,25.8 42.0,24.4 49.0,19.8 56.0,20.0 63.0,12.4 70.0,14.9 77.0,16.1 84.0,13.2 91.0,11.5 98.0,8.8 105.0,5.5 112.0,4.2 119.0,3.0 126.0,6.3 133.0,5.0 140.0,8.1 140.0,36"/><polyline fill="none" stroke="#00e5a0" stroke-width="1.5" points="0.0,33.0 7.0,25.2 14.0,25.6 21.0,24.6 28.0,23.9 35.0,25.8 42.0,24.4 49.0,19.8 56.0,20.0 63.0,12.4 70.0,14.9 77.0,16.1 84.0,13.2 91.0,11.5 98.0,8.8 105.0,5.5 112.0,4.2 119.0,3.0 126.0,6.3 133.0,5.0 140.0,8.1"/></svg></div>
       <div class="price-month">1 个月: <span class="up">+12.13%</span></div>
+      <div class="price-hint">👆 点击查看大图</div>
     </div>
-    <div class="price-card">
+    <div class="price-card clickable" data-ticker="META" role="button" tabindex="0" aria-label="点击查看 Meta 详情">
       <div class="price-head">
         <span class="price-ticker">META</span>
         <span class="co-badge" style="background:#7c5cff22;color:#7c5cff;border:1px solid #7c5cff55">Meta</span>
@@ -199,8 +232,9 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       </div>
       <div class="price-spark"><svg viewBox="0 0 140 36" width="100%" height="36" preserveAspectRatio="none"><polygon fill="rgba(255,107,107,0.10)" points="0,36 0.0,21.1 7.0,11.7 14.0,8.7 21.0,6.9 28.0,3.0 35.0,8.9 42.0,9.6 49.0,7.6 56.0,12.8 63.0,7.5 70.0,6.3 77.0,8.8 84.0,9.5 91.0,28.6 98.0,29.7 105.0,29.1 112.0,31.0 119.0,28.3 126.0,27.0 133.0,29.4 140.0,33.0 140.0,36"/><polyline fill="none" stroke="#ff6b6b" stroke-width="1.5" points="0.0,21.1 7.0,11.7 14.0,8.7 21.0,6.9 28.0,3.0 35.0,8.9 42.0,9.6 49.0,7.6 56.0,12.8 63.0,7.5 70.0,6.3 77.0,8.8 84.0,9.5 91.0,28.6 98.0,29.7 105.0,29.1 112.0,31.0 119.0,28.3 126.0,27.0 133.0,29.4 140.0,33.0"/></svg></div>
       <div class="price-month">1 个月: <span class="down">-5.62%</span></div>
+      <div class="price-hint">👆 点击查看大图</div>
     </div>
-    <div class="price-card">
+    <div class="price-card clickable" data-ticker="TSLA" role="button" tabindex="0" aria-label="点击查看 Tesla 详情">
       <div class="price-head">
         <span class="price-ticker">TSLA</span>
         <span class="co-badge" style="background:#ff6b6b22;color:#ff6b6b;border:1px solid #ff6b6b55">Tesla</span>
@@ -211,6 +245,7 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       </div>
       <div class="price-spark"><svg viewBox="0 0 140 36" width="100%" height="36" preserveAspectRatio="none"><polygon fill="rgba(0,229,160,0.10)" points="0,36 0.0,33.0 7.0,29.2 14.0,20.2 21.0,21.2 28.0,17.4 35.0,20.0 42.0,22.0 49.0,21.6 56.0,26.1 63.0,25.3 70.0,24.5 77.0,25.4 84.0,26.4 91.0,23.5 98.0,20.6 105.0,20.0 112.0,21.0 119.0,18.0 126.0,13.8 133.0,8.4 140.0,3.0 140.0,36"/><polyline fill="none" stroke="#00e5a0" stroke-width="1.5" points="0.0,33.0 7.0,29.2 14.0,20.2 21.0,21.2 28.0,17.4 35.0,20.0 42.0,22.0 49.0,21.6 56.0,26.1 63.0,25.3 70.0,24.5 77.0,25.4 84.0,26.4 91.0,23.5 98.0,20.6 105.0,20.0 112.0,21.0 119.0,18.0 126.0,13.8 133.0,8.4 140.0,3.0"/></svg></div>
       <div class="price-month">1 个月: <span class="up">+26.27%</span></div>
+      <div class="price-hint">👆 点击查看大图</div>
     </div></div>
 
   <div class="section-label">🔥 投资 / 收购 / 合作信号</div>
@@ -268,7 +303,7 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
     <div class="co-header" style="color:#fbbc04">
       <span class="co-dot" style="background:#fbbc04"></span>
       <span class="co-name">Alphabet</span>
-      <span class="co-count">7 个信号</span>
+      <span class="co-count">9 个信号</span>
     </div>
     <div class="signal-grid">
     <div class="signal-card ">
@@ -292,6 +327,11 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       <div class="signal-meta">Google News · Alphabet Investments · Fri, 27 Feb 2026 20:39:32 GMT</div>
     </div>
     <div class="signal-card ">
+      <div class="signal-target">Music Startup ProducerAI </div>
+      <div class="signal-title"><a href="https://news.google.com/rss/articles/CBMif0FVX3lxTFBfZFFBMEVyekxLb0d3dTZHTnRYLWVYNUNfdDlWUVRGZTlEeHpNVzRuN0lTMjFKU2JWTDY4MERvRm91MXJNSDZ1aU5mN2VNSFNKNklGWFJCQVh4WlUxZE80QXhXbkVaamRseTYwM2phbUp1dEhUNzBobkd2dWtKSVk?oc=5" target="_blank" rel="noopener">Google Acquires AI Music Startup ProducerAI - Billboard</a></div>
+      <div class="signal-meta">Google News · Alphabet Investments · Tue, 24 Feb 2026 08:00:00 GMT</div>
+    </div>
+    <div class="signal-card ">
       <div class="signal-target">Dominican Republic </div>
       <div class="signal-title"><a href="https://news.google.com/rss/articles/CBMitwFBVV95cUxPMndiNGdpQ3FkbGlldm5ickYtV2lveXpwVWpsZmlmODBSaENVdUFUekl1SUJtRDF1dm1wa2dlaHhkSVIwU0lhaTBrZGNBMkRpVHFhR2xITlRNdFVQOW9jaHdrY0w2TkZqY3JFcVE0NU5ueXl1WWJfb2F6Qy1IUkN3aUFKbkMzeUZBX1pnZlhldmdyS3phZWx0S080NkVUS3Z5TkNyMVNXNkZzSkQ1ZnJFZ0NjeE1TTXM?oc=5" target="_blank" rel="noopener">Google invests $500 million in Dominican Republic connectivity hub - Data Center Dynamics</a></div>
       <div class="signal-meta">Google News · Alphabet Investments · Mon, 23 Feb 2026 08:00:00 GMT</div>
@@ -305,6 +345,11 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       <div class="signal-target">Fervo </div>
       <div class="signal-title"><a href="https://news.google.com/rss/articles/CBMigwFBVV95cUxOZ0lGdkpNX05mTDJuUHBDRnUyV0JBczRTR18xbzBITUJJaXNZYnZXd2NQTUxXemxzZnJWV09lRG4xVE5MU0xKSGdOT3BlNEJvNWhEMXdRZDFYTGdLSm5jNUNjYjBVQWYtOFVGaXRNc1Z6N1BJdlRxWTNYNDhCRlBpbFc3MA?oc=5" target="_blank" rel="noopener">Google invests in Fervo’s $462M round to unlock even more geothermal energy - Yahoo Finance</a></div>
       <div class="signal-meta">Google News · Alphabet Investments · Wed, 10 Dec 2025 08:00:00 GMT</div>
+    </div>
+    <div class="signal-card ">
+      <div class="signal-target">Carbon Capture </div>
+      <div class="signal-title"><a href="https://news.google.com/rss/articles/CBMimwFBVV95cUxPQ0I2cUluVE5RTExSZzdJQlhyckxTZXhPTlF3akpLRm40SGw3cmZQbk1nZ1g2WTdEbnhfWDRYYVNscnBiWXhoaFNoMUZTU1JkNFdTUnhUN0t1QTU2MGNZRmRIVlF0bW9GSU00eWZyU2J4UWI5LXhxRFhZMXhJeENHWnRZUS1laUlDWUhHUGtEYm1ocmJtMHdSSU91Zw?oc=5" target="_blank" rel="noopener">Google Invests in First Carbon Capture to Power AI and Cut Emissions - CarbonCredits.com</a></div>
+      <div class="signal-meta">Google News · Alphabet Investments · Fri, 24 Oct 2025 07:00:00 GMT</div>
     </div></div>
   </div>
   <div class="co-section">
@@ -647,13 +692,25 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
     <button class="filter-btn" data-filter="NVIDIA" style="color:#76b900">NVIDIA</button><button class="filter-btn" data-filter="Intel" style="color:#0071c5">Intel</button><button class="filter-btn" data-filter="AMD" style="color:#ed1c24">AMD</button><button class="filter-btn" data-filter="Apple" style="color:#c9cfd6">Apple</button><button class="filter-btn" data-filter="Microsoft" style="color:#5db1ff">Microsoft</button><button class="filter-btn" data-filter="Alphabet" style="color:#fbbc04">Alphabet</button><button class="filter-btn" data-filter="Amazon" style="color:#ff9900">Amazon</button><button class="filter-btn" data-filter="Meta" style="color:#7c5cff">Meta</button><button class="filter-btn" data-filter="Tesla" style="color:#ff6b6b">Tesla</button>
   </div>
   <div class="news-grid" id="news-grid">
-    <div class="news-card news-new" data-company="NVIDIA">
+    <div class="news-card " data-company="NVIDIA">
       <div class="news-source">
         <div class="news-source-left">
           <span class="co-badge" style="background:#76b90022;color:#76b900;border:1px solid #76b90055">NVIDIA</span>
           <span>Yahoo Finance · NVDA</span>
         </div>
-        <span class="badge badge-new">NEW</span>
+        
+      </div>
+      <a class="news-title" href="https://finance.yahoo.com/m/0994977b-17f2-37cd-920f-ab04cf3be305/dow-jones-futures%3A-techs-fall.html?.tsrc=rss" target="_blank" rel="noopener">Dow Jones Futures: Techs Fall As South Korea Eyes Excess AI Profits; CPI Inflation Due</a>
+      <div class="news-summary">Techs fell as South Korea&#x27;s Kospi index as a top official suggested excess AI profits could be given to citizens. The CPI inflation report is on tap.</div>
+      <div class="news-date">Tue, 12 May 2026 03:10:08 +0000</div>
+    </div>
+    <div class="news-card " data-company="NVIDIA">
+      <div class="news-source">
+        <div class="news-source-left">
+          <span class="co-badge" style="background:#76b90022;color:#76b900;border:1px solid #76b90055">NVIDIA</span>
+          <span>Yahoo Finance · NVDA</span>
+        </div>
+        
       </div>
       <a class="news-title" href="https://www.fool.com/investing/2026/05/11/too-many-tech-stocks-lurking-in-your-portfolio-the/?.tsrc=rss" target="_blank" rel="noopener">Too Many Tech Stocks Lurking in Your Portfolio? These 3 Investments Offer More Balance.</a>
       <div class="news-summary">Costco Wholesale, Procter &amp; Gamble, and PepsiCo can help you immediately build a more risk-adjusted portfolio.</div>
@@ -671,17 +728,17 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       <div class="news-summary">Alphabet plans first yen bond sale to fund $190 billion AI spending push &amp;nbsp;&amp;nbsp; investingLive</div>
       <div class="news-date">Tue, 12 May 2026 02:48:35 GMT</div>
     </div>
-    <div class="news-card " data-company="NVIDIA">
+    <div class="news-card news-new" data-company="Microsoft">
       <div class="news-source">
         <div class="news-source-left">
-          <span class="co-badge" style="background:#76b90022;color:#76b900;border:1px solid #76b90055">NVIDIA</span>
-          <span>Yahoo Finance · NVDA</span>
+          <span class="co-badge" style="background:#5db1ff22;color:#5db1ff;border:1px solid #5db1ff55">Microsoft</span>
+          <span>Google News · Microsoft</span>
         </div>
-        
+        <span class="badge badge-new">NEW</span>
       </div>
-      <a class="news-title" href="https://finance.yahoo.com/m/0994977b-17f2-37cd-920f-ab04cf3be305/dow-jones-futures%3A-techs-fall.html?.tsrc=rss" target="_blank" rel="noopener">Dow Jones Futures: Techs Fall As South Korea Eyes Excess AI Profits; CPI Inflation Due</a>
-      <div class="news-summary">Techs fell as South Korea&#x27;s Kospi index as a top official suggested excess AI profits could be given to citizens. The CPI inflation report is on tap.</div>
-      <div class="news-date">Tue, 12 May 2026 02:48:02 +0000</div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMiqgFBVV95cUxQcy1Jb1R1YndNcFIyMnV1bUlvTHVIdnlabFdKbHUzSTU0TlFFXzhvMlJPNFoxS0sxbGZEZW9DWUJieHBGamdXN1BINkhsUmJ1TXZrUWpBRmRFOWozQlRoWldybHQ4RHAyWE9FamlrZ2dURjk5VV83V2gwRHZFOElYajZONUl2RzhtZzFjWmxOaUlhQUoxWktGZ1ZhLUpsdlJDSUstQ0swRHM4Zw?oc=5" target="_blank" rel="noopener">Microsoft Outlook Now Includes Claude Extension - Redmond Channel Partner</a>
+      <div class="news-summary">Microsoft Outlook Now Includes Claude Extension &amp;nbsp;&amp;nbsp; Redmond Channel Partner</div>
+      <div class="news-date">Tue, 12 May 2026 02:37:30 GMT</div>
     </div>
     <div class="news-card " data-company="Alphabet">
       <div class="news-source">
@@ -731,6 +788,18 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       <div class="news-summary">Anthropic Just Delivered Great News for Alphabet Investors &amp;nbsp;&amp;nbsp; Yahoo Finance</div>
       <div class="news-date">Tue, 12 May 2026 02:20:00 GMT</div>
     </div>
+    <div class="news-card news-new" data-company="NVIDIA">
+      <div class="news-source">
+        <div class="news-source-left">
+          <span class="co-badge" style="background:#76b90022;color:#76b900;border:1px solid #76b90055">NVIDIA</span>
+          <span>Google News · NVIDIA Investments</span>
+        </div>
+        <span class="badge badge-new">NEW</span>
+      </div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMikwFBVV95cUxQMlJWOEpMZWZDSDgwdUd4UHVWWDZzU0I2VWJSSWdHZkdMREtwRzNCOTYydDJoSVQ0SzFJNVpoTGpZUm1WVW8tTGVPbGlfSDY1S1lENUpzVWJUU3JVSnhReWVzeFN2TkdaNXF2eEQ3XzlqckZrdnBWRWlrWmJ0ZWs1c1d4TFV1ODBiMEhJRWp3aDgybUU?oc=5" target="_blank" rel="noopener">Nvidia&#x27;s copper-to-fiber AI shift boosts China&#x27;s optical plays - digitimes</a>
+      <div class="news-summary">Nvidia&#x27;s copper-to-fiber AI shift boosts China&#x27;s optical plays &amp;nbsp;&amp;nbsp; digitimes</div>
+      <div class="news-date">Tue, 12 May 2026 02:18:39 GMT</div>
+    </div>
     <div class="news-card " data-company="Meta">
       <div class="news-source">
         <div class="news-source-left">
@@ -771,6 +840,18 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       <div class="news-source">
         <div class="news-source-left">
           <span class="co-badge" style="background:#76b90022;color:#76b900;border:1px solid #76b90055">NVIDIA</span>
+          <span>Google News · NVIDIA</span>
+        </div>
+        
+      </div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMiogJBVV95cUxNak1hbnBFNHNCYk9DUHNuZDVlREZIbjAwbHZTNl9kbWRjb1hwaTJmaENSNUIyR1prLWpReUdYeUNsZV91RVBFNTVvcnJXXzByWkNQVzhIX1E2R0ZyUVpmZ0M2QldveTk3S0ZNYTlabkstR0tpbG95NEpRZU14OURMdEdlWndLaC1vTXBqTHZOanhzNE1pYTMwOUhKZG4tZlYtRVFxT0g0N1RsQ2VURy0tSjFTZ3MzdjZsMGQxV0Vrdm5ZZElyLWRfcHpYWG9aMHJ6cEVtaWNjNE1qb0FaSTByVzNtREV1RUowOE9MNjdjVkctcF9TZ1M3OTBVeW8wZnJ0dGJ1NlRHVGhiS2hDMERESWl4eVAyQ3c3elRmWDUwRmNHUdIBpwJBVV95cUxOeDBteXRqbUFIczNzMmVMRU9WTTZkQnFRamlhNko0clN3bUFxSTFqYXBub3FFTDJ2Tk9nS0UyZVV4RHd4alhQZ2NZM19BUnZhSEpPakJZcW0yQXE0R213a2wtMUNKbEQ0YktGVkllSWpWYWM5R0hrMmVJWWRoYTBXeVNRYXhXbzdLLVJ4cXJPTVVtY0hZQmd1amIwdXRoMFBwS3dsemRSWDdsNEhmSGtQZzRUTG9OVHF2Z19uUjE3Z3FjelBtYUhFbHF3MTRBbDdmZXQ4MkZjdHhUYjlpczFzNGZUQkl1Yy0zYkFqLUxTeGRZSTE3OTdBU1NmMnhWOE1NeElsdEZwOHUtTEZjNnZER2Y5MjQ2elJwRWRHNXZqVjhRSjdRVlJv?oc=5" target="_blank" rel="noopener">Intel CEO Lip-Bu Tan sends congratulations message to Nvidia’s Jensen Huang, says ‘It was my honor to pla - The Times of India</a>
+      <div class="news-summary">Intel CEO Lip-Bu Tan sends congratulations message to Nvidia’s Jensen Huang, says ‘It was my honor to pla &amp;nbsp;&amp;nbsp; The Times of India</div>
+      <div class="news-date">Tue, 12 May 2026 01:50:00 GMT</div>
+    </div>
+    <div class="news-card " data-company="NVIDIA">
+      <div class="news-source">
+        <div class="news-source-left">
+          <span class="co-badge" style="background:#76b90022;color:#76b900;border:1px solid #76b90055">NVIDIA</span>
           <span>Yahoo Finance · NVDA</span>
         </div>
         
@@ -778,18 +859,6 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       <a class="news-title" href="https://www.fool.com/investing/2026/05/11/best-fintech-stocks-to-buy-in-2026/?.tsrc=rss" target="_blank" rel="noopener">Best Fintech Stocks to Buy in 2026</a>
       <div class="news-summary">The fintech industry is projected to maintain a double-digit CAGR through 2030, and these stocks look like some of the biggest future winners.</div>
       <div class="news-date">Tue, 12 May 2026 01:50:00 +0000</div>
-    </div>
-    <div class="news-card " data-company="Intel">
-      <div class="news-source">
-        <div class="news-source-left">
-          <span class="co-badge" style="background:#0071c522;color:#0071c5;border:1px solid #0071c555">Intel</span>
-          <span>Google News · Intel</span>
-        </div>
-        
-      </div>
-      <a class="news-title" href="https://news.google.com/rss/articles/CBMiogJBVV95cUxNak1hbnBFNHNCYk9DUHNuZDVlREZIbjAwbHZTNl9kbWRjb1hwaTJmaENSNUIyR1prLWpReUdYeUNsZV91RVBFNTVvcnJXXzByWkNQVzhIX1E2R0ZyUVpmZ0M2QldveTk3S0ZNYTlabkstR0tpbG95NEpRZU14OURMdEdlWndLaC1vTXBqTHZOanhzNE1pYTMwOUhKZG4tZlYtRVFxT0g0N1RsQ2VURy0tSjFTZ3MzdjZsMGQxV0Vrdm5ZZElyLWRfcHpYWG9aMHJ6cEVtaWNjNE1qb0FaSTByVzNtREV1RUowOE9MNjdjVkctcF9TZ1M3OTBVeW8wZnJ0dGJ1NlRHVGhiS2hDMERESWl4eVAyQ3c3elRmWDUwRmNHUdIBpwJBVV95cUxOeDBteXRqbUFIczNzMmVMRU9WTTZkQnFRamlhNko0clN3bUFxSTFqYXBub3FFTDJ2Tk9nS0UyZVV4RHd4alhQZ2NZM19BUnZhSEpPakJZcW0yQXE0R213a2wtMUNKbEQ0YktGVkllSWpWYWM5R0hrMmVJWWRoYTBXeVNRYXhXbzdLLVJ4cXJPTVVtY0hZQmd1amIwdXRoMFBwS3dsemRSWDdsNEhmSGtQZzRUTG9OVHF2Z19uUjE3Z3FjelBtYUhFbHF3MTRBbDdmZXQ4MkZjdHhUYjlpczFzNGZUQkl1Yy0zYkFqLUxTeGRZSTE3OTdBU1NmMnhWOE1NeElsdEZwOHUtTEZjNnZER2Y5MjQ2elJwRWRHNXZqVjhRSjdRVlJv?oc=5" target="_blank" rel="noopener">Intel CEO Lip-Bu Tan sends congratulations message to Nvidia’s Jensen Huang, says ‘It was my honor to pla - The Times of India</a>
-      <div class="news-summary">Intel CEO Lip-Bu Tan sends congratulations message to Nvidia’s Jensen Huang, says ‘It was my honor to pla &amp;nbsp;&amp;nbsp; The Times of India</div>
-      <div class="news-date">Tue, 12 May 2026 01:50:00 GMT</div>
     </div>
     <div class="news-card " data-company="NVIDIA">
       <div class="news-source">
@@ -807,6 +876,18 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       <div class="news-source">
         <div class="news-source-left">
           <span class="co-badge" style="background:#5db1ff22;color:#5db1ff;border:1px solid #5db1ff55">Microsoft</span>
+          <span>Google News · Microsoft</span>
+        </div>
+        
+      </div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMitAFBVV95cUxNblVmbDNUMWl1TnJGZ1lvSlBUWkZPOGswWWk2MGxGczB0TVMwZVliUGpicUp5M0dKUTg1cEFBblQtZ3lfc0ZXZDUwTy1KcERsLUxHWTRPYnJ4bElJWG8ta3J2X1ZVTkg1am9jN3ZvNkJncFFzQXhvWV9ScnFsbFA4S3doU0d3Y0pIUE5nNEVtVm91eTQ0MDdCVE1ybTY5WmZEUnBTeVBDRG9GWjZSNC1IRTRYTVY?oc=5" target="_blank" rel="noopener">OpenAI to cap Microsoft revenue-sharing at $38 billion, The Information reports - Reuters</a>
+      <div class="news-summary">OpenAI to cap Microsoft revenue-sharing at $38 billion, The Information reports &amp;nbsp;&amp;nbsp; Reuters</div>
+      <div class="news-date">Tue, 12 May 2026 01:23:43 GMT</div>
+    </div>
+    <div class="news-card " data-company="Microsoft">
+      <div class="news-source">
+        <div class="news-source-left">
+          <span class="co-badge" style="background:#5db1ff22;color:#5db1ff;border:1px solid #5db1ff55">Microsoft</span>
           <span>Yahoo Finance · MSFT</span>
         </div>
         
@@ -814,18 +895,6 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       <a class="news-title" href="https://finance.yahoo.com/markets/stocks/articles/openai-cap-microsoft-revenue-sharing-012201531.html?.tsrc=rss" target="_blank" rel="noopener">OpenAI, Microsoft agree to cap revenue-sharing at $38 billion, The Information reports</a>
       <div class="news-summary">OpenAI and Microsoft agreed to cap total revenue-sharing payments at $38 billion, U.S. ‌digital news outlet The Information reported ‌on Monday, citing a person with knowledge of the arrangement. The ​development comes as OpenAI and Microsoft renegotiated a contract last month, m...</div>
       <div class="news-date">Tue, 12 May 2026 01:22:01 +0000</div>
-    </div>
-    <div class="news-card " data-company="Microsoft">
-      <div class="news-source">
-        <div class="news-source-left">
-          <span class="co-badge" style="background:#5db1ff22;color:#5db1ff;border:1px solid #5db1ff55">Microsoft</span>
-          <span>Google News · Microsoft</span>
-        </div>
-        
-      </div>
-      <a class="news-title" href="https://news.google.com/rss/articles/CBMitAFBVV95cUxNblVmbDNUMWl1TnJGZ1lvSlBUWkZPOGswWWk2MGxGczB0TVMwZVliUGpicUp5M0dKUTg1cEFBblQtZ3lfc0ZXZDUwTy1KcERsLUxHWTRPYnJ4bElJWG8ta3J2X1ZVTkg1am9jN3ZvNkJncFFzQXhvWV9ScnFsbFA4S3doU0d3Y0pIUE5nNEVtVm91eTQ0MDdCVE1ybTY5WmZEUnBTeVBDRG9GWjZSNC1IRTRYTVY?oc=5" target="_blank" rel="noopener">OpenAI to cap Microsoft revenue-sharing at $38 billion, The Information reports - Reuters</a>
-      <div class="news-summary">OpenAI to cap Microsoft revenue-sharing at $38 billion, The Information reports &amp;nbsp;&amp;nbsp; Reuters</div>
-      <div class="news-date">Tue, 12 May 2026 01:22:00 GMT</div>
     </div>
     <div class="news-card " data-company="NVIDIA">
       <div class="news-source">
@@ -1030,18 +1099,6 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       <a class="news-title" href="https://news.google.com/rss/articles/CBMitgFBVV95cUxNOUdyeTJVekdBM2xZLXRZTklQOFBVRzFNcEwtWlhwaDhTRHl6WDhrbU1SUjlmNllQMDlYc3kzNVlQaGhsMjhYWnd5c1RNaXpoWnNCcWUtalJLb3dQTWVzR1U2d1Rna2h1Vm1PSHRzcEh1b1lsVDdaaDRSZlVTNnloZHhkR052UHBFMjZlcVQyOUZMdmdUaTZMbzQyOHoxbXdzVDRMMGJoMktjVUFKWGgtRGlpTU1KQQ?oc=5" target="_blank" rel="noopener">Cathie Wood’s ARK sells AMD stock, buys Kratos and Tempus AI - Investing.com</a>
       <div class="news-summary">Cathie Wood’s ARK sells AMD stock, buys Kratos and Tempus AI &amp;nbsp;&amp;nbsp; Investing.com</div>
       <div class="news-date">Tue, 12 May 2026 00:19:24 GMT</div>
-    </div>
-    <div class="news-card news-new" data-company="NVIDIA">
-      <div class="news-source">
-        <div class="news-source-left">
-          <span class="co-badge" style="background:#76b90022;color:#76b900;border:1px solid #76b90055">NVIDIA</span>
-          <span>Google News · NVIDIA</span>
-        </div>
-        <span class="badge badge-new">NEW</span>
-      </div>
-      <a class="news-title" href="https://news.google.com/rss/articles/CBMiTkFVX3lxTFBpVTJIYnhWcW1kNFFKTHNoajhPeE9zSW9lTElhZkZvcEo3MExtQnpIZjBRek95cWJ0XzRKMzBtMHh0Ty1SYVRESUxfRTJ4Zw?oc=5" target="_blank" rel="noopener">META_TITLE_QUOTE - Yahoo Finance</a>
-      <div class="news-summary">META_TITLE_QUOTE &amp;nbsp;&amp;nbsp; Yahoo Finance</div>
-      <div class="news-date">Tue, 12 May 2026 00:13:20 GMT</div>
     </div>
     <div class="news-card " data-company="Tesla">
       <div class="news-source">
@@ -1399,8 +1456,8 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
         </div>
         
       </div>
-      <a class="news-title" href="https://news.google.com/rss/articles/CBMi1gFBVV95cUxNNTJnb2xPdXZXb1FBb05DckpzRExBZDR6VUw1Y3YzZk11UUphWTNZZEliNTNXQ1ZQM09oVVBqUVJxdEVRbjdMRXNqNUQ0WVd2UG0wUmJtVHd5WWJJbDdSdWszeGh6V240aDNoQVpfWHZVeGZtN2g1VkJUdG5pZ2t6WnhKSlgxRVBwU1F1dlNDdWdqZ1VMNVkzOE4zN3hEa2lOSXpxSHk4X0hxbmNkQnNJVWFkNnplVUNCMGRoT2hLNHYzY05yaE9TckhZc3JCUXhHajdHQzVn?oc=5" target="_blank" rel="noopener">Microsoft CEO Satya Nadella defends OpenAI&#x27;s for-profit status, shares past nerves over Altman ouster - nypost.com</a>
-      <div class="news-summary">Microsoft CEO Satya Nadella defends OpenAI&#x27;s for-profit status, shares past nerves over Altman ouster &amp;nbsp;&amp;nbsp; nypost.com</div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMi1gFBVV95cUxNNTJnb2xPdXZXb1FBb05DckpzRExBZDR6VUw1Y3YzZk11UUphWTNZZEliNTNXQ1ZQM09oVVBqUVJxdEVRbjdMRXNqNUQ0WVd2UG0wUmJtVHd5WWJJbDdSdWszeGh6V240aDNoQVpfWHZVeGZtN2g1VkJUdG5pZ2t6WnhKSlgxRVBwU1F1dlNDdWdqZ1VMNVkzOE4zN3hEa2lOSXpxSHk4X0hxbmNkQnNJVWFkNnplVUNCMGRoT2hLNHYzY05yaE9TckhZc3JCUXhHajdHQzVn?oc=5" target="_blank" rel="noopener">Microsoft CEO Satya Nadella defends OpenAI&#x27;s for-profit status, shares past nerves over Altman ouster - New York Post</a>
+      <div class="news-summary">Microsoft CEO Satya Nadella defends OpenAI&#x27;s for-profit status, shares past nerves over Altman ouster &amp;nbsp;&amp;nbsp; New York Post</div>
       <div class="news-date">Mon, 11 May 2026 22:41:00 GMT</div>
     </div>
     <div class="news-card " data-company="NVIDIA">
@@ -1595,18 +1652,6 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       <div class="news-summary">It&#x27;s not the news that AbbVie needed, given the challenging year it is having.</div>
       <div class="news-date">Mon, 11 May 2026 21:35:00 +0000</div>
     </div>
-    <div class="news-card " data-company="Microsoft">
-      <div class="news-source">
-        <div class="news-source-left">
-          <span class="co-badge" style="background:#5db1ff22;color:#5db1ff;border:1px solid #5db1ff55">Microsoft</span>
-          <span>Google News · Microsoft</span>
-        </div>
-        
-      </div>
-      <a class="news-title" href="https://news.google.com/rss/articles/CBMirwFBVV95cUxPQ0pWUzNfR0R3MS1vRlBLdGJkQ1d3R2dYejFkLVN4MFY1WDRhTkRmNGQyVFROLUJiVkJUdVlRQmp0dzFrMTJPLXM1UGQwb2l0dU40ajRzbEhJaHVhT013MG82ZS1RX0Y5M1hEVGhyQnRTSmR0elo1SnROWV94RUR0Q0pkRDJQSG1tcWotUkMxd1F5LTY5STZQTENlQmxUaVctelFRRWkxSDNHZ3VlVGNR?oc=5" target="_blank" rel="noopener">Microsoft exec Shawn Bice returns to AWS to lead reliability push for AI agents - GeekWire</a>
-      <div class="news-summary">Microsoft exec Shawn Bice returns to AWS to lead reliability push for AI agents &amp;nbsp;&amp;nbsp; GeekWire</div>
-      <div class="news-date">Mon, 11 May 2026 21:34:57 GMT</div>
-    </div>
     <div class="news-card " data-company="Intel">
       <div class="news-source">
         <div class="news-source-left">
@@ -1751,6 +1796,18 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       <div class="news-summary">Apple CEO Tim Cook, Elon Musk to join President Trump’s China trip &amp;nbsp;&amp;nbsp; MacDailyNews</div>
       <div class="news-date">Mon, 11 May 2026 21:05:23 GMT</div>
     </div>
+    <div class="news-card news-new" data-company="Apple">
+      <div class="news-source">
+        <div class="news-source-left">
+          <span class="co-badge" style="background:#c9cfd622;color:#c9cfd6;border:1px solid #c9cfd655">Apple</span>
+          <span>Google News · Apple</span>
+        </div>
+        <span class="badge badge-new">NEW</span>
+      </div>
+      <a class="news-title" href="https://news.google.com/rss/articles/CBMiywFBVV95cUxQM1lCTEZPdzZ4WFVqU2ZFQlh1bVZwWG42eTd6bmlRV0hZZ2s0V2VHcW5jYnJUUThDaDdFWTRIa01YWVZseGdNWWdTbUhKQTRsWWVHNk5TQjdXU3I5OENpR3RqTC16cDM1MXFBUGI1UzdRbXFVT1pWRk9PM0lRSE50bzlJbEVJYUIxT0F4YlFtbE9YUDd6QTFwanprRFVaU1ZLdlE1UjBVUHdaNEhDWktUSWN2MnFxSnBwcUNhT01jb0VCRnp4S0Vtd0NfRQ?oc=5" target="_blank" rel="noopener">Apple [NASDAQ: AAPL] Posts Record Quarter But Top Investor Urges Caution on Valuation - foreignpolicyjournal.com</a>
+      <div class="news-summary">Apple [NASDAQ: AAPL] Posts Record Quarter But Top Investor Urges Caution on Valuation &amp;nbsp;&amp;nbsp; foreignpolicyjournal.com</div>
+      <div class="news-date">Mon, 11 May 2026 21:02:00 GMT</div>
+    </div>
     <div class="news-card " data-company="NVIDIA">
       <div class="news-source">
         <div class="news-source-left">
@@ -1834,18 +1891,6 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       <a class="news-title" href="https://www.fool.com/investing/2026/05/11/is-circle-internet-group-stock-due-for-a-big-rally/?.tsrc=rss" target="_blank" rel="noopener">Is Circle Internet Group Stock Due for a Big Rally After This Positive Crypto News?</a>
       <div class="news-summary">Investors are breathing a sigh of relief on news that the Clarity Act won&#x27;t completely ban stablecoin rewards.</div>
       <div class="news-date">Mon, 11 May 2026 20:50:00 +0000</div>
-    </div>
-    <div class="news-card " data-company="Meta">
-      <div class="news-source">
-        <div class="news-source-left">
-          <span class="co-badge" style="background:#7c5cff22;color:#7c5cff;border:1px solid #7c5cff55">Meta</span>
-          <span>Yahoo Finance · META</span>
-        </div>
-        
-      </div>
-      <a class="news-title" href="https://www.barchart.com/story/news/1858809/coreweave-stock-falls-as-the-ai-growth-story-slows-down?.tsrc=rss" target="_blank" rel="noopener">CoreWeave Stock Falls as the AI Growth Story Slows Down</a>
-      <div class="news-summary">CoreWeave’s red-hot AI rally cooled sharply as investor concerns over Q2 outlook and spending plans overshadowed explosive growth.</div>
-      <div class="news-date">Mon, 11 May 2026 20:42:47 +0000</div>
     </div></div>
 
   <div class="footer">
@@ -1854,9 +1899,31 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
     由 GitHub Actions 自动构建 · 不构成投资建议
   </div>
 </div>
+
+<div class="modal-backdrop" id="priceModal" role="dialog" aria-labelledby="modalName" aria-hidden="true">
+  <div class="modal">
+    <button class="modal-close" id="modalClose" aria-label="关闭">×</button>
+    <div class="modal-header">
+      <span class="modal-ticker" id="modalTicker">—</span>
+      <span class="modal-name" id="modalName">—</span>
+      <span id="modalCoBadge"></span>
+    </div>
+    <div class="modal-price-row">
+      <span class="modal-price" id="modalPrice">$0.00</span>
+      <span class="modal-chg" id="modalChg">—</span>
+    </div>
+    <div class="modal-chart-wrap">
+      <svg class="modal-chart" id="modalChart" viewBox="0 0 600 240" preserveAspectRatio="none"></svg>
+      <div class="chart-tooltip" id="chartTooltip"></div>
+    </div>
+    <div class="modal-stats" id="modalStats"></div>
+    <div class="modal-meta">数据来源：Yahoo Finance · 每 2 小时自动刷新 · 鼠标悬停折线图查看每日价格</div>
+  </div>
+</div>
+
 <script>
 const badge = document.getElementById('time-badge');
-const utc = '2026-05-12T03:02:42.060376+00:00';
+const utc = '2026-05-12T03:18:15.851918+00:00';
 if (utc) {
   try {
     const d = new Date(utc);
@@ -1874,6 +1941,149 @@ buttons.forEach(btn => btn.addEventListener('click', () => {
     c.style.display = (f === 'all' || c.dataset.company === f) ? '' : 'none';
   });
 }));
+
+// ===== Price detail modal =====
+const PRICE_DATA = {"NVDA": {"name": "NVIDIA", "color": "#76b900", "price": 219.44, "prev_close": 215.1999969482422, "closes": [189.30999755859375, 196.50999450683594, 198.8699951171875, 198.35000610351562, 201.67999267578125, 202.05999755859375, 199.8800048828125, 202.5, 199.63999938964844, 208.27000427246094, 216.61000061035156, 213.1699981689453, 209.25, 199.57000732421875, 198.4499969482422, 198.47999572753906, 196.5, 207.8300018310547, 211.5, 215.1999969482422, 219.44000244140625], "timestamps": [1776087000, 1776173400, 1776259800, 1776346200, 1776432600, 1776691800, 1776778200, 1776864600, 1776951000, 1777037400, 1777296600, 1777383000, 1777469400, 1777555800, 1777642200, 1777901400, 1777987800, 1778074200, 1778160600, 1778247000, 1778506200]}, "INTC": {"name": "Intel", "color": "#0071c5", "price": 129.44, "prev_close": 124.91999816894531, "closes": [65.18000030517578, 63.810001373291016, 64.94000244140625, 68.5, 68.5, 65.69999694824219, 66.26000213623047, 65.2699966430664, 66.77999877929688, 82.54000091552734, 84.98999786376953, 84.5199966430664, 94.75, 94.4800033569336, 99.62000274658203, 95.77999877929688, 108.1500015258789, 113.01000213623047, 109.62000274658203, 124.91999816894531, 129.44000244140625], "timestamps": [1776087000, 1776173400, 1776259800, 1776346200, 1776432600, 1776691800, 1776778200, 1776864600, 1776951000, 1777037400, 1777296600, 1777383000, 1777469400, 1777555800, 1777642200, 1777901400, 1777987800, 1778074200, 1778160600, 1778247000, 1778506200]}, "AMD": {"name": "AMD", "color": "#ed1c24", "price": 458.79, "prev_close": 455.19000244140625, "closes": [246.8300018310547, 255.07000732421875, 258.1199951171875, 278.260009765625, 278.3900146484375, 274.95001220703125, 284.489990234375, 303.4599914550781, 305.3299865722656, 347.80999755859375, 334.6300048828125, 323.2099914550781, 337.1099853515625, 354.489990234375, 360.5400085449219, 341.5400085449219, 355.260009765625, 421.3900146484375, 408.4599914550781, 455.19000244140625, 458.7900085449219], "timestamps": [1776087000, 1776173400, 1776259800, 1776346200, 1776432600, 1776691800, 1776778200, 1776864600, 1776951000, 1777037400, 1777296600, 1777383000, 1777469400, 1777555800, 1777642200, 1777901400, 1777987800, 1778074200, 1778160600, 1778247000, 1778506200]}, "AAPL": {"name": "Apple", "color": "#c9cfd6", "price": 292.68, "prev_close": 293.32000732421875, "closes": [259.20001220703125, 258.8299865722656, 266.42999267578125, 263.3999938964844, 270.2300109863281, 273.04998779296875, 266.1700134277344, 273.1700134277344, 273.42999267578125, 271.05999755859375, 267.6099853515625, 270.7099914550781, 270.1700134277344, 271.3500061035156, 280.1400146484375, 276.8299865722656, 284.17999267578125, 287.510009765625, 287.44000244140625, 293.32000732421875, 292.67999267578125], "timestamps": [1776087000, 1776173400, 1776259800, 1776346200, 1776432600, 1776691800, 1776778200, 1776864600, 1776951000, 1777037400, 1777296600, 1777383000, 1777469400, 1777555800, 1777642200, 1777901400, 1777987800, 1778074200, 1778160600, 1778247000, 1778506200]}, "MSFT": {"name": "Microsoft", "color": "#5db1ff", "price": 412.66, "prev_close": 415.1199951171875, "closes": [384.3699951171875, 393.1099853515625, 411.2200012207031, 420.260009765625, 422.7900085449219, 418.07000732421875, 424.1600036621094, 432.9200134277344, 415.75, 424.6199951171875, 424.82000732421875, 429.25, 424.4599914550781, 407.7799987792969, 414.44000244140625, 413.6199951171875, 411.3800048828125, 413.9599914550781, 420.7699890136719, 415.1199951171875, 412.6600036621094], "timestamps": [1776087000, 1776173400, 1776259800, 1776346200, 1776432600, 1776691800, 1776778200, 1776864600, 1776951000, 1777037400, 1777296600, 1777383000, 1777469400, 1777555800, 1777642200, 1777901400, 1777987800, 1778074200, 1778160600, 1778247000, 1778506200]}, "GOOGL": {"name": "Alphabet", "color": "#fbbc04", "price": 388.64, "prev_close": 400.79998779296875, "closes": [321.30999755859375, 332.9100036621094, 337.1199951171875, 336.0199890136719, 341.67999267578125, 337.4200134277344, 332.2900085449219, 339.32000732421875, 338.8900146484375, 344.3999938964844, 350.3399963378906, 349.7799987792969, 349.94000244140625, 384.79998779296875, 385.69000244140625, 383.25, 388.42999267578125, 398.0400085449219, 397.989990234375, 400.79998779296875, 388.6400146484375], "timestamps": [1776087000, 1776173400, 1776259800, 1776346200, 1776432600, 1776691800, 1776778200, 1776864600, 1776951000, 1777037400, 1777296600, 1777383000, 1777469400, 1777555800, 1777642200, 1777901400, 1777987800, 1778074200, 1778160600, 1778247000, 1778506200]}, "AMZN": {"name": "Amazon", "color": "#ff9900", "price": 268.99, "prev_close": 272.67999267578125, "closes": [239.88999938964844, 249.02000427246094, 248.5, 249.6999969482422, 250.55999755859375, 248.27999877929688, 249.91000366210938, 255.36000061035156, 255.0800018310547, 263.989990234375, 261.1199951171875, 259.70001220703125, 263.0400085449219, 265.05999755859375, 268.260009765625, 272.04998779296875, 273.54998779296875, 274.989990234375, 271.1700134277344, 272.67999267578125, 268.989990234375], "timestamps": [1776087000, 1776173400, 1776259800, 1776346200, 1776432600, 1776691800, 1776778200, 1776864600, 1776951000, 1777037400, 1777296600, 1777383000, 1777469400, 1777555800, 1777642200, 1777901400, 1777987800, 1778074200, 1778160600, 1778247000, 1778506200]}, "META": {"name": "Meta", "color": "#7c5cff", "price": 598.86, "prev_close": 609.6300048828125, "closes": [634.530029296875, 662.489990234375, 671.5800170898438, 676.8699951171875, 688.5499877929688, 670.9099731445312, 668.8400268554688, 674.719970703125, 659.1500244140625, 675.030029296875, 678.6199951171875, 671.3400268554688, 669.1199951171875, 611.9099731445312, 608.75, 610.4099731445312, 604.9600219726562, 612.8800048828125, 616.8099975585938, 609.6300048828125, 598.8599853515625], "timestamps": [1776087000, 1776173400, 1776259800, 1776346200, 1776432600, 1776691800, 1776778200, 1776864600, 1776951000, 1777037400, 1777296600, 1777383000, 1777469400, 1777555800, 1777642200, 1777901400, 1777987800, 1778074200, 1778160600, 1778247000, 1778506200]}, "TSLA": {"name": "Tesla", "color": "#ff6b6b", "price": 445.0, "prev_close": 428.3500061035156, "closes": [352.4200134277344, 364.20001220703125, 391.95001220703125, 388.8999938964844, 400.6199951171875, 392.5, 386.4200134277344, 387.510009765625, 373.7200012207031, 376.29998779296875, 378.6700134277344, 376.0199890136719, 372.79998779296875, 381.6300048828125, 390.82000732421875, 392.510009765625, 389.3699951171875, 398.7300109863281, 411.7900085449219, 428.3500061035156, 445.0], "timestamps": [1776087000, 1776173400, 1776259800, 1776346200, 1776432600, 1776691800, 1776778200, 1776864600, 1776951000, 1777037400, 1777296600, 1777383000, 1777469400, 1777555800, 1777642200, 1777901400, 1777987800, 1778074200, 1778160600, 1778247000, 1778506200]}};
+const modalEl = document.getElementById('priceModal');
+const mTicker = document.getElementById('modalTicker');
+const mName = document.getElementById('modalName');
+const mBadge = document.getElementById('modalCoBadge');
+const mPrice = document.getElementById('modalPrice');
+const mChg = document.getElementById('modalChg');
+const mChart = document.getElementById('modalChart');
+const mStats = document.getElementById('modalStats');
+const tooltip = document.getElementById('chartTooltip');
+
+function fmtDate(ts) {
+  return new Date(ts * 1000).toLocaleDateString('zh-CN', {month:'short', day:'numeric'});
+}
+
+function openPriceModal(ticker) {
+  const d = PRICE_DATA[ticker];
+  if (!d) return;
+  mTicker.textContent = ticker;
+  mName.textContent = d.name;
+  mBadge.innerHTML = '<span class="co-badge" style="background:'+d.color+'22;color:'+d.color+';border:1px solid '+d.color+'55">'+d.name+'</span>';
+  const closes = d.closes, tss = d.timestamps;
+  const cur = d.price;
+  const prev = d.prev_close || cur;
+  const chg = cur - prev;
+  const chgPct = prev ? (chg/prev*100) : 0;
+  const up = chg >= 0;
+  mPrice.textContent = '$' + cur.toFixed(2);
+  mChg.textContent = (up?'+':'') + chg.toFixed(2) + ' (' + (up?'+':'') + chgPct.toFixed(2) + '%)';
+  mChg.className = 'modal-chg ' + (up?'up':'down');
+
+  const monthPct = (closes.length && closes[0]) ? ((closes[closes.length-1]-closes[0])/closes[0]*100) : 0;
+  const weekIdx = Math.max(0, closes.length - 6);
+  const weekBase = closes[weekIdx];
+  const weekPct = weekBase ? ((closes[closes.length-1]-weekBase)/weekBase*100) : 0;
+  const hi = Math.max.apply(null, closes), lo = Math.min.apply(null, closes);
+  const stats = [
+    ['当日涨跌', (chg>=0?'+':'')+chgPct.toFixed(2)+'%', chg>=0?'up':'down'],
+    ['1 周涨跌', (weekPct>=0?'+':'')+weekPct.toFixed(2)+'%', weekPct>=0?'up':'down'],
+    ['1 月涨跌', (monthPct>=0?'+':'')+monthPct.toFixed(2)+'%', monthPct>=0?'up':'down'],
+    ['月内最高', '$'+hi.toFixed(2), ''],
+    ['月内最低', '$'+lo.toFixed(2), ''],
+    ['昨日收盘', '$'+prev.toFixed(2), '']
+  ];
+  mStats.innerHTML = stats.map(s =>
+    '<div class="modal-stat"><div class="modal-stat-label">'+s[0]+'</div><div class="modal-stat-val '+s[2]+'">'+s[1]+'</div></div>'
+  ).join('');
+
+  renderLargeChart(closes, tss);
+  modalEl.classList.add('open');
+  modalEl.setAttribute('aria-hidden', 'false');
+}
+
+function closePriceModal() {
+  modalEl.classList.remove('open');
+  modalEl.setAttribute('aria-hidden', 'true');
+  tooltip.style.display = 'none';
+}
+
+function renderLargeChart(closes, tss) {
+  const W = 600, H = 240, padL = 50, padR = 16, padT = 12, padB = 30;
+  const cw = W - padL - padR, ch = H - padT - padB;
+  if (closes.length < 2) {
+    mChart.innerHTML = '<text x="'+(W/2)+'" y="'+(H/2)+'" text-anchor="middle" fill="#4a5a78" font-size="12">数据不足</text>';
+    return;
+  }
+  const lo = Math.min.apply(null, closes), hi = Math.max.apply(null, closes);
+  const rng = (hi-lo) || 1;
+  const n = closes.length;
+  const pts = closes.map((c,i) => [padL + i*cw/(n-1), padT + ch - ((c-lo)/rng)*ch]);
+  const ptsStr = pts.map(p => p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  const up = closes[n-1] >= closes[0];
+  const lineColor = up ? '#00e5a0' : '#ff6b6b';
+  const fillColor = up ? 'rgba(0,229,160,0.10)' : 'rgba(255,107,107,0.10)';
+  const areaPts = padL+','+(padT+ch) + ' ' + ptsStr + ' ' + (padL+cw)+','+(padT+ch);
+
+  const gridY = [padT, padT+ch/2, padT+ch];
+  const gridLab = [hi.toFixed(2), ((hi+lo)/2).toFixed(2), lo.toFixed(2)];
+  let gridSvg = '';
+  for (let i=0; i<3; i++) {
+    gridSvg += '<line x1="'+padL+'" y1="'+gridY[i]+'" x2="'+(padL+cw)+'" y2="'+gridY[i]+'" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>';
+    gridSvg += '<text x="'+(padL-6)+'" y="'+(gridY[i]+3)+'" text-anchor="end" font-family="Space Mono" font-size="10" fill="#4a5a78">$'+gridLab[i]+'</text>';
+  }
+
+  const dateAt = [[padL, fmtDate(tss[0]), 'start'],
+                  [padL+cw/2, fmtDate(tss[Math.floor(n/2)]), 'middle'],
+                  [padL+cw, fmtDate(tss[n-1]), 'end']];
+  let dateSvg = '';
+  dateAt.forEach(d => {
+    dateSvg += '<text x="'+d[0]+'" y="'+(H-8)+'" text-anchor="'+d[2]+'" font-family="Space Mono" font-size="10" fill="#4a5a78">'+d[1]+'</text>';
+  });
+
+  mChart.innerHTML =
+    gridSvg +
+    '<polygon fill="'+fillColor+'" points="'+areaPts+'"/>' +
+    '<polyline fill="none" stroke="'+lineColor+'" stroke-width="2" points="'+ptsStr+'"/>' +
+    dateSvg +
+    '<line id="hLine" x1="0" y1="'+padT+'" x2="0" y2="'+(padT+ch)+'" stroke="rgba(255,255,255,0.3)" stroke-width="1" visibility="hidden"/>' +
+    '<circle id="hDot" r="5" fill="'+lineColor+'" stroke="#fff" stroke-width="2" visibility="hidden"/>' +
+    '<rect id="hOverlay" x="'+padL+'" y="'+padT+'" width="'+cw+'" height="'+ch+'" fill="transparent" style="cursor:crosshair"/>';
+
+  const hLine = document.getElementById('hLine');
+  const hDot = document.getElementById('hDot');
+  const hOverlay = document.getElementById('hOverlay');
+
+  hOverlay.addEventListener('mousemove', e => {
+    const rect = mChart.getBoundingClientRect();
+    const xSvg = (e.clientX - rect.left) * W / rect.width;
+    let best = 0, bestDist = Infinity;
+    for (let i=0; i<n; i++) {
+      const dd = Math.abs(pts[i][0] - xSvg);
+      if (dd < bestDist) { bestDist = dd; best = i; }
+    }
+    hLine.setAttribute('x1', pts[best][0]);
+    hLine.setAttribute('x2', pts[best][0]);
+    hLine.setAttribute('visibility', 'visible');
+    hDot.setAttribute('cx', pts[best][0]);
+    hDot.setAttribute('cy', pts[best][1]);
+    hDot.setAttribute('visibility', 'visible');
+    tooltip.style.display = 'block';
+    tooltip.textContent = fmtDate(tss[best]) + ' · $' + closes[best].toFixed(2);
+    const tipX = Math.min(rect.width - 140, Math.max(8, e.clientX - rect.left + 12));
+    tooltip.style.left = tipX + 'px';
+    tooltip.style.top = '14px';
+  });
+  hOverlay.addEventListener('mouseleave', () => {
+    hLine.setAttribute('visibility', 'hidden');
+    hDot.setAttribute('visibility', 'hidden');
+    tooltip.style.display = 'none';
+  });
+}
+
+document.querySelectorAll('.price-card.clickable').forEach(card => {
+  card.addEventListener('click', () => openPriceModal(card.dataset.ticker));
+  card.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPriceModal(card.dataset.ticker); }
+  });
+});
+document.getElementById('modalClose').addEventListener('click', closePriceModal);
+modalEl.addEventListener('click', e => { if (e.target === modalEl) closePriceModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePriceModal(); });
 </script>
 </body>
 </html>
