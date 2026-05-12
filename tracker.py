@@ -386,12 +386,17 @@ def fetch_price(ticker):
         meta = result["meta"]
         closes = result["indicators"]["quote"][0].get("close", []) or []
         closes = [c for c in closes if c is not None]
+        # Yesterday's close = second-to-last daily close. Yahoo's
+        # meta.previousClose is often null on multi-day range queries, and
+        # meta.chartPreviousClose is the price BEFORE the chart window (1 month ago) —
+        # using it as the day baseline produced "INTC +107% today" type bugs.
+        day_baseline = (closes[-2] if len(closes) >= 2
+                        else meta.get("previousClose")
+                        or meta.get("chartPreviousClose"))
         return {
             "ticker": ticker,
             "price": meta.get("regularMarketPrice"),
-            # previousClose = yesterday's close (real day change baseline)
-            # chartPreviousClose = day before the chart range started (1 month ago) — used as fallback
-            "prev_close": meta.get("previousClose") or meta.get("chartPreviousClose"),
+            "prev_close": day_baseline,
             "currency": meta.get("currency", "USD"),
             "closes": closes,
         }
