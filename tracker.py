@@ -389,7 +389,9 @@ def fetch_price(ticker):
         return {
             "ticker": ticker,
             "price": meta.get("regularMarketPrice"),
-            "prev_close": meta.get("chartPreviousClose") or meta.get("previousClose"),
+            # previousClose = yesterday's close (real day change baseline)
+            # chartPreviousClose = day before the chart range started (1 month ago) — used as fallback
+            "prev_close": meta.get("previousClose") or meta.get("chartPreviousClose"),
             "currency": meta.get("currency", "USD"),
             "closes": closes,
         }
