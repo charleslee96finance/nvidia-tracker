@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Chip Tracker — NVIDIA · Intel · AMD daily tracker.
+"""US Mega-Cap Tracker — Mag 7 + chip industry (NVIDIA, Intel, AMD, Apple, MSFT, GOOGL, AMZN, META, TSLA).
 
 Runs on GitHub Actions. Outputs:
   - index.html  (served by GitHub Pages)
   - data/cache.json  (tracks seen item IDs across runs for the NEW badge)
 """
 
+import concurrent.futures as cf
 import json
 import re
 import sys
@@ -23,50 +24,94 @@ OUTPUT_FILE = ROOT / "index.html"
 CACHE_FILE = DATA_DIR / "cache.json"
 DATA_DIR.mkdir(exist_ok=True)
 
-USER_AGENT = "Chip Tracker contact@local.dev"
+USER_AGENT = "US Mega Tracker contact@local.dev"
+BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+              "AppleWebKit/537.36 (KHTML, like Gecko) "
+              "Chrome/120.0.0.0 Safari/537.36")
 
 # --- Company config ---------------------------------------------------------
 COMPANIES = [
+    # --- Chip industry ---
     {
-        "name": "NVIDIA",
-        "ticker": "NVDA",
-        "color": "#76b900",          # NVIDIA green
-        "cik": "0001045810",
+        "name": "NVIDIA", "ticker": "NVDA", "category": "chip",
+        "color": "#76b900", "cik": "0001045810",
         "blog_url": "https://blogs.nvidia.com/feed/",
         "search_terms": 'NVIDIA OR "Jensen Huang"',
         "invest_search": "NVIDIA (invests OR acquires OR stake OR backs OR partnership)",
         "name_regex": r"NVIDIA",
     },
     {
-        "name": "Intel",
-        "ticker": "INTC",
-        "color": "#0071c5",          # Intel blue
-        "cik": "0000050863",
+        "name": "Intel", "ticker": "INTC", "category": "chip",
+        "color": "#0071c5", "cik": "0000050863",
         "blog_url": None,
         "search_terms": '"Intel Corp" OR "Lip-Bu Tan" OR "Intel chip"',
         "invest_search": "Intel (invests OR acquires OR stake OR backs OR partnership)",
         "name_regex": r"Intel(?:\s+Corp(?:oration)?)?",
     },
     {
-        "name": "AMD",
-        "ticker": "AMD",
-        "color": "#ed1c24",          # AMD red
-        "cik": "0000002488",
+        "name": "AMD", "ticker": "AMD", "category": "chip",
+        "color": "#ed1c24", "cik": "0000002488",
         "blog_url": None,
         "search_terms": '"AMD" OR "Lisa Su" OR "Advanced Micro Devices"',
         "invest_search": "AMD (invests OR acquires OR stake OR backs OR partnership)",
         "name_regex": r"AMD|Advanced\s+Micro\s+Devices",
     },
+    # --- Magnificent 7 (excluding NVIDIA, already above) ---
+    {
+        "name": "Apple", "ticker": "AAPL", "category": "mag7",
+        "color": "#c9cfd6", "cik": "0000320193",
+        "blog_url": None,
+        "search_terms": '"Apple Inc" OR AAPL OR "Tim Cook"',
+        "invest_search": '"Apple Inc" (invests OR acquires OR stake OR backs)',
+        "name_regex": r"Apple(?:\s+Inc)?",
+    },
+    {
+        "name": "Microsoft", "ticker": "MSFT", "category": "mag7",
+        "color": "#5db1ff", "cik": "0000789019",
+        "blog_url": None,
+        "search_terms": 'Microsoft OR "Satya Nadella" OR MSFT',
+        "invest_search": "Microsoft (invests OR acquires OR stake OR backs OR partnership)",
+        "name_regex": r"Microsoft",
+    },
+    {
+        "name": "Alphabet", "ticker": "GOOGL", "category": "mag7",
+        "color": "#fbbc04", "cik": "0001652044",
+        "blog_url": None,
+        "search_terms": 'Alphabet OR "Sundar Pichai" OR "Google parent"',
+        "invest_search": "(Alphabet OR Google) (invests OR acquires OR stake OR backs)",
+        "name_regex": r"Alphabet|Google",
+    },
+    {
+        "name": "Amazon", "ticker": "AMZN", "category": "mag7",
+        "color": "#ff9900", "cik": "0001018724",
+        "blog_url": None,
+        "search_terms": '"Amazon.com" OR "Andy Jassy" OR AMZN',
+        "invest_search": "Amazon (invests OR acquires OR stake OR backs OR partnership)",
+        "name_regex": r"Amazon(?:\.com)?",
+    },
+    {
+        "name": "Meta", "ticker": "META", "category": "mag7",
+        "color": "#7c5cff", "cik": "0001326801",
+        "blog_url": None,
+        "search_terms": '"Meta Platforms" OR "Mark Zuckerberg" OR "Meta AI"',
+        "invest_search": "Meta (invests OR acquires OR stake OR backs OR partnership)",
+        "name_regex": r"Meta(?:\s+Platforms)?|Facebook",
+    },
+    {
+        "name": "Tesla", "ticker": "TSLA", "category": "mag7",
+        "color": "#ff6b6b", "cik": "0001318605",
+        "blog_url": None,
+        "search_terms": 'Tesla OR "Elon Musk" OR TSLA',
+        "invest_search": "Tesla (invests OR acquires OR stake OR backs OR partnership)",
+        "name_regex": r"Tesla(?:\s+Inc)?",
+    },
 ]
 
-# Quantifier prefixes we want to skip between the verb and the target name.
-# Example: "invests *up to $2.1 billion in* IREN AI" → skip the bold part.
+# Quantifier prefixes (e.g. "up to $2.1 billion in")
 _QUANT = r"(?:up\s+to\s+|over\s+|nearly\s+|approximately\s+|about\s+|around\s+|more\s+than\s+)?"
 _MONEY = r"(?:[\$\d.,]+\s*(?:billion|million|trillion|B|M|K)?\s+)?"
 _PREP  = r"(?:in|into|on)?\s*"
-# Target capture is *case-sensitive* (uses (?-i:...)) so it won't grab
-# lowercase prepositions like "up" or "in" even though the rest is case-insensitive.
-# Captures up to 4 capitalized words in a row → handles multi-word names like "IREN AI", "Habana Labs".
+# Case-sensitive target capture: up to 4 capitalized words in a row.
 _TARGET = r"(?-i:([A-Z][\w&.\-]+(?:\s+[A-Z][\w&.\-]+){0,3}))"
 
 INVEST_PATTERN_TEMPLATES = [
@@ -77,53 +122,37 @@ INVEST_PATTERN_TEMPLATES = [
     rf"(?:{{co}})\s+(?:partners?|partnered|partnering)\s+with\s+{_TARGET}",
 ]
 
-# Words that should never be a "target company" on their own.
-# Also stripped from the START or END of multi-word captures.
 STOP_WORDS = {
-    # Articles & determiners
     "the", "a", "an", "this", "that", "these", "those",
-    # Pronouns
     "its", "their", "our", "your", "his", "her", "my", "we", "you", "they",
-    # Conjunctions
     "and", "or", "but", "nor", "yet", "so",
-    # Prepositions (these get capitalized in title-case headlines)
     "in", "on", "at", "by", "to", "of", "with", "from", "into", "onto",
     "for", "over", "up", "down", "as", "about", "via", "around", "through",
-    # Be/aux verbs
     "is", "are", "was", "were", "be", "been", "being",
     "have", "has", "had", "do", "does", "did",
-    # Headline verbs / modals
     "says", "said", "announces", "announced", "reports", "reported",
     "plans", "planned", "will", "would", "could", "may", "might",
     "expects", "expected", "warns", "warned", "raises", "raised",
-    # Comparatives / quantifiers
     "new", "more", "less", "most", "least", "many", "few", "several",
     "first", "next", "last", "recent", "latest", "another", "other",
-    # Money / numbers
     "billion", "million", "trillion", "b", "m", "k",
-    # Common short caps in headlines
     "ai", "ml", "ar", "vr", "ev", "iot", "us", "usa", "uk", "eu",
     "ceo", "cto", "cfo", "ipo", "vc", "pe", "ir",
-    # Generic business nouns (almost never the actual company name)
     "company", "companies", "firm", "startup", "business", "team",
     "report", "deal", "investment", "investments", "stake", "shares",
     "inc", "corp", "ltd", "llc", "co",
-    # Time / dates
     "today", "yesterday", "tomorrow", "year", "month", "week", "day",
     "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
     "january", "february", "march", "april", "may", "june",
     "july", "august", "september", "october", "november", "december",
-    # Common gerunds that show up after generic nouns
     "building", "making", "running", "doing", "working", "trying", "driving",
 }
 
 
 def clean_target(raw, parent_co_regex):
-    """Strip junk from captured target. Returns cleaned string or None if not a plausible company."""
     target = (raw or "").strip(" \t\n.,;:!?\"'")
     if not target:
         return None
-    # Strip leading and trailing stop words, preserve middle (e.g. "Bank of America")
     words = target.split()
     while words and words[0].lower() in STOP_WORDS:
         words = words[1:]
@@ -140,11 +169,10 @@ def clean_target(raw, parent_co_regex):
         return None
     if not any(ch.isalpha() for ch in cleaned):
         return None
-    # Reject if the entire cleaned target is the parent company itself
-    # (e.g., "NVIDIA" or first word matches NVIDIA)
     if parent_co_regex.fullmatch(cleaned) or parent_co_regex.fullmatch(words[0]):
         return None
     return cleaned
+
 
 # Build per-company patterns + feeds
 for c in COMPANIES:
@@ -163,14 +191,20 @@ for c in COMPANIES:
     c["feeds"] = feeds
 
 
-def co_badge_class(name):
-    return {"NVIDIA": "cb-nvda", "Intel": "cb-intc", "AMD": "cb-amd"}.get(name, "cb-nvda")
-
-
 def co_color(name):
-    return {"NVIDIA": "#76b900", "Intel": "#0071c5", "AMD": "#ed1c24"}.get(name, "#76b900")
+    for c in COMPANIES:
+        if c["name"] == name:
+            return c["color"]
+    return "#4da6ff"
 
 
+def co_badge_inline(name):
+    color = co_color(name)
+    return (f'<span class="co-badge" style="background:{color}22;color:{color};'
+            f'border:1px solid {color}55">{escape(name)}</span>')
+
+
+# --- Cache ------------------------------------------------------------------
 def load_seen():
     if CACHE_FILE.exists():
         try:
@@ -183,61 +217,13 @@ def load_seen():
 
 def save_seen(ids):
     CACHE_FILE.write_text(
-        json.dumps(
-            {"seen_ids": ids[:3000],
-             "updated": datetime.now(timezone.utc).isoformat()},
-            ensure_ascii=False, indent=2),
+        json.dumps({"seen_ids": ids[:4000],
+                    "updated": datetime.now(timezone.utc).isoformat()},
+                   ensure_ascii=False, indent=2),
         encoding="utf-8")
 
 
-def fetch_news(seen):
-    items = []
-    for c in COMPANIES:
-        for source, url in c["feeds"]:
-            try:
-                feed = feedparser.parse(
-                    url, request_headers={"User-Agent": USER_AGENT})
-                count = 0
-                for entry in feed.entries[:30]:
-                    title = (entry.get("title") or "").strip()
-                    if not title:
-                        continue
-                    link = entry.get("link") or ""
-                    published = entry.get("published") or entry.get("updated") or ""
-                    summary = re.sub(r"<[^>]+>", " ", entry.get("summary", "") or "")
-                    summary = re.sub(r"\s+", " ", summary).strip()
-                    if len(summary) > 280:
-                        summary = summary[:280] + "..."
-                    item_id = (entry.get("id") or entry.get("guid")
-                               or link or f"{source}::{title}")
-                    items.append({
-                        "primary_company": c["name"],
-                        "source": source,
-                        "title": title,
-                        "link": link,
-                        "published": published,
-                        "summary": summary,
-                        "id": item_id,
-                        "is_new": item_id not in seen,
-                    })
-                    count += 1
-                print(f"[{source}] {count} items", file=sys.stderr)
-            except Exception as e:
-                print(f"[{source}] error: {e}", file=sys.stderr)
-    return items
-
-
-def dedupe(items):
-    seen_titles = set()
-    out = []
-    for it in items:
-        key = it["title"].lower()
-        if key and key not in seen_titles:
-            seen_titles.add(key)
-            out.append(it)
-    return out
-
-
+# --- Date parsing -----------------------------------------------------------
 def parse_date(s):
     if not s:
         return datetime(1900, 1, 1, tzinfo=timezone.utc)
@@ -256,8 +242,70 @@ def parse_date(s):
     return datetime(1900, 1, 1, tzinfo=timezone.utc)
 
 
+# --- News fetching (parallel) -----------------------------------------------
+def _fetch_one_feed(args):
+    primary, source, url = args
+    try:
+        feed = feedparser.parse(url, request_headers={"User-Agent": USER_AGENT})
+        entries = []
+        for entry in feed.entries[:30]:
+            title = (entry.get("title") or "").strip()
+            if not title:
+                continue
+            link = entry.get("link") or ""
+            published = entry.get("published") or entry.get("updated") or ""
+            summary = re.sub(r"<[^>]+>", " ", entry.get("summary", "") or "")
+            summary = re.sub(r"\s+", " ", summary).strip()
+            if len(summary) > 280:
+                summary = summary[:280] + "..."
+            item_id = (entry.get("id") or entry.get("guid")
+                       or link or f"{source}::{title}")
+            entries.append({
+                "primary_company": primary,
+                "source": source,
+                "title": title,
+                "link": link,
+                "published": published,
+                "summary": summary,
+                "id": item_id,
+            })
+        return source, entries, None
+    except Exception as e:
+        return source, [], str(e)
+
+
+def fetch_news(seen):
+    feeds = []
+    for c in COMPANIES:
+        for source, url in c["feeds"]:
+            feeds.append((c["name"], source, url))
+
+    items = []
+    with cf.ThreadPoolExecutor(max_workers=10) as ex:
+        for source, entries, err in ex.map(_fetch_one_feed, feeds):
+            if err:
+                print(f"[{source}] error: {err}", file=sys.stderr)
+            else:
+                for e in entries:
+                    e["is_new"] = e["id"] not in seen
+                items.extend(entries)
+                print(f"[{source}] {len(entries)}", file=sys.stderr)
+    return items
+
+
+def dedupe(items):
+    seen_titles = set()
+    out = []
+    for it in items:
+        key = it["title"].lower()
+        if key and key not in seen_titles:
+            seen_titles.add(key)
+            out.append(it)
+    return out
+
+
+# --- Investment signal detection --------------------------------------------
 def detect_investments(items):
-    """Returns {company_name: [signals]}."""
     out = {c["name"]: [] for c in COMPANIES}
     seen_targets = {c["name"]: set() for c in COMPANIES}
     for it in items:
@@ -283,6 +331,7 @@ def detect_investments(items):
     return out
 
 
+# --- SEC EDGAR --------------------------------------------------------------
 def fetch_sec_for(cik):
     try:
         url = f"https://data.sec.gov/submissions/CIK{cik}.json"
@@ -307,19 +356,192 @@ def fetch_sec_for(cik):
                 "url": file_url,
                 "description": desc,
             })
-        return filings[:10]
+        return filings[:5]
     except Exception as e:
-        print(f"SEC error for CIK {cik}: {e}", file=sys.stderr)
+        print(f"SEC error CIK {cik}: {e}", file=sys.stderr)
         return []
 
 
 def fetch_sec_all():
     out = {}
-    for c in COMPANIES:
-        filings = fetch_sec_for(c["cik"])
-        out[c["name"]] = filings
-        print(f"SEC {c['name']}: {len(filings)} filings", file=sys.stderr)
+    with cf.ThreadPoolExecutor(max_workers=9) as ex:
+        futures = {ex.submit(fetch_sec_for, c["cik"]): c["name"] for c in COMPANIES}
+        for fut in cf.as_completed(futures):
+            name = futures[fut]
+            out[name] = fut.result()
+            print(f"SEC {name}: {len(out[name])}", file=sys.stderr)
     return out
+
+
+# --- Stock prices (Yahoo Finance Chart API) ---------------------------------
+def fetch_price(ticker):
+    try:
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?range=1mo&interval=1d"
+        r = requests.get(url,
+                         headers={"User-Agent": BROWSER_UA, "Accept": "application/json"},
+                         timeout=15)
+        r.raise_for_status()
+        data = r.json()
+        result = data["chart"]["result"][0]
+        meta = result["meta"]
+        closes = result["indicators"]["quote"][0].get("close", []) or []
+        closes = [c for c in closes if c is not None]
+        return {
+            "ticker": ticker,
+            "price": meta.get("regularMarketPrice"),
+            "prev_close": meta.get("chartPreviousClose") or meta.get("previousClose"),
+            "currency": meta.get("currency", "USD"),
+            "closes": closes,
+        }
+    except Exception as e:
+        print(f"price error {ticker}: {e}", file=sys.stderr)
+        return None
+
+
+def fetch_prices_all():
+    out = {}
+    with cf.ThreadPoolExecutor(max_workers=9) as ex:
+        futures = {ex.submit(fetch_price, c["ticker"]): c["name"] for c in COMPANIES}
+        for fut in cf.as_completed(futures):
+            name = futures[fut]
+            data = fut.result()
+            if data:
+                out[name] = data
+                px = data.get("price")
+                px_str = f"${px:.2f}" if px else "n/a"
+                print(f"price {name}: {px_str}", file=sys.stderr)
+    return out
+
+
+def render_sparkline(closes, width=140, height=36):
+    if not closes or len(closes) < 2:
+        return ""
+    lo, hi = min(closes), max(closes)
+    rng = hi - lo or 1
+    n = len(closes)
+    points = []
+    for i, c in enumerate(closes):
+        x = i * (width / (n - 1))
+        y = height - ((c - lo) / rng) * (height - 6) - 3
+        points.append(f"{x:.1f},{y:.1f}")
+    pts = " ".join(points)
+    up = closes[-1] >= closes[0]
+    color = "#00e5a0" if up else "#ff6b6b"
+    fill = "rgba(0,229,160,0.10)" if up else "rgba(255,107,107,0.10)"
+    area_pts = f"0,{height} " + pts + f" {width:.1f},{height}"
+    return (f'<svg viewBox="0 0 {width} {height}" width="100%" height="{height}" '
+            f'preserveAspectRatio="none">'
+            f'<polygon fill="{fill}" points="{area_pts}"/>'
+            f'<polyline fill="none" stroke="{color}" stroke-width="1.5" points="{pts}"/>'
+            f'</svg>')
+
+
+def render_price_cards(prices_by_co, category):
+    parts = []
+    for c in COMPANIES:
+        if c["category"] != category:
+            continue
+        data = prices_by_co.get(c["name"])
+        if not data or data["price"] is None:
+            parts.append(f'''
+    <div class="price-card">
+      <div class="price-head">
+        <span class="price-ticker">{escape(c["ticker"])}</span>
+        {co_badge_inline(c["name"])}
+      </div>
+      <div class="empty" style="margin-top:8px">价格暂不可用</div>
+    </div>''')
+            continue
+        price = data["price"]
+        prev = data["prev_close"] or price
+        chg = price - prev
+        chg_pct = (chg / prev * 100) if prev else 0
+        cls = "up" if chg >= 0 else "down"
+        sign = "+" if chg >= 0 else ""
+        spark = render_sparkline(data["closes"])
+        closes = data["closes"]
+        month_chg_pct = ((closes[-1] - closes[0]) / closes[0] * 100
+                         if closes and closes[0] else 0)
+        m_sign = "+" if month_chg_pct >= 0 else ""
+        m_cls = "up" if month_chg_pct >= 0 else "down"
+        parts.append(f'''
+    <div class="price-card">
+      <div class="price-head">
+        <span class="price-ticker">{escape(c["ticker"])}</span>
+        {co_badge_inline(c["name"])}
+      </div>
+      <div class="price-main">
+        <span class="price-now">${price:.2f}</span>
+        <span class="price-chg {cls}">{sign}{chg:.2f} ({sign}{chg_pct:.2f}%)</span>
+      </div>
+      <div class="price-spark">{spark}</div>
+      <div class="price-month">1 个月: <span class="{m_cls}">{m_sign}{month_chg_pct:.2f}%</span></div>
+    </div>''')
+    return "".join(parts)
+
+
+def render_investment_sections(investments_by_co):
+    out = []
+    for c in COMPANIES:
+        signals = investments_by_co.get(c["name"], [])
+        if not signals:
+            continue
+        cards = []
+        for inv in signals:
+            new_badge = '<span class="badge badge-new">NEW</span>' if inv["is_new"] else ""
+            new_cls = "signal-new" if inv["is_new"] else ""
+            cards.append(f'''
+    <div class="signal-card {new_cls}">
+      <div class="signal-target">{escape(inv['target'])} {new_badge}</div>
+      <div class="signal-title"><a href="{escape(inv['link'])}" target="_blank" rel="noopener">{escape(inv['title'])}</a></div>
+      <div class="signal-meta">{escape(inv['source'])} · {escape(inv['date'])}</div>
+    </div>''')
+        out.append(f'''
+  <div class="co-section">
+    <div class="co-header" style="color:{c["color"]}">
+      <span class="co-dot" style="background:{c["color"]}"></span>
+      <span class="co-name">{escape(c['name'])}</span>
+      <span class="co-count">{len(signals)} 个信号</span>
+    </div>
+    <div class="signal-grid">{"".join(cards)}</div>
+  </div>''')
+    if not out:
+        return '<div class="empty">本次未检测到任何投资 / 收购信号。</div>'
+    return "".join(out)
+
+
+def render_sec_sections(sec_by_co):
+    out = []
+    for c in COMPANIES:
+        filings = sec_by_co.get(c["name"], [])
+        rows = []
+        for f in filings:
+            cls = "sec-default"
+            if f["form"].startswith("8-K"):
+                cls = "sec-8k"
+            elif f["form"].startswith("10-"):
+                cls = "sec-10"
+            elif f["form"].startswith("SC 13"):
+                cls = "sec-13"
+            elif f["form"].startswith("13F"):
+                cls = "sec-13f"
+            rows.append(f'''
+    <a href="{escape(f['url'])}" target="_blank" rel="noopener" class="sec-card">
+      <span class="sec-form {cls}">{escape(f['form'])}</span>
+      <span class="sec-date">{escape(f['date'])}</span>
+      <span class="sec-desc">{escape(f.get('description') or '')}</span>
+    </a>''')
+        rows_html = "".join(rows) or '<div class="empty">无新文件。</div>'
+        out.append(f'''
+  <div class="co-section">
+    <div class="co-header" style="color:{c["color"]}">
+      <span class="co-dot" style="background:{c["color"]}"></span>
+      <span class="co-name">{escape(c['name'])}</span>
+      <span class="co-count">CIK {escape(c['cik'])} · {len(filings)} 份</span>
+    </div>
+    <div class="sec-grid">{rows_html}</div>
+  </div>''')
+    return "".join(out)
 
 
 TEMPLATE = """<!DOCTYPE html>
@@ -328,36 +550,44 @@ TEMPLATE = """<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="refresh" content="900">
-<title>芯片三巨头 · 投资追踪 · {{NOW}}</title>
+<title>美股巨头 · 投资追踪 · {{NOW}}</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#050810;--bg2:#0b0f1e;--border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.15);--text:#e8edf5;--text2:#8a9ab8;--text3:#4a5a78;--green:#00e5a0;--blue:#4da6ff;--amber:#f5a623;--fire:#ff4d00;--purple:#a78bfa;--nvda:#76b900;--intc:#0071c5;--amd:#ed1c24}
+:root{--bg:#050810;--bg2:#0b0f1e;--border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.15);--text:#e8edf5;--text2:#8a9ab8;--text3:#4a5a78;--green:#00e5a0;--blue:#4da6ff;--amber:#f5a623;--fire:#ff4d00;--purple:#a78bfa}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
 body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(77,166,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(77,166,255,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
-.wrap{max-width:1200px;margin:0 auto;padding:40px 20px 60px;position:relative;z-index:1}
+.wrap{max-width:1280px;margin:0 auto;padding:40px 20px 60px;position:relative;z-index:1}
 .hero{margin-bottom:36px}
 .hero-eyebrow{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--blue);margin-bottom:12px;opacity:.8}
-.hero-title{font-size:clamp(28px,5vw,46px);font-weight:800;line-height:1.05;background:linear-gradient(135deg,#fff 0%,#9dd923 33%,#4da6ff 66%,#ff6b6b 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-1px;margin-bottom:8px}
+.hero-title{font-size:clamp(28px,5vw,46px);font-weight:800;line-height:1.05;background:linear-gradient(135deg,#fff 0%,#9dd923 25%,#5db1ff 50%,#fbbc04 75%,#ff6b6b 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-1px;margin-bottom:8px}
 .hero-sub{font-size:14px;color:var(--text2)}
 .hero-time{display:inline-block;margin-top:10px;font-family:'Space Mono',monospace;font-size:11px;color:var(--text3);border:1px solid var(--border2);padding:4px 14px;border-radius:20px}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:36px}
-.stat{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:18px 20px;text-align:center}
+.stat{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:16px 18px;text-align:center}
 .stat-label{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:8px}
-.stat-val{font-size:24px;font-weight:700}
-.stat-val.green{color:var(--green)}.stat-val.blue{color:var(--blue)}.stat-val.amber{color:var(--amber)}
-.stat-val.nvda{color:#9dd923}.stat-val.intc{color:#4da6ff}.stat-val.amd{color:#ff6b6b}
+.stat-val{font-size:22px;font-weight:700}
+.stat-val.green{color:var(--green)}.stat-val.blue{color:var(--blue)}.stat-val.amber{color:var(--amber)}.stat-val.fire{color:var(--fire)}
 .section-label{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:var(--text3);margin:32px 0 14px;display:flex;align-items:center;gap:10px}
 .section-label::after{content:'';flex:1;height:1px;background:var(--border)}
-.co-section{margin-bottom:32px}
+.subgroup-label{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:2px;color:var(--text2);margin:14px 0 10px;text-transform:uppercase}
+.price-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-bottom:18px}
+.price-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:16px;transition:border-color .2s}
+.price-card:hover{border-color:var(--border2)}
+.price-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px}
+.price-ticker{font-family:'Space Mono',monospace;font-size:13px;font-weight:700;color:var(--text2);letter-spacing:1px}
+.price-main{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;gap:8px;flex-wrap:wrap}
+.price-now{font-size:22px;font-weight:800}
+.price-chg{font-family:'Space Mono',monospace;font-size:11px;font-weight:700}
+.up{color:#00e5a0}.down{color:#ff6b6b}
+.price-spark{margin-bottom:6px;height:36px}
+.price-month{font-family:'Space Mono',monospace;font-size:11px;color:var(--text3)}
+.co-section{margin-bottom:28px}
 .co-header{display:flex;align-items:center;gap:12px;font-size:18px;font-weight:700;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)}
 .co-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;box-shadow:0 0 8px currentColor}
 .co-name{flex:1}
 .co-count{font-family:'Space Mono',monospace;font-size:12px;color:var(--text3);font-weight:400}
 .co-badge{font-family:'Space Mono',monospace;font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;letter-spacing:.5px;text-transform:uppercase;display:inline-block}
-.cb-nvda{background:rgba(118,185,0,.15);color:#9dd923;border:1px solid rgba(118,185,0,.3)}
-.cb-intc{background:rgba(0,113,197,.18);color:#5db1ff;border:1px solid rgba(0,113,197,.4)}
-.cb-amd{background:rgba(237,28,36,.15);color:#ff6b6b;border:1px solid rgba(237,28,36,.3)}
 .signal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
 .signal-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:18px;transition:border-color .2s}
 .signal-card:hover{border-color:var(--border2)}
@@ -367,8 +597,8 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .signal-title a{color:var(--text);text-decoration:none}
 .signal-title a:hover{color:var(--blue)}
 .signal-meta{font-size:11px;color:var(--text3);font-family:'Space Mono',monospace}
-.sec-grid{display:flex;flex-direction:column;gap:8px}
-.sec-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;display:grid;grid-template-columns:80px 95px 1fr;gap:14px;align-items:center;text-decoration:none;color:var(--text);transition:border-color .2s}
+.sec-grid{display:flex;flex-direction:column;gap:6px}
+.sec-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;display:grid;grid-template-columns:80px 95px 1fr;gap:14px;align-items:center;text-decoration:none;color:var(--text);transition:border-color .2s}
 .sec-card:hover{border-color:var(--border2)}
 .sec-form{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;padding:3px 8px;border-radius:4px;text-align:center}
 .sec-8k{background:rgba(255,77,0,.15);color:var(--fire)}
@@ -390,10 +620,10 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .news-date{font-family:'Space Mono',monospace;font-size:10px;color:var(--text3)}
 .badge{font-size:9px;padding:2px 7px;border-radius:20px;font-weight:700;letter-spacing:.5px}
 .badge-new{background:var(--green);color:#000}
-.empty{padding:24px;text-align:center;color:var(--text3);background:var(--bg2);border:1px dashed var(--border2);border-radius:12px;font-size:13px}
+.empty{padding:20px;text-align:center;color:var(--text3);background:var(--bg2);border:1px dashed var(--border2);border-radius:12px;font-size:12px}
 .footer{text-align:center;font-size:11px;color:var(--text3);line-height:1.8;padding-top:24px;margin-top:40px;border-top:1px solid var(--border)}
-.filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
-.filter-btn{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;padding:6px 14px;border-radius:20px;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;transition:all .2s}
+.filter-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.filter-btn{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;padding:6px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;transition:all .2s}
 .filter-btn:hover{color:var(--text)}
 .filter-btn.active{background:var(--text);color:var(--bg);border-color:var(--text)}
 </style>
@@ -401,19 +631,25 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 <body>
 <div class="wrap">
   <div class="hero">
-    <div class="hero-eyebrow">Chip Tracker · NVIDIA · Intel · AMD</div>
-    <h1 class="hero-title">芯片三巨头 · 投资追踪</h1>
-    <p class="hero-sub">新闻 · 投资信号 · SEC 文件 · 自动每 2 小时更新</p>
+    <div class="hero-eyebrow">US Mega Tracker · Mag 7 + Chips</div>
+    <h1 class="hero-title">美股巨头 · 投资追踪</h1>
+    <p class="hero-sub">价格走势 · 新闻 · 投资信号 · SEC 文件 · 自动每 2 小时更新</p>
     <span class="hero-time" id="time-badge">最近更新：{{NOW}}</span>
   </div>
+
   <div class="stats">
+    <div class="stat"><div class="stat-label">追踪公司</div><div class="stat-val blue">9</div></div>
     <div class="stat"><div class="stat-label">总新闻</div><div class="stat-val blue">{{TOTAL}}</div></div>
     <div class="stat"><div class="stat-label">本次新增</div><div class="stat-val green">{{NEW}}</div></div>
-    <div class="stat"><div class="stat-label">NVIDIA 信号</div><div class="stat-val nvda">{{SIG_NVDA}}</div></div>
-    <div class="stat"><div class="stat-label">INTEL 信号</div><div class="stat-val intc">{{SIG_INTC}}</div></div>
-    <div class="stat"><div class="stat-label">AMD 信号</div><div class="stat-val amd">{{SIG_AMD}}</div></div>
+    <div class="stat"><div class="stat-label">投资信号</div><div class="stat-val fire">{{SIG_TOTAL}}</div></div>
     <div class="stat"><div class="stat-label">SEC 文件</div><div class="stat-val amber">{{SEC_TOTAL}}</div></div>
   </div>
+
+  <div class="section-label">📈 股价 · 1 个月走势</div>
+  <div class="subgroup-label">🔬 芯片股 (Chips)</div>
+  <div class="price-grid">{{PRICE_CHIP}}</div>
+  <div class="subgroup-label">⭐ Magnificent 7（除 NVIDIA 外）</div>
+  <div class="price-grid">{{PRICE_MAG7}}</div>
 
   <div class="section-label">🔥 投资 / 收购 / 合作信号</div>
   {{INV_SECTIONS}}
@@ -421,18 +657,16 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
   <div class="section-label">📋 SEC 官方文件</div>
   {{SEC_SECTIONS}}
 
-  <div class="section-label">📰 全部新闻（最新 80 条）</div>
-  <div class="filter-bar">
+  <div class="section-label">📰 全部新闻（最新 100 条）</div>
+  <div class="filter-bar" id="filter-bar">
     <button class="filter-btn active" data-filter="all">全部</button>
-    <button class="filter-btn" data-filter="NVIDIA">NVIDIA</button>
-    <button class="filter-btn" data-filter="Intel">Intel</button>
-    <button class="filter-btn" data-filter="AMD">AMD</button>
+    {{FILTER_BTNS}}
   </div>
   <div class="news-grid" id="news-grid">{{NEWS_HTML}}</div>
 
   <div class="footer">
-    数据源：Google News · Yahoo Finance · NVIDIA Blog · SEC EDGAR<br>
-    追踪：NVIDIA (CIK 0001045810) · Intel (CIK 0000050863) · AMD (CIK 0000002488)<br>
+    数据源：Google News · Yahoo Finance（新闻 + 股价）· NVIDIA Blog · SEC EDGAR<br>
+    覆盖：NVIDIA · Intel · AMD · Apple · Microsoft · Alphabet · Amazon · Meta · Tesla<br>
     由 GitHub Actions 自动构建 · 不构成投资建议
   </div>
 </div>
@@ -462,87 +696,34 @@ buttons.forEach(btn => btn.addEventListener('click', () => {
 """
 
 
-def render_investment_sections(investments_by_co):
-    out = []
-    for c in COMPANIES:
-        signals = investments_by_co.get(c["name"], [])
-        cards = []
-        for inv in signals:
-            new_badge = '<span class="badge badge-new">NEW</span>' if inv["is_new"] else ""
-            new_cls = "signal-new" if inv["is_new"] else ""
-            cards.append(f"""
-    <div class="signal-card {new_cls}">
-      <div class="signal-target">{escape(inv['target'])} {new_badge}</div>
-      <div class="signal-title"><a href="{escape(inv['link'])}" target="_blank" rel="noopener">{escape(inv['title'])}</a></div>
-      <div class="signal-meta">{escape(inv['source'])} · {escape(inv['date'])}</div>
-    </div>""")
-        cards_html = "".join(cards) or '<div class="empty">本次未检测到该公司的投资信号。</div>'
-        out.append(f"""
-  <div class="co-section">
-    <div class="co-header" style="color:{co_color(c['name'])}">
-      <span class="co-dot" style="background:{co_color(c['name'])}"></span>
-      <span class="co-name">{escape(c['name'])}</span>
-      <span class="co-count">{len(signals)} 个信号</span>
-    </div>
-    <div class="signal-grid">{cards_html}</div>
-  </div>""")
-    return "".join(out)
-
-
-def render_sec_sections(sec_by_co):
-    out = []
-    for c in COMPANIES:
-        filings = sec_by_co.get(c["name"], [])
-        rows = []
-        for f in filings:
-            cls = "sec-default"
-            if f["form"].startswith("8-K"):
-                cls = "sec-8k"
-            elif f["form"].startswith("10-"):
-                cls = "sec-10"
-            elif f["form"].startswith("SC 13"):
-                cls = "sec-13"
-            elif f["form"].startswith("13F"):
-                cls = "sec-13f"
-            rows.append(f"""
-    <a href="{escape(f['url'])}" target="_blank" rel="noopener" class="sec-card">
-      <span class="sec-form {cls}">{escape(f['form'])}</span>
-      <span class="sec-date">{escape(f['date'])}</span>
-      <span class="sec-desc">{escape(f.get('description') or '')}</span>
-    </a>""")
-        rows_html = "".join(rows) or '<div class="empty">无新文件。</div>'
-        out.append(f"""
-  <div class="co-section">
-    <div class="co-header" style="color:{co_color(c['name'])}">
-      <span class="co-dot" style="background:{co_color(c['name'])}"></span>
-      <span class="co-name">{escape(c['name'])}</span>
-      <span class="co-count">CIK {escape(c['cik'])} · {len(filings)} 份</span>
-    </div>
-    <div class="sec-grid">{rows_html}</div>
-  </div>""")
-    return "".join(out)
-
-
-def render_html(news, investments_by_co, sec_by_co):
+def render_html(news, investments_by_co, sec_by_co, prices_by_co):
     new_count = sum(1 for n in news if n["is_new"])
+    sig_total = sum(len(v) for v in investments_by_co.values())
+    sec_total = sum(len(v) for v in sec_by_co.values())
     now_utc = datetime.now(timezone.utc)
     now_str = now_utc.strftime("%Y-%m-%d %H:%M UTC")
     now_iso = now_utc.isoformat()
 
+    price_chip = render_price_cards(prices_by_co, "chip")
+    price_mag7 = render_price_cards(prices_by_co, "mag7")
     inv_sections = render_investment_sections(investments_by_co)
     sec_sections = render_sec_sections(sec_by_co)
-    sec_total = sum(len(v) for v in sec_by_co.values())
+
+    # Filter buttons for news (one per company)
+    filter_btns = "".join(
+        f'<button class="filter-btn" data-filter="{escape(c["name"])}" '
+        f'style="color:{c["color"]}">{escape(c["name"])}</button>'
+        for c in COMPANIES)
 
     news_html_parts = []
-    for it in news[:80]:
+    for it in news[:100]:
         new_badge = '<span class="badge badge-new">NEW</span>' if it["is_new"] else ""
         new_cls = "news-new" if it["is_new"] else ""
-        co_cls = co_badge_class(it["primary_company"])
-        news_html_parts.append(f"""
+        news_html_parts.append(f'''
     <div class="news-card {new_cls}" data-company="{escape(it['primary_company'])}">
       <div class="news-source">
         <div class="news-source-left">
-          <span class="co-badge {co_cls}">{escape(it['primary_company'])}</span>
+          {co_badge_inline(it['primary_company'])}
           <span>{escape(it['source'])}</span>
         </div>
         {new_badge}
@@ -550,7 +731,7 @@ def render_html(news, investments_by_co, sec_by_co):
       <a class="news-title" href="{escape(it['link'])}" target="_blank" rel="noopener">{escape(it['title'])}</a>
       <div class="news-summary">{escape(it['summary'])}</div>
       <div class="news-date">{escape(it['published'])}</div>
-    </div>""")
+    </div>''')
     news_html = "".join(news_html_parts) or '<div class="empty">未抓取到新闻。</div>'
 
     replacements = {
@@ -558,12 +739,13 @@ def render_html(news, investments_by_co, sec_by_co):
         "{{NOW_ISO}}": now_iso,
         "{{TOTAL}}": str(len(news)),
         "{{NEW}}": str(new_count),
-        "{{SIG_NVDA}}": str(len(investments_by_co.get("NVIDIA", []))),
-        "{{SIG_INTC}}": str(len(investments_by_co.get("Intel", []))),
-        "{{SIG_AMD}}": str(len(investments_by_co.get("AMD", []))),
+        "{{SIG_TOTAL}}": str(sig_total),
         "{{SEC_TOTAL}}": str(sec_total),
+        "{{PRICE_CHIP}}": price_chip,
+        "{{PRICE_MAG7}}": price_mag7,
         "{{INV_SECTIONS}}": inv_sections,
         "{{SEC_SECTIONS}}": sec_sections,
+        "{{FILTER_BTNS}}": filter_btns,
         "{{NEWS_HTML}}": news_html,
     }
     out = TEMPLATE
@@ -576,18 +758,25 @@ def main():
     seen = load_seen()
     print(f"loaded {len(seen)} seen ids", file=sys.stderr)
 
-    news = fetch_news(seen)
+    # Run fetches concurrently across the three external sources.
+    with cf.ThreadPoolExecutor(max_workers=3) as ex:
+        f_news = ex.submit(fetch_news, seen)
+        f_sec = ex.submit(fetch_sec_all)
+        f_prices = ex.submit(fetch_prices_all)
+        news = f_news.result()
+        sec_by_co = f_sec.result()
+        prices_by_co = f_prices.result()
+
     news = dedupe(news)
     news.sort(key=lambda x: parse_date(x["published"]), reverse=True)
     print(f"unique items: {len(news)}", file=sys.stderr)
 
     investments_by_co = detect_investments(news)
     for co, sigs in investments_by_co.items():
-        print(f"signals[{co}]: {len(sigs)}", file=sys.stderr)
+        if sigs:
+            print(f"signals[{co}]: {len(sigs)}", file=sys.stderr)
 
-    sec_by_co = fetch_sec_all()
-
-    html = render_html(news, investments_by_co, sec_by_co)
+    html = render_html(news, investments_by_co, sec_by_co, prices_by_co)
     OUTPUT_FILE.write_text(html, encoding="utf-8")
     print(f"wrote {OUTPUT_FILE} ({len(html):,} bytes)", file=sys.stderr)
 
