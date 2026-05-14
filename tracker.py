@@ -864,8 +864,15 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .modal-investments{margin:18px 0;padding-top:16px;border-top:1px solid var(--border)}
 .modal-investments-title{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:14px;text-align:center}
 .investment-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
-.investment-card{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;transition:border-color .2s}
+.investment-card{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;transition:border-color .2s,transform .15s,background .2s}
 .investment-card:hover{border-color:var(--border2)}
+.investment-card.clickable{cursor:pointer;background:linear-gradient(135deg,var(--bg) 0%,rgba(77,166,255,.04) 100%)}
+.investment-card.clickable:hover{border-color:rgba(77,166,255,.5);transform:translateY(-1px);background:linear-gradient(135deg,var(--bg) 0%,rgba(77,166,255,.08) 100%)}
+.investment-card.clickable .inv-name{color:#4da6ff}
+.inv-arrow{font-family:'Space Mono',monospace;font-size:11px;color:#4da6ff;font-weight:700;margin-left:4px;opacity:.6}
+.investment-card.clickable:hover .inv-arrow{opacity:1;transform:translateX(2px);transition:all .2s}
+.co-badge.clickable-badge{cursor:pointer;transition:transform .15s,filter .15s}
+.co-badge.clickable-badge:hover{filter:brightness(1.4);transform:scale(1.05)}
 .inv-row1{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:5px}
 .inv-name{font-size:13px;font-weight:600;color:var(--text);line-height:1.3}
 .inv-ticker{font-family:'Space Mono',monospace;font-size:9px;background:rgba(77,166,255,.15);color:#4da6ff;padding:1px 6px;border-radius:10px;font-weight:700;letter-spacing:.5px;flex-shrink:0}
@@ -1059,6 +1066,9 @@ function openPriceModal(ticker) {
   renderReasons(d.positive_news || [], d.negative_news || []);
   modalEl.classList.add('open');
   modalEl.setAttribute('aria-hidden', 'false');
+  // Scroll back to top when switching stocks via cross-link
+  const inner = modalEl.querySelector('.modal');
+  if (inner) inner.scrollTop = 0;
 }
 
 function renderInvestments(invs) {
@@ -1071,8 +1081,13 @@ function renderInvestments(invs) {
   grid.innerHTML = invs.map(i => {
     const ticker = i.ticker ? '<span class="inv-ticker">'+escapeHtml(i.ticker)+'</span>' : '';
     const kindCls = kindMap[i.kind] || 'inv';
-    return '<div class="investment-card">' +
-      '<div class="inv-row1"><span class="inv-name">'+escapeHtml(i.name)+'</span>'+ticker+'</div>' +
+    // If the invested company is itself one of our tracked tickers, make the card clickable.
+    const tracked = i.ticker && PRICE_DATA[i.ticker];
+    const clickAttr = tracked
+      ? ' clickable" data-ticker="' + escapeHtml(i.ticker) + '" role="button" tabindex="0" title="点击查看 ' + escapeHtml(i.name) + ' 详情'
+      : '';
+    return '<div class="investment-card' + clickAttr + '">' +
+      '<div class="inv-row1"><span class="inv-name">'+escapeHtml(i.name)+'</span>'+ticker+(tracked ? ' <span class="inv-arrow">→</span>' : '')+'</div>' +
       '<div class="inv-row2"><span class="inv-kind inv-kind-'+kindCls+'">'+escapeHtml(i.kind)+'</span></div>' +
       '<div class="inv-desc">'+escapeHtml(i.desc)+'</div>' +
       '<div class="inv-date">'+escapeHtml(i.date)+'</div>' +
@@ -1187,6 +1202,47 @@ document.querySelectorAll('.price-card.clickable').forEach(card => {
   card.addEventListener('click', () => openPriceModal(card.dataset.ticker));
   card.addEventListener('keydown', e => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPriceModal(card.dataset.ticker); }
+  });
+});
+
+// ===== Cross-stock click navigation =====
+// Map company name → ticker (so we can convert news badges to clickable jumps).
+const COMPANY_TO_TICKER = {
+  'NVIDIA':'NVDA','Intel':'INTC','AMD':'AMD','Apple':'AAPL',
+  'Microsoft':'MSFT','Alphabet':'GOOGL','Amazon':'AMZN','Meta':'META','Tesla':'TSLA'
+};
+
+// Investment-card click → open the invested company's modal (only if tracked).
+// Event delegation: one listener handles all future clicks in the grid.
+document.getElementById('investmentGrid').addEventListener('click', e => {
+  const card = e.target.closest('.investment-card.clickable');
+  if (card && card.dataset.ticker && PRICE_DATA[card.dataset.ticker]) {
+    openPriceModal(card.dataset.ticker);
+  }
+});
+document.getElementById('investmentGrid').addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    const card = e.target.closest('.investment-card.clickable');
+    if (card && card.dataset.ticker && PRICE_DATA[card.dataset.ticker]) {
+      e.preventDefault();
+      openPriceModal(card.dataset.ticker);
+    }
+  }
+});
+
+// News-card company badge → open that stock's modal.
+document.querySelectorAll('#news-grid .news-card').forEach(nc => {
+  const company = nc.dataset.company;
+  const ticker = COMPANY_TO_TICKER[company];
+  if (!ticker || !PRICE_DATA[ticker]) return;
+  const badge = nc.querySelector('.co-badge');
+  if (!badge) return;
+  badge.classList.add('clickable-badge');
+  badge.setAttribute('title', '点击查看 ' + company + ' 详情');
+  badge.addEventListener('click', e => {
+    e.stopPropagation();
+    e.preventDefault();
+    openPriceModal(ticker);
   });
 });
 document.getElementById('modalClose').addEventListener('click', closePriceModal);
