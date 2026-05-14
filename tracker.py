@@ -107,6 +107,124 @@ COMPANIES = [
     },
 ]
 
+# --- Curated database of each company's public investments / acquisitions ---
+# kind: 收购 acq · 战略 strat · 私募 vc · 投资 inv · 子公司 sub · 合作 coll
+KNOWN_INVESTMENTS = {
+    "NVIDIA": [
+        # Strategic equity / public companies
+        {"name": "Intel",              "ticker": "INTC", "kind": "战略", "desc": "$50 亿战略股权",         "date": "2025-09"},
+        {"name": "CoreWeave",          "ticker": "CRWV", "kind": "战略", "desc": "IPO 前持股 ~$44 亿",      "date": "2024"},
+        {"name": "Nebius Group",       "ticker": "NBIS", "kind": "战略", "desc": "$20 亿追加",              "date": "2026-03"},
+        {"name": "Coherent",           "ticker": "COHR", "kind": "战略", "desc": "$20 亿（光电组件）",       "date": "2026-03"},
+        {"name": "Marvell Technology", "ticker": "MRVL", "kind": "战略", "desc": "$20 亿（定制 AI 芯片）",    "date": "2026-03"},
+        {"name": "Nokia",              "ticker": "NOK",  "kind": "战略", "desc": "$10 亿（5G / AI-RAN）",     "date": "2025-10"},
+        {"name": "Synopsys",           "ticker": "SNPS", "kind": "战略", "desc": "$20 亿（EDA 软件）",       "date": "2025-12"},
+        {"name": "Corning",            "ticker": "GLW",  "kind": "战略", "desc": "$5 亿（光纤权证）",        "date": "2026-05"},
+        {"name": "Lumentum",           "ticker": "LITE", "kind": "战略", "desc": "$20 亿（激光器件）",       "date": "2026-03"},
+        # Private investments / AI
+        {"name": "OpenAI",             "ticker": None,   "kind": "私募", "desc": "最新 $300 亿",            "date": "2026"},
+        {"name": "Anthropic",          "ticker": None,   "kind": "私募", "desc": "$100 亿",                 "date": "2025-11"},
+        {"name": "xAI",                "ticker": None,   "kind": "私募", "desc": "两轮 $60B + $200B",       "date": "2025"},
+        {"name": "Mistral AI",         "ticker": None,   "kind": "私募", "desc": "Series C 估值 €117 亿",   "date": "2025-09"},
+        {"name": "Cursor",             "ticker": None,   "kind": "私募", "desc": "Series D 估值 $293 亿",   "date": "2025-11"},
+        {"name": "Quantinuum",         "ticker": None,   "kind": "私募", "desc": "量子计算 估值 $100 亿",   "date": "2025"},
+        {"name": "Figure AI",          "ticker": None,   "kind": "私募", "desc": "人形机器人",              "date": "2024"},
+        {"name": "Wayve",              "ticker": None,   "kind": "私募", "desc": "自动驾驶 AI",              "date": "2024"},
+    ],
+    "Intel": [
+        {"name": "Mobileye",            "ticker": "MBLY", "kind": "子公司", "desc": "持 88% 股权（自动驾驶）", "date": "2017 收购"},
+        {"name": "Altera",              "ticker": None,   "kind": "子公司", "desc": "FPGA（2024 部分剥离）",   "date": "2015"},
+        {"name": "Habana Labs",         "ticker": None,   "kind": "收购",   "desc": "$20 亿（AI 芯片）",       "date": "2019"},
+        {"name": "Movidius",            "ticker": None,   "kind": "收购",   "desc": "视觉处理芯片",            "date": "2016"},
+        {"name": "Granulate",           "ticker": None,   "kind": "收购",   "desc": "~$6.5 亿（性能优化）",    "date": "2022"},
+        {"name": "Cnvrg.io",            "ticker": None,   "kind": "收购",   "desc": "MLOps 平台",              "date": "2020"},
+        {"name": "Moovit",              "ticker": None,   "kind": "收购",   "desc": "$9 亿（出行 SaaS）",      "date": "2020"},
+        {"name": "Astera Labs",         "ticker": "ALAB", "kind": "投资",   "desc": "早期投资（Intel Capital）","date": "2018"},
+        {"name": "SambaNova Systems",   "ticker": None,   "kind": "投资",   "desc": "AI 芯片初创",             "date": "2020"},
+    ],
+    "AMD": [
+        {"name": "Xilinx",         "ticker": None,   "kind": "收购", "desc": "$350 亿（FPGA）",            "date": "2022-02"},
+        {"name": "Pensando",       "ticker": None,   "kind": "收购", "desc": "$19 亿（DPU）",              "date": "2022"},
+        {"name": "ZT Systems",     "ticker": None,   "kind": "收购", "desc": "$49 亿（AI 服务器）",        "date": "2024-08"},
+        {"name": "Silo AI",        "ticker": None,   "kind": "收购", "desc": "$6.65 亿（欧洲 AI 实验室）", "date": "2024-07"},
+        {"name": "Nod.ai",         "ticker": None,   "kind": "收购", "desc": "开源 AI 编译器",             "date": "2023"},
+        {"name": "Mipsology",      "ticker": None,   "kind": "收购", "desc": "FPGA AI 软件",               "date": "2023"},
+        {"name": "Enosemi",        "ticker": None,   "kind": "收购", "desc": "AI 系统 / 光子",             "date": "2026"},
+        {"name": "MK1",            "ticker": None,   "kind": "收购", "desc": "AI 推理优化",                "date": "2026"},
+        {"name": "OpenAI",         "ticker": None,   "kind": "合作", "desc": "传 $200 亿算力合作",         "date": "2025"},
+    ],
+    "Apple": [
+        {"name": "Beats Electronics",  "ticker": None, "kind": "收购", "desc": "$30 亿（音频）",        "date": "2014"},
+        {"name": "Intel 5G 调制解调器", "ticker": None, "kind": "收购", "desc": "$10 亿",                "date": "2019"},
+        {"name": "Shazam",             "ticker": None, "kind": "收购", "desc": "$4 亿（音乐识别）",     "date": "2018"},
+        {"name": "AuthenTec",          "ticker": None, "kind": "收购", "desc": "$3.56 亿（指纹）",      "date": "2012"},
+        {"name": "Xnor.ai",            "ticker": None, "kind": "收购", "desc": "$2 亿（边缘 AI）",      "date": "2020"},
+        {"name": "NextVR",             "ticker": None, "kind": "收购", "desc": "$1 亿（VR 内容）",      "date": "2020"},
+        {"name": "Drive.ai",           "ticker": None, "kind": "收购", "desc": "自动驾驶（人才收购）",  "date": "2019"},
+        {"name": "Pixelmator",         "ticker": None, "kind": "收购", "desc": "图像编辑器",            "date": "2024-11"},
+        {"name": "DarwinAI",           "ticker": None, "kind": "收购", "desc": "(机器学习压缩)",        "date": "2024"},
+        {"name": "Vilynx",             "ticker": None, "kind": "收购", "desc": "$5000 万（视频 AI）",   "date": "2020"},
+    ],
+    "Microsoft": [
+        {"name": "Activision Blizzard", "ticker": None, "kind": "收购", "desc": "$687 亿（游戏）",          "date": "2023"},
+        {"name": "LinkedIn",            "ticker": None, "kind": "收购", "desc": "$262 亿（职场社交）",      "date": "2016"},
+        {"name": "Nuance Communications","ticker": None,"kind": "收购", "desc": "$197 亿（语音 AI）",       "date": "2022"},
+        {"name": "ZeniMax / Bethesda",  "ticker": None, "kind": "收购", "desc": "$75 亿（游戏）",           "date": "2021"},
+        {"name": "GitHub",              "ticker": None, "kind": "收购", "desc": "$75 亿（代码托管）",       "date": "2018"},
+        {"name": "Skype",               "ticker": None, "kind": "收购", "desc": "$85 亿",                   "date": "2011"},
+        {"name": "Mojang / Minecraft",  "ticker": None, "kind": "收购", "desc": "$25 亿",                   "date": "2014"},
+        {"name": "OpenAI",              "ticker": None, "kind": "投资", "desc": "$130 亿+ 战略投资",        "date": "2019-2024"},
+        {"name": "Inflection AI",       "ticker": None, "kind": "投资", "desc": "$6.5 亿（人才 + license）","date": "2024"},
+    ],
+    "Alphabet": [
+        {"name": "Wiz",                 "ticker": None, "kind": "收购", "desc": "$320 亿（云安全）",        "date": "2025"},
+        {"name": "Mandiant",            "ticker": None, "kind": "收购", "desc": "$54 亿（网络安全）",       "date": "2022"},
+        {"name": "Motorola Mobility",   "ticker": None, "kind": "收购", "desc": "$125 亿（后售予 Lenovo）", "date": "2012"},
+        {"name": "Nest Labs",           "ticker": None, "kind": "收购", "desc": "$32 亿（智能家居）",       "date": "2014"},
+        {"name": "Fitbit",              "ticker": None, "kind": "收购", "desc": "$21 亿（可穿戴）",         "date": "2021"},
+        {"name": "Looker",              "ticker": None, "kind": "收购", "desc": "$26 亿（BI）",             "date": "2020"},
+        {"name": "DoubleClick",         "ticker": None, "kind": "收购", "desc": "$31 亿（广告）",           "date": "2008"},
+        {"name": "YouTube",             "ticker": None, "kind": "收购", "desc": "$16.5 亿",                 "date": "2006"},
+        {"name": "DeepMind",            "ticker": None, "kind": "收购", "desc": "$5 亿（AI 研究）",         "date": "2014"},
+        {"name": "Android",             "ticker": None, "kind": "收购", "desc": "$5000 万",                 "date": "2005"},
+        {"name": "Anthropic",           "ticker": None, "kind": "投资", "desc": "$30 亿+ 战略投资",         "date": "2022-2024"},
+        {"name": "Waymo",               "ticker": None, "kind": "子公司","desc": "自动驾驶子公司",          "date": "internal"},
+    ],
+    "Amazon": [
+        {"name": "Whole Foods Market", "ticker": None,   "kind": "收购", "desc": "$137 亿（生鲜）",     "date": "2017"},
+        {"name": "MGM Studios",        "ticker": None,   "kind": "收购", "desc": "$85 亿（影视）",      "date": "2022"},
+        {"name": "One Medical",        "ticker": None,   "kind": "收购", "desc": "$39 亿（医疗）",      "date": "2023"},
+        {"name": "Zoox",               "ticker": None,   "kind": "收购", "desc": "$12 亿（自动驾驶）",  "date": "2020"},
+        {"name": "PillPack",           "ticker": None,   "kind": "收购", "desc": "$10 亿（在线药房）",  "date": "2018"},
+        {"name": "Ring",               "ticker": None,   "kind": "收购", "desc": "$10 亿+（智能家居）", "date": "2018"},
+        {"name": "Zappos",             "ticker": None,   "kind": "收购", "desc": "$12 亿（鞋类电商）",  "date": "2009"},
+        {"name": "Twitch",             "ticker": None,   "kind": "收购", "desc": "$9.7 亿（游戏直播）", "date": "2014"},
+        {"name": "Audible",            "ticker": None,   "kind": "收购", "desc": "$3 亿（有声书）",     "date": "2008"},
+        {"name": "Anthropic",          "ticker": None,   "kind": "投资", "desc": "$80 亿 战略投资",     "date": "2023-2024"},
+        {"name": "Rivian",             "ticker": "RIVN", "kind": "投资", "desc": "约 17% 股权（电卡车）","date": "2019"},
+    ],
+    "Meta": [
+        {"name": "WhatsApp",                "ticker": None, "kind": "收购", "desc": "$190 亿",                "date": "2014"},
+        {"name": "Oculus",                  "ticker": None, "kind": "收购", "desc": "$20 亿（VR）",           "date": "2014"},
+        {"name": "Instagram",               "ticker": None, "kind": "收购", "desc": "$10 亿",                 "date": "2012"},
+        {"name": "Within (Supernatural)",   "ticker": None, "kind": "收购", "desc": "$4 亿（VR 健身）",       "date": "2022"},
+        {"name": "CTRL-Labs",               "ticker": None, "kind": "收购", "desc": "$5-10 亿（神经接口）",   "date": "2019"},
+        {"name": "Kustomer",                "ticker": None, "kind": "收购", "desc": "$10 亿（客服 CRM）",     "date": "2022"},
+        {"name": "Beat Games (Beat Saber)", "ticker": None, "kind": "收购", "desc": "VR 游戏",                "date": "2019"},
+        {"name": "Mapillary",               "ticker": None, "kind": "收购", "desc": "众包街景",               "date": "2020"},
+        {"name": "Scale AI",                "ticker": None, "kind": "投资", "desc": "$140 亿 持 49% 股权",    "date": "2024-06"},
+    ],
+    "Tesla": [
+        {"name": "SolarCity",          "ticker": None, "kind": "收购", "desc": "$26 亿（太阳能）",     "date": "2016"},
+        {"name": "Maxwell Technologies","ticker": None,"kind": "收购", "desc": "$2.18 亿（电池/电容）","date": "2019"},
+        {"name": "Grohmann Engineering","ticker": None,"kind": "收购", "desc": "自动化产线",           "date": "2017"},
+        {"name": "Hibar Systems",      "ticker": None, "kind": "收购", "desc": "电池制造",             "date": "2019"},
+        {"name": "Perbix",             "ticker": None, "kind": "收购", "desc": "工厂自动化",           "date": "2017"},
+        {"name": "Riviera Tool",       "ticker": None, "kind": "收购", "desc": "冲压设备",             "date": "2015"},
+        {"name": "SilLion",            "ticker": None, "kind": "收购", "desc": "硅基负极电池",          "date": "2021"},
+    ],
+}
+
 # Quantifier prefixes (e.g. "up to $2.1 billion in")
 _QUANT = r"(?:up\s+to\s+|over\s+|nearly\s+|approximately\s+|about\s+|around\s+|more\s+than\s+)?"
 _MONEY = r"(?:[\$\d.,]+\s*(?:billion|million|trillion|B|M|K)?\s+)?"
@@ -743,6 +861,24 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .modal-stat-label{font-family:'Space Mono',monospace;font-size:9px;color:var(--text3);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:4px}
 .modal-stat-val{font-size:16px;font-weight:700;font-family:'Space Mono',monospace}
 .modal-stat-val.up{color:#00e5a0}.modal-stat-val.down{color:#ff6b6b}
+.modal-investments{margin:18px 0;padding-top:16px;border-top:1px solid var(--border)}
+.modal-investments-title{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:14px;text-align:center}
+.investment-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.investment-card{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;transition:border-color .2s}
+.investment-card:hover{border-color:var(--border2)}
+.inv-row1{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:5px}
+.inv-name{font-size:13px;font-weight:600;color:var(--text);line-height:1.3}
+.inv-ticker{font-family:'Space Mono',monospace;font-size:9px;background:rgba(77,166,255,.15);color:#4da6ff;padding:1px 6px;border-radius:10px;font-weight:700;letter-spacing:.5px;flex-shrink:0}
+.inv-row2{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px}
+.inv-kind{display:inline-block;font-family:'Space Mono',monospace;font-size:9px;padding:1px 6px;border-radius:8px;font-weight:700;letter-spacing:.5px}
+.inv-kind-acq{background:rgba(255,77,0,.15);color:#ff6b6b}
+.inv-kind-strat{background:rgba(0,229,160,.15);color:#00e5a0}
+.inv-kind-vc{background:rgba(167,139,250,.15);color:#a78bfa}
+.inv-kind-inv{background:rgba(245,166,35,.15);color:#f5a623}
+.inv-kind-sub{background:rgba(77,166,255,.15);color:#4da6ff}
+.inv-kind-coll{background:rgba(255,255,255,.08);color:var(--text2)}
+.inv-desc{font-size:11px;color:var(--text2);line-height:1.35}
+.inv-date{font-family:'Space Mono',monospace;font-size:10px;color:var(--text3);margin-top:3px}
 .modal-reasons{margin:18px 0;padding-top:16px;border-top:1px solid var(--border)}
 .modal-reasons-title{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:14px;text-align:center}
 .reasons-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -824,6 +960,11 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       <div class="chart-tooltip" id="chartTooltip"></div>
     </div>
     <div class="modal-stats" id="modalStats"></div>
+
+    <div class="modal-investments">
+      <div class="modal-investments-title">💼 已公开主要投资 / 收购</div>
+      <div class="investment-grid" id="investmentGrid"></div>
+    </div>
 
     <div class="modal-reasons">
       <div class="modal-reasons-title">📊 涨跌可能原因（基于近期新闻情绪分析）</div>
@@ -914,9 +1055,29 @@ function openPriceModal(ticker) {
   ).join('');
 
   renderLargeChart(closes, tss);
+  renderInvestments(d.investments || []);
   renderReasons(d.positive_news || [], d.negative_news || []);
   modalEl.classList.add('open');
   modalEl.setAttribute('aria-hidden', 'false');
+}
+
+function renderInvestments(invs) {
+  const grid = document.getElementById('investmentGrid');
+  if (!invs || !invs.length) {
+    grid.innerHTML = '<div class="reason-empty">暂无收录的公开投资</div>';
+    return;
+  }
+  const kindMap = {'收购':'acq','战略':'strat','私募':'vc','投资':'inv','子公司':'sub','合作':'coll'};
+  grid.innerHTML = invs.map(i => {
+    const ticker = i.ticker ? '<span class="inv-ticker">'+escapeHtml(i.ticker)+'</span>' : '';
+    const kindCls = kindMap[i.kind] || 'inv';
+    return '<div class="investment-card">' +
+      '<div class="inv-row1"><span class="inv-name">'+escapeHtml(i.name)+'</span>'+ticker+'</div>' +
+      '<div class="inv-row2"><span class="inv-kind inv-kind-'+kindCls+'">'+escapeHtml(i.kind)+'</span></div>' +
+      '<div class="inv-desc">'+escapeHtml(i.desc)+'</div>' +
+      '<div class="inv-date">'+escapeHtml(i.date)+'</div>' +
+      '</div>';
+  }).join('');
 }
 
 function escapeHtml(s) {
@@ -1067,6 +1228,7 @@ def render_html(news, investments_by_co, sec_by_co, prices_by_co):
             "timestamps": d["timestamps"],
             "positive_news": sent["positive"],
             "negative_news": sent["negative"],
+            "investments": KNOWN_INVESTMENTS.get(c["name"], []),
         }
     price_json = json.dumps(price_data_for_js, ensure_ascii=False)
 
