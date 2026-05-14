@@ -622,6 +622,39 @@ def fetch_prices_all():
     return out
 
 
+def collect_aux_tickers():
+    """Returns {ticker: display_name} for tickers in KNOWN_INVESTMENTS that
+    are NOT already among the main COMPANIES."""
+    main_tickers = {c["ticker"] for c in COMPANIES}
+    seen = {}
+    for invs in KNOWN_INVESTMENTS.values():
+        for inv in invs:
+            t = inv.get("ticker")
+            if t and t not in main_tickers and t not in seen:
+                seen[t] = inv["name"]
+    return seen
+
+
+def fetch_aux_prices():
+    """Fetch price + 1-month chart for auxiliary tickers — companies mentioned
+    in investment lists but not in our main 9 (e.g. CRWV, NBIS, MBLY, RIVN).
+    These power the click-to-view-price feature on investment cards."""
+    aux = collect_aux_tickers()
+    if not aux:
+        return {}
+    out = {}
+    with cf.ThreadPoolExecutor(max_workers=8) as ex:
+        futures = {ex.submit(fetch_price, t): (t, n) for t, n in aux.items()}
+        for fut in cf.as_completed(futures):
+            ticker, name = futures[fut]
+            data = fut.result()
+            if data and data.get("price") is not None:
+                data["display_name"] = name
+                out[ticker] = data
+                print(f"aux price {ticker} ({name}): ${data['price']:.2f}", file=sys.stderr)
+    return out
+
+
 def render_sparkline(closes, width=140, height=36):
     if not closes or len(closes) < 2:
         return ""
@@ -905,6 +938,10 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .reason-score.down{background:rgba(255,107,107,.15);color:#ff6b6b}
 .reason-empty{font-size:11px;color:var(--text3);text-align:center;padding:14px;font-style:italic}
 .modal-meta{font-family:'Space Mono',monospace;font-size:10px;color:var(--text3);text-align:center;padding-top:12px;border-top:1px solid var(--border)}
+.modal-lite-note{background:rgba(245,166,35,.10);border:1px solid rgba(245,166,35,.3);border-radius:10px;padding:12px 16px;margin-bottom:18px;font-size:12px;color:#f5a623;text-align:center;line-height:1.5}
+.back-to-top{position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:var(--bg2);border:1px solid var(--border2);color:var(--text);font-size:22px;font-weight:700;cursor:pointer;z-index:50;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transform:translateY(8px);transition:opacity .25s,transform .2s,background .15s,border-color .15s;box-shadow:0 4px 16px rgba(0,0,0,.4);font-family:'Space Mono',monospace}
+.back-to-top.visible{opacity:1;pointer-events:auto;transform:translateY(0)}
+.back-to-top:hover{background:var(--blue);border-color:var(--blue);color:#000}
 </style>
 </head>
 <body>
@@ -950,6 +987,8 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
   </div>
 </div>
 
+<button class="back-to-top" id="backToTop" aria-label="返回顶部" title="返回顶部">↑</button>
+
 <div class="modal-backdrop" id="priceModal" role="dialog" aria-labelledby="modalName" aria-hidden="true">
   <div class="modal">
     <button class="modal-close" id="modalClose" aria-label="关闭">×</button>
@@ -967,6 +1006,10 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       <div class="chart-tooltip" id="chartTooltip"></div>
     </div>
     <div class="modal-stats" id="modalStats"></div>
+
+    <div class="modal-lite-note" id="liteNote" style="display:none">
+      📌 这是辅助股票（不在主追踪 9 家里），仅显示价格与走势。新闻 / 投资详情未收录。
+    </div>
 
     <div class="modal-investments">
       <div class="modal-investments-title">💼 已公开主要投资 / 收购</div>
@@ -1062,8 +1105,21 @@ function openPriceModal(ticker) {
   ).join('');
 
   renderLargeChart(closes, tss);
-  renderInvestments(d.investments || []);
-  renderReasons(d.positive_news || [], d.negative_news || []);
+  // Lite mode: only price + chart available for aux tickers.
+  const liteNote = document.getElementById('liteNote');
+  const invSection = document.querySelector('.modal-investments');
+  const reasonsSection = document.querySelector('.modal-reasons');
+  if (d.lite) {
+    if (liteNote) liteNote.style.display = 'block';
+    if (invSection) invSection.style.display = 'none';
+    if (reasonsSection) reasonsSection.style.display = 'none';
+  } else {
+    if (liteNote) liteNote.style.display = 'none';
+    if (invSection) invSection.style.display = '';
+    if (reasonsSection) reasonsSection.style.display = '';
+    renderInvestments(d.investments || []);
+    renderReasons(d.positive_news || [], d.negative_news || []);
+  }
   modalEl.classList.add('open');
   modalEl.setAttribute('aria-hidden', 'false');
   // Scroll back to top when switching stocks via cross-link
@@ -1230,6 +1286,20 @@ document.getElementById('investmentGrid').addEventListener('keydown', e => {
   }
 });
 
+// ===== Back-to-top button =====
+const backBtn = document.getElementById('backToTop');
+if (backBtn) {
+  const toggleBackBtn = () => {
+    if (window.scrollY > 400) backBtn.classList.add('visible');
+    else backBtn.classList.remove('visible');
+  };
+  window.addEventListener('scroll', toggleBackBtn, { passive: true });
+  toggleBackBtn();
+  backBtn.addEventListener('click', () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+}
+
 // News-card company badge → open that stock's modal.
 document.querySelectorAll('#news-grid .news-card').forEach(nc => {
   const company = nc.dataset.company;
@@ -1254,7 +1324,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closePriceMo
 """
 
 
-def render_html(news, investments_by_co, sec_by_co, prices_by_co):
+def render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices=None):
     new_count = sum(1 for n in news if n["is_new"])
     sig_total = sum(len(v) for v in investments_by_co.values())
     sec_total = sum(len(v) for v in sec_by_co.values())
@@ -1285,6 +1355,21 @@ def render_html(news, investments_by_co, sec_by_co, prices_by_co):
             "positive_news": sent["positive"],
             "negative_news": sent["negative"],
             "investments": KNOWN_INVESTMENTS.get(c["name"], []),
+        }
+
+    # Add auxiliary tickers (from investment lists) — lite mode: price + chart only.
+    for ticker, data in (aux_prices or {}).items():
+        price_data_for_js[ticker] = {
+            "name": data.get("display_name", ticker),
+            "color": "#8a9ab8",
+            "price": data["price"],
+            "prev_close": data["prev_close"],
+            "closes": data["closes"],
+            "timestamps": data["timestamps"],
+            "positive_news": [],
+            "negative_news": [],
+            "investments": [],
+            "lite": True,
         }
     price_json = json.dumps(price_data_for_js, ensure_ascii=False)
 
@@ -1338,14 +1423,16 @@ def main():
     seen = load_seen()
     print(f"loaded {len(seen)} seen ids", file=sys.stderr)
 
-    # Run fetches concurrently across the three external sources.
-    with cf.ThreadPoolExecutor(max_workers=3) as ex:
+    # Run fetches concurrently across external sources.
+    with cf.ThreadPoolExecutor(max_workers=4) as ex:
         f_news = ex.submit(fetch_news, seen)
         f_sec = ex.submit(fetch_sec_all)
         f_prices = ex.submit(fetch_prices_all)
+        f_aux = ex.submit(fetch_aux_prices)
         news = f_news.result()
         sec_by_co = f_sec.result()
         prices_by_co = f_prices.result()
+        aux_prices = f_aux.result()
 
     news = dedupe(news)
     news.sort(key=lambda x: parse_date(x["published"]), reverse=True)
@@ -1356,7 +1443,7 @@ def main():
         if sigs:
             print(f"signals[{co}]: {len(sigs)}", file=sys.stderr)
 
-    html = render_html(news, investments_by_co, sec_by_co, prices_by_co)
+    html = render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices)
     OUTPUT_FILE.write_text(html, encoding="utf-8")
     print(f"wrote {OUTPUT_FILE} ({len(html):,} bytes)", file=sys.stderr)
 
