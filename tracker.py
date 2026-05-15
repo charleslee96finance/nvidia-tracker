@@ -819,6 +819,22 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .hero-title{font-size:clamp(28px,5vw,46px);font-weight:800;line-height:1.05;background:linear-gradient(135deg,#fff 0%,#9dd923 25%,#5db1ff 50%,#fbbc04 75%,#ff6b6b 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-1px;margin-bottom:8px}
 .hero-sub{font-size:14px;color:var(--text2)}
 .hero-time{display:inline-block;margin-top:10px;font-family:'Space Mono',monospace;font-size:11px;color:var(--text3);border:1px solid var(--border2);padding:4px 14px;border-radius:20px}
+.stock-search{position:relative;margin-top:18px;max-width:520px}
+.stock-search input{width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:12px 16px;font-family:'Syne',sans-serif;font-size:14px;color:var(--text);outline:none;transition:border-color .2s,box-shadow .2s}
+.stock-search input::placeholder{color:var(--text3)}
+.stock-search input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(77,166,255,.15)}
+.search-results{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;max-height:380px;overflow-y:auto;display:none;z-index:90;box-shadow:0 12px 32px rgba(0,0,0,.5)}
+.search-results.open{display:block}
+.search-result{display:grid;grid-template-columns:56px 1fr auto auto;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s}
+.search-result:last-child{border-bottom:none}
+.search-result:hover,.search-result.selected{background:rgba(77,166,255,.08)}
+.sr-ticker{font-family:'Space Mono',monospace;font-size:13px;font-weight:700;color:var(--blue);letter-spacing:1px}
+.sr-name{font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sr-price{font-family:'Space Mono',monospace;font-size:13px;font-weight:700;color:var(--text)}
+.sr-chg{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;min-width:60px;text-align:right}
+.sr-chg.up{color:#00e5a0}.sr-chg.down{color:#ff6b6b}
+.sr-lite{font-family:'Space Mono',monospace;font-size:8px;background:rgba(245,166,35,.18);color:#f5a623;padding:1px 5px;border-radius:8px;margin-left:6px;font-weight:700;vertical-align:middle}
+.search-empty{padding:24px;text-align:center;color:var(--text3);font-size:12px}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:36px}
 .stat{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:16px 18px;text-align:center}
 .stat-label{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:8px}
@@ -964,6 +980,10 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
     <h1 class="hero-title">美股巨头 · 投资追踪</h1>
     <p class="hero-sub">价格走势 · 新闻 · 投资信号 · SEC 文件 · 自动每 2 小时更新</p>
     <span class="hero-time" id="time-badge">最近更新：{{NOW}}</span>
+    <div class="stock-search">
+      <input type="search" id="stockSearch" placeholder="🔍 搜索股票（代码或公司名，按 / 快速聚焦）" autocomplete="off" spellcheck="false">
+      <div class="search-results" id="searchResults"></div>
+    </div>
   </div>
 
   <div class="stats">
@@ -1301,6 +1321,118 @@ document.getElementById('investmentGrid').addEventListener('keydown', e => {
     }
   }
 });
+
+// ===== Stock search =====
+const searchInput = document.getElementById('stockSearch');
+const searchResults = document.getElementById('searchResults');
+let searchSelIdx = -1;
+
+function performSearch(query) {
+  if (!query || !query.trim()) {
+    searchResults.classList.remove('open');
+    searchResults.innerHTML = '';
+    searchSelIdx = -1;
+    return;
+  }
+  const q = query.trim().toLowerCase();
+  const matches = [];
+  for (const ticker in PRICE_DATA) {
+    const d = PRICE_DATA[ticker];
+    if (ticker.toLowerCase().includes(q) || d.name.toLowerCase().includes(q)) {
+      matches.push({ticker: ticker, data: d});
+    }
+  }
+  // Exact ticker match first, then by name
+  matches.sort((a, b) => {
+    const aExact = a.ticker.toLowerCase() === q ? 0 : 1;
+    const bExact = b.ticker.toLowerCase() === q ? 0 : 1;
+    if (aExact !== bExact) return aExact - bExact;
+    return a.ticker.localeCompare(b.ticker);
+  });
+  if (!matches.length) {
+    searchResults.innerHTML = '<div class="search-empty">未找到匹配的股票</div>';
+    searchResults.classList.add('open');
+    searchSelIdx = -1;
+    return;
+  }
+  searchResults.innerHTML = matches.map((m, idx) => {
+    const d = m.data;
+    const prev = d.prev_close || d.price;
+    const chg = d.price - prev;
+    const chgPct = prev ? (chg / prev * 100) : 0;
+    const up = chg >= 0;
+    const liteTag = d.lite ? '<span class="sr-lite">辅助</span>' : '';
+    return '<div class="search-result' + (idx === 0 ? ' selected' : '') + '" data-ticker="' + escapeHtml(m.ticker) + '" data-idx="' + idx + '">' +
+      '<span class="sr-ticker">' + escapeHtml(m.ticker) + '</span>' +
+      '<span class="sr-name">' + escapeHtml(d.name) + liteTag + '</span>' +
+      '<span class="sr-price">$' + d.price.toFixed(2) + '</span>' +
+      '<span class="sr-chg ' + (up ? 'up' : 'down') + '">' + (up ? '+' : '') + chgPct.toFixed(2) + '%</span>' +
+      '</div>';
+  }).join('');
+  searchResults.classList.add('open');
+  searchSelIdx = 0;
+}
+
+function openSearchResult(idx) {
+  const rows = searchResults.querySelectorAll('.search-result');
+  if (idx >= 0 && idx < rows.length) {
+    const ticker = rows[idx].dataset.ticker;
+    if (ticker) {
+      openPriceModal(ticker);
+      searchInput.value = '';
+      searchResults.classList.remove('open');
+      searchResults.innerHTML = '';
+      searchSelIdx = -1;
+      searchInput.blur();
+    }
+  }
+}
+
+function updateSearchSel() {
+  const rows = searchResults.querySelectorAll('.search-result');
+  rows.forEach((r, i) => r.classList.toggle('selected', i === searchSelIdx));
+  if (searchSelIdx >= 0 && rows[searchSelIdx]) {
+    rows[searchSelIdx].scrollIntoView({block: 'nearest'});
+  }
+}
+
+if (searchInput) {
+  searchInput.addEventListener('input', e => performSearch(e.target.value));
+  searchInput.addEventListener('focus', e => { if (e.target.value) performSearch(e.target.value); });
+  searchInput.addEventListener('keydown', e => {
+    const rows = searchResults.querySelectorAll('.search-result');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (rows.length) { searchSelIdx = (searchSelIdx + 1) % rows.length; updateSearchSel(); }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (rows.length) { searchSelIdx = (searchSelIdx - 1 + rows.length) % rows.length; updateSearchSel(); }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (searchSelIdx >= 0) openSearchResult(searchSelIdx);
+    } else if (e.key === 'Escape') {
+      searchInput.value = '';
+      searchResults.classList.remove('open');
+      searchInput.blur();
+    }
+  });
+  searchResults.addEventListener('click', e => {
+    const r = e.target.closest('.search-result');
+    if (r) openSearchResult(parseInt(r.dataset.idx, 10));
+  });
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.stock-search')) searchResults.classList.remove('open');
+  });
+  // "/" hotkey to focus search (when not already in an input)
+  document.addEventListener('keydown', e => {
+    if (e.key === '/' && document.activeElement !== searchInput &&
+        document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA' &&
+        !modalEl.classList.contains('open')) {
+      e.preventDefault();
+      searchInput.focus();
+    }
+  });
+}
 
 // ===== Back-to-top button =====
 const backBtn = document.getElementById('backToTop');
