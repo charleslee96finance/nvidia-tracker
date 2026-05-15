@@ -105,6 +105,14 @@ COMPANIES = [
         "invest_search": "Tesla (invests OR acquires OR stake OR backs OR partnership)",
         "name_regex": r"Tesla(?:\s+Inc)?",
     },
+    {
+        "name": "Ondas", "ticker": "ONDS", "category": "other",
+        "color": "#a78bfa", "cik": "0001646188",
+        "blog_url": None,
+        "search_terms": '"Ondas Holdings" OR ONDS OR "Ondas Networks" OR "American Robotics" OR Airobotics',
+        "invest_search": "Ondas (invests OR acquires OR stake OR backs OR partnership)",
+        "name_regex": r"Ondas(?:\s+Holdings|\s+Networks)?|American\s+Robotics",
+    },
 ]
 
 # --- Curated database of each company's public investments / acquisitions ---
@@ -213,6 +221,11 @@ KNOWN_INVESTMENTS = {
         {"name": "Beat Games (Beat Saber)", "ticker": None, "kind": "收购", "desc": "VR 游戏",                "date": "2019"},
         {"name": "Mapillary",               "ticker": None, "kind": "收购", "desc": "众包街景",               "date": "2020"},
         {"name": "Scale AI",                "ticker": None, "kind": "投资", "desc": "$140 亿 持 49% 股权",    "date": "2024-06"},
+    ],
+    "Ondas": [
+        {"name": "American Robotics",    "ticker": None, "kind": "收购", "desc": "约 $7000 万（FAA 认证无人机）", "date": "2021-08"},
+        {"name": "Airobotics",           "ticker": None, "kind": "收购", "desc": "约 $1500 万（自动化无人机平台）","date": "2023-01"},
+        {"name": "Ondas Networks",       "ticker": None, "kind": "子公司","desc": "私有 5G 铁路通信网络",         "date": "internal"},
     ],
     "Tesla": [
         {"name": "SolarCity",          "ticker": None, "kind": "收购", "desc": "$26 亿（太阳能）",     "date": "2016"},
@@ -966,6 +979,8 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
   <div class="price-grid">{{PRICE_CHIP}}</div>
   <div class="subgroup-label">⭐ Magnificent 7（除 NVIDIA 外）</div>
   <div class="price-grid">{{PRICE_MAG7}}</div>
+  <div class="subgroup-label">🌟 其他追踪</div>
+  <div class="price-grid">{{PRICE_OTHER}}</div>
 
   <div class="section-label">🔥 投资 / 收购 / 合作信号</div>
   {{INV_SECTIONS}}
@@ -1265,7 +1280,8 @@ document.querySelectorAll('.price-card.clickable').forEach(card => {
 // Map company name → ticker (so we can convert news badges to clickable jumps).
 const COMPANY_TO_TICKER = {
   'NVIDIA':'NVDA','Intel':'INTC','AMD':'AMD','Apple':'AAPL',
-  'Microsoft':'MSFT','Alphabet':'GOOGL','Amazon':'AMZN','Meta':'META','Tesla':'TSLA'
+  'Microsoft':'MSFT','Alphabet':'GOOGL','Amazon':'AMZN','Meta':'META','Tesla':'TSLA',
+  'Ondas':'ONDS'
 };
 
 // Investment-card click → open the invested company's modal (only if tracked).
@@ -1334,6 +1350,7 @@ def render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices=Non
 
     price_chip = render_price_cards(prices_by_co, "chip")
     price_mag7 = render_price_cards(prices_by_co, "mag7")
+    price_other = render_price_cards(prices_by_co, "other")
     inv_sections = render_investment_sections(investments_by_co)
     sec_sections = render_sec_sections(sec_by_co)
 
@@ -1407,6 +1424,7 @@ def render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices=Non
         "{{SEC_TOTAL}}": str(sec_total),
         "{{PRICE_CHIP}}": price_chip,
         "{{PRICE_MAG7}}": price_mag7,
+        "{{PRICE_OTHER}}": price_other,
         "{{PRICE_JSON}}": price_json,
         "{{INV_SECTIONS}}": inv_sections,
         "{{SEC_SECTIONS}}": sec_sections,
