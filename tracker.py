@@ -668,6 +668,64 @@ def fetch_aux_prices():
     return out
 
 
+# (yahoo_range, yahoo_interval) per period key. Each tuple becomes one
+# Yahoo Chart API call. Pre-fetched at build time so the modal's period
+# selector switches charts instantly without further requests.
+PERIOD_SPECS = {
+    "5d":  ("5d",  "30m"),
+    "1mo": ("1mo", "1d"),
+    "3mo": ("3mo", "1d"),
+    "1y":  ("1y",  "1wk"),
+}
+
+
+def _fetch_ohlc(ticker, rng, interval):
+    """One Yahoo Finance chart call → OHLC list [[ts,open,high,low,close],...]."""
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?range={rng}&interval={interval}"
+    r = requests.get(url, headers={"User-Agent": BROWSER_UA, "Accept": "application/json"}, timeout=15)
+    r.raise_for_status()
+    data = r.json()
+    result = data["chart"]["result"][0]
+    q = result["indicators"]["quote"][0]
+    ts = result.get("timestamp", []) or []
+    opens  = q.get("open", []) or []
+    highs  = q.get("high", []) or []
+    lows   = q.get("low", []) or []
+    closes = q.get("close", []) or []
+    ohlc = []
+    for i, t in enumerate(ts):
+        if i < len(closes) and closes[i] is not None:
+            o = opens[i] if i < len(opens) and opens[i] is not None else closes[i]
+            h = highs[i] if i < len(highs) and highs[i] is not None else closes[i]
+            l = lows[i]  if i < len(lows)  and lows[i]  is not None else closes[i]
+            ohlc.append([t, round(o, 2), round(h, 2), round(l, 2), round(closes[i], 2)])
+    return ohlc
+
+
+def fetch_main_periods():
+    """For each main (non-aux) ticker, fetch OHLC data across PERIOD_SPECS.
+    Returns {ticker: {period_key: [[ts,o,h,l,c], ...]}}.
+    Parallelizes (ticker x period) calls."""
+    jobs = [(c["ticker"], k, rng, interval)
+            for c in COMPANIES
+            for k, (rng, interval) in PERIOD_SPECS.items()]
+    out = {}
+    with cf.ThreadPoolExecutor(max_workers=12) as ex:
+        futures = {ex.submit(_fetch_ohlc, t, rng, intv): (t, k) for t, k, rng, intv in jobs}
+        for fut in cf.as_completed(futures):
+            ticker, key = futures[fut]
+            try:
+                bars = fut.result()
+                out.setdefault(ticker, {})[key] = bars
+            except Exception as e:
+                print(f"period err {ticker} {key}: {e}", file=sys.stderr)
+                out.setdefault(ticker, {})[key] = []
+    for ticker, periods in out.items():
+        sizes = ", ".join(f"{k}:{len(v)}" for k, v in periods.items())
+        print(f"periods {ticker}: {sizes}", file=sys.stderr)
+    return out
+
+
 def render_sparkline(closes, width=140, height=36):
     if not closes or len(closes) < 2:
         return ""
@@ -915,6 +973,24 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .modal-price-row{display:flex;align-items:baseline;gap:16px;margin-bottom:18px;flex-wrap:wrap}
 .modal-price{font-size:42px;font-weight:800}
 .modal-chg{font-family:'Space Mono',monospace;font-size:14px;font-weight:700}
+.alert-banner{background:linear-gradient(135deg,rgba(255,77,0,.10) 0%,rgba(245,166,35,.10) 100%);border:1px solid rgba(255,77,0,.3);border-radius:14px;padding:16px 20px;margin-bottom:20px}
+.alert-banner-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.alert-banner-title{font-size:14px;font-weight:700;color:var(--fire)}
+.alert-bell{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;padding:6px 12px;border-radius:8px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);cursor:pointer;transition:all .15s}
+.alert-bell:hover{background:var(--blue);border-color:var(--blue);color:#000}
+.alert-bell.granted{background:rgba(0,229,160,.15);border-color:rgba(0,229,160,.4);color:#00e5a0}
+.alert-banner-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+.alert-pill{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:border-color .15s,transform .15s}
+.alert-pill:hover{border-color:var(--border2);transform:translateY(-1px)}
+.alert-pill-ticker{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:var(--text)}
+.alert-pill-pct{font-family:'Space Mono',monospace;font-size:13px;font-weight:700}
+.alert-pill-pct.up{color:#00e5a0}
+.alert-pill-pct.down{color:#ff6b6b}
+.chart-controls{display:flex;justify-content:space-between;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+.chart-periods,.chart-types{display:flex;gap:4px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:3px}
+.chart-btn{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;padding:6px 12px;border-radius:7px;border:none;background:transparent;color:var(--text2);cursor:pointer;transition:all .15s}
+.chart-btn:hover{color:var(--text)}
+.chart-btn.active{background:var(--blue);color:#000}
 .modal-chart-wrap{position:relative;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:18px}
 .modal-chart{width:100%;height:240px;display:block}
 .chart-tooltip{position:absolute;display:none;background:var(--bg2);border:1px solid var(--border2);border-radius:6px;padding:6px 10px;font-family:'Space Mono',monospace;font-size:11px;pointer-events:none;white-space:nowrap;z-index:10;color:var(--text);box-shadow:0 4px 12px rgba(0,0,0,.4)}
@@ -975,6 +1051,13 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 </head>
 <body>
 <div class="wrap">
+  <div class="alert-banner" id="alertBanner" style="display:none">
+    <div class="alert-banner-head">
+      <span class="alert-banner-title">⚠️ 今日大涨大跌提醒（变动 ≥ 5%）</span>
+      <button class="alert-bell" id="alertBell" title="启用浏览器桌面通知">🔔 启用桌面提醒</button>
+    </div>
+    <div class="alert-banner-list" id="alertList"></div>
+  </div>
   <div class="hero">
     <div class="hero-eyebrow">US Mega Tracker · Mag 7 + Chips</div>
     <h1 class="hero-title">美股巨头 · 投资追踪</h1>
@@ -1035,6 +1118,18 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
     <div class="modal-price-row">
       <span class="modal-price" id="modalPrice">$0.00</span>
       <span class="modal-chg" id="modalChg">—</span>
+    </div>
+    <div class="chart-controls" id="chartControls">
+      <div class="chart-periods" role="group" aria-label="选择周期">
+        <button class="chart-btn" data-period="5d">5 日</button>
+        <button class="chart-btn active" data-period="1mo">1 月</button>
+        <button class="chart-btn" data-period="3mo">3 月</button>
+        <button class="chart-btn" data-period="1y">1 年</button>
+      </div>
+      <div class="chart-types" role="group" aria-label="图表类型">
+        <button class="chart-btn type-btn active" data-type="line">📈 折线</button>
+        <button class="chart-btn type-btn" data-type="candle">🕯️ 蜡烛</button>
+      </div>
     </div>
     <div class="modal-chart-wrap">
       <svg class="modal-chart" id="modalChart" viewBox="0 0 600 240" preserveAspectRatio="none"></svg>
@@ -1139,19 +1234,32 @@ function openPriceModal(ticker) {
     '<div class="modal-stat"><div class="modal-stat-label">'+s[0]+'</div><div class="modal-stat-val '+s[2]+'">'+s[1]+'</div></div>'
   ).join('');
 
-  renderLargeChart(closes, tss);
+  // Multi-period + chart-type aware rendering. Default 1mo line.
+  currentTicker = ticker;
+  currentPeriod = (d.periods && d.periods['1mo']) ? '1mo' : null;
+  if (!currentPeriod && d.periods) {
+    // Pick any available period
+    for (const k of ['1mo','5d','3mo','1y']) if (d.periods[k] && d.periods[k].length) { currentPeriod = k; break; }
+  }
+  // For aux (lite) tickers, no periods data — fall back to closes/timestamps
+  currentType = 'line';
+  syncChartButtons();
+  drawCurrentChart();
   // Lite mode: only price + chart available for aux tickers.
   const liteNote = document.getElementById('liteNote');
   const invSection = document.querySelector('.modal-investments');
   const reasonsSection = document.querySelector('.modal-reasons');
+  const chartCtrls = document.getElementById('chartControls');
   if (d.lite) {
     if (liteNote) liteNote.style.display = 'block';
     if (invSection) invSection.style.display = 'none';
     if (reasonsSection) reasonsSection.style.display = 'none';
+    if (chartCtrls) chartCtrls.style.display = 'none';
   } else {
     if (liteNote) liteNote.style.display = 'none';
     if (invSection) invSection.style.display = '';
     if (reasonsSection) reasonsSection.style.display = '';
+    if (chartCtrls) chartCtrls.style.display = '';
     renderInvestments(d.investments || []);
     renderReasons(d.positive_news || [], d.negative_news || []);
   }
@@ -1216,46 +1324,138 @@ function closePriceModal() {
   tooltip.style.display = 'none';
 }
 
-function renderLargeChart(closes, tss) {
-  const W = 600, H = 240, padL = 50, padR = 16, padT = 12, padB = 30;
-  const cw = W - padL - padR, ch = H - padT - padB;
-  if (closes.length < 2) {
-    mChart.innerHTML = '<text x="'+(W/2)+'" y="'+(H/2)+'" text-anchor="middle" fill="#4a5a78" font-size="12">数据不足</text>';
+// --- Multi-period chart state ---
+let currentTicker = null;
+let currentPeriod = '1mo';
+let currentType = 'line';
+
+function getOhlcForCurrent() {
+  if (!currentTicker) return null;
+  const d = PRICE_DATA[currentTicker];
+  if (!d) return null;
+  if (d.periods && currentPeriod && d.periods[currentPeriod] && d.periods[currentPeriod].length) {
+    return d.periods[currentPeriod];
+  }
+  // Fallback: synthesize OHLC from closes for aux/lite tickers
+  if (d.closes && d.timestamps && d.closes.length === d.timestamps.length) {
+    return d.timestamps.map((t, i) => {
+      const c = d.closes[i];
+      return [t, c, c, c, c];  // open=high=low=close (synthetic — line-only)
+    });
+  }
+  return null;
+}
+
+function syncChartButtons() {
+  const d = PRICE_DATA[currentTicker];
+  const hasMulti = d && d.periods && Object.keys(d.periods).some(k => d.periods[k] && d.periods[k].length);
+  document.querySelectorAll('#chartControls .chart-btn[data-period]').forEach(b => {
+    b.classList.toggle('active', b.dataset.period === currentPeriod);
+    b.disabled = !hasMulti;
+    b.style.opacity = hasMulti ? '' : '0.4';
+    b.style.cursor = hasMulti ? '' : 'not-allowed';
+  });
+  document.querySelectorAll('#chartControls .chart-btn[data-type]').forEach(b => {
+    b.classList.toggle('active', b.dataset.type === currentType);
+  });
+}
+
+function drawCurrentChart() {
+  const ohlc = getOhlcForCurrent();
+  if (!ohlc || ohlc.length < 2) {
+    mChart.innerHTML = '<text x="300" y="120" text-anchor="middle" fill="#4a5a78" font-size="12">数据不足</text>';
     return;
   }
-  const lo = Math.min.apply(null, closes), hi = Math.max.apply(null, closes);
-  const rng = (hi-lo) || 1;
-  const n = closes.length;
-  const pts = closes.map((c,i) => [padL + i*cw/(n-1), padT + ch - ((c-lo)/rng)*ch]);
-  const ptsStr = pts.map(p => p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
-  const up = closes[n-1] >= closes[0];
-  const lineColor = up ? '#00e5a0' : '#ff6b6b';
-  const fillColor = up ? 'rgba(0,229,160,0.10)' : 'rgba(255,107,107,0.10)';
-  const areaPts = padL+','+(padT+ch) + ' ' + ptsStr + ' ' + (padL+cw)+','+(padT+ch);
+  renderChart(ohlc, currentType);
+}
 
-  const gridY = [padT, padT+ch/2, padT+ch];
+// Hook period + type buttons (one-time event delegation on the controls bar)
+document.getElementById('chartControls').addEventListener('click', e => {
+  const btn = e.target.closest('.chart-btn');
+  if (!btn || btn.disabled) return;
+  if (btn.dataset.period) currentPeriod = btn.dataset.period;
+  else if (btn.dataset.type) currentType = btn.dataset.type;
+  syncChartButtons();
+  drawCurrentChart();
+});
+
+function renderChart(ohlc, type) {
+  const W = 600, H = 240, padL = 50, padR = 16, padT = 12, padB = 30;
+  const cw = W - padL - padR, ch = H - padT - padB;
+  const n = ohlc.length;
+  if (n < 2) {
+    mChart.innerHTML = '<text x="300" y="120" text-anchor="middle" fill="#4a5a78" font-size="12">数据不足</text>';
+    return;
+  }
+  // For candle mode use high/low for range, for line use close range
+  let lo, hi;
+  if (type === 'candle') {
+    lo = Infinity; hi = -Infinity;
+    for (const b of ohlc) {
+      if (b[3] < lo) lo = b[3];  // low
+      if (b[2] > hi) hi = b[2];  // high
+    }
+  } else {
+    const closes = ohlc.map(b => b[4]);
+    lo = Math.min.apply(null, closes);
+    hi = Math.max.apply(null, closes);
+  }
+  const rng = (hi - lo) || 1;
+  const xFor = i => padL + i * cw / (n - 1);
+  const yFor = price => padT + ch - ((price - lo) / rng) * ch;
+
+  // Y-axis grid
+  const gridY = [padT, padT + ch/2, padT + ch];
   const gridLab = [hi.toFixed(2), ((hi+lo)/2).toFixed(2), lo.toFixed(2)];
   let gridSvg = '';
-  for (let i=0; i<3; i++) {
+  for (let i = 0; i < 3; i++) {
     gridSvg += '<line x1="'+padL+'" y1="'+gridY[i]+'" x2="'+(padL+cw)+'" y2="'+gridY[i]+'" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>';
     gridSvg += '<text x="'+(padL-6)+'" y="'+(gridY[i]+3)+'" text-anchor="end" font-family="Space Mono" font-size="10" fill="#4a5a78">$'+gridLab[i]+'</text>';
   }
-
-  const dateAt = [[padL, fmtDate(tss[0]), 'start'],
-                  [padL+cw/2, fmtDate(tss[Math.floor(n/2)]), 'middle'],
-                  [padL+cw, fmtDate(tss[n-1]), 'end']];
+  // X-axis dates
+  const dateAt = [[padL, fmtDate(ohlc[0][0]), 'start'],
+                  [padL+cw/2, fmtDate(ohlc[Math.floor(n/2)][0]), 'middle'],
+                  [padL+cw, fmtDate(ohlc[n-1][0]), 'end']];
   let dateSvg = '';
   dateAt.forEach(d => {
     dateSvg += '<text x="'+d[0]+'" y="'+(H-8)+'" text-anchor="'+d[2]+'" font-family="Space Mono" font-size="10" fill="#4a5a78">'+d[1]+'</text>';
   });
 
+  let chartSvg = '';
+  let hoverPts = null;  // for line mode hover
+  const overallUp = ohlc[n-1][4] >= ohlc[0][4];
+
+  if (type === 'line') {
+    const pts = ohlc.map((b, i) => [xFor(i), yFor(b[4])]);
+    hoverPts = pts;
+    const ptsStr = pts.map(p => p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+    const lineColor = overallUp ? '#00e5a0' : '#ff6b6b';
+    const fillColor = overallUp ? 'rgba(0,229,160,0.10)' : 'rgba(255,107,107,0.10)';
+    const areaPts = padL+','+(padT+ch) + ' ' + ptsStr + ' ' + (padL+cw)+','+(padT+ch);
+    chartSvg = '<polygon fill="'+fillColor+'" points="'+areaPts+'"/>' +
+               '<polyline fill="none" stroke="'+lineColor+'" stroke-width="2" points="'+ptsStr+'"/>';
+  } else {
+    // Candle mode
+    const cwidth = Math.max(2, Math.min(cw / n * 0.7, 14));
+    let candles = '';
+    for (let i = 0; i < n; i++) {
+      const b = ohlc[i];
+      const x = xFor(i);
+      const yO = yFor(b[1]), yH = yFor(b[2]), yL = yFor(b[3]), yC = yFor(b[4]);
+      const isUp = b[4] >= b[1];
+      const col = isUp ? '#00e5a0' : '#ff6b6b';
+      candles += '<line x1="'+x.toFixed(1)+'" y1="'+yH.toFixed(1)+'" x2="'+x.toFixed(1)+'" y2="'+yL.toFixed(1)+'" stroke="'+col+'" stroke-width="1"/>';
+      const bodyTop = Math.min(yO, yC);
+      const bodyH = Math.max(1, Math.abs(yC - yO));
+      candles += '<rect x="'+(x - cwidth/2).toFixed(1)+'" y="'+bodyTop.toFixed(1)+'" width="'+cwidth.toFixed(1)+'" height="'+bodyH.toFixed(1)+'" fill="'+col+'"/>';
+    }
+    chartSvg = candles;
+  }
+
   mChart.innerHTML =
-    gridSvg +
-    '<polygon fill="'+fillColor+'" points="'+areaPts+'"/>' +
-    '<polyline fill="none" stroke="'+lineColor+'" stroke-width="2" points="'+ptsStr+'"/>' +
-    dateSvg +
+    gridSvg + chartSvg + dateSvg +
     '<line id="hLine" x1="0" y1="'+padT+'" x2="0" y2="'+(padT+ch)+'" stroke="rgba(255,255,255,0.3)" stroke-width="1" visibility="hidden"/>' +
-    '<circle id="hDot" r="5" fill="'+lineColor+'" stroke="#fff" stroke-width="2" visibility="hidden"/>' +
+    (type === 'line' ? '<circle id="hDot" r="5" fill="'+(overallUp?'#00e5a0':'#ff6b6b')+'" stroke="#fff" stroke-width="2" visibility="hidden"/>' : '') +
     '<rect id="hOverlay" x="'+padL+'" y="'+padT+'" width="'+cw+'" height="'+ch+'" fill="transparent" style="cursor:crosshair"/>';
 
   const hLine = document.getElementById('hLine');
@@ -1266,25 +1466,35 @@ function renderLargeChart(closes, tss) {
     const rect = mChart.getBoundingClientRect();
     const xSvg = (e.clientX - rect.left) * W / rect.width;
     let best = 0, bestDist = Infinity;
-    for (let i=0; i<n; i++) {
-      const dd = Math.abs(pts[i][0] - xSvg);
+    for (let i = 0; i < n; i++) {
+      const dd = Math.abs(xFor(i) - xSvg);
       if (dd < bestDist) { bestDist = dd; best = i; }
     }
-    hLine.setAttribute('x1', pts[best][0]);
-    hLine.setAttribute('x2', pts[best][0]);
+    const bx = xFor(best);
+    hLine.setAttribute('x1', bx); hLine.setAttribute('x2', bx);
     hLine.setAttribute('visibility', 'visible');
-    hDot.setAttribute('cx', pts[best][0]);
-    hDot.setAttribute('cy', pts[best][1]);
-    hDot.setAttribute('visibility', 'visible');
+    const b = ohlc[best];
+    if (type === 'line' && hDot) {
+      hDot.setAttribute('cx', bx);
+      hDot.setAttribute('cy', yFor(b[4]));
+      hDot.setAttribute('visibility', 'visible');
+      tooltip.textContent = fmtDate(b[0]) + ' · $' + b[4].toFixed(2);
+    } else {
+      // Candle tooltip with OHLC
+      const upBar = b[4] >= b[1];
+      tooltip.innerHTML = fmtDate(b[0]) +
+        ' <span style="color:' + (upBar ? '#00e5a0' : '#ff6b6b') + '">' + (upBar ? '▲' : '▼') + '</span>' +
+        '<br>O $' + b[1].toFixed(2) + ' · H $' + b[2].toFixed(2) +
+        '<br>L $' + b[3].toFixed(2) + ' · C $' + b[4].toFixed(2);
+    }
     tooltip.style.display = 'block';
-    tooltip.textContent = fmtDate(tss[best]) + ' · $' + closes[best].toFixed(2);
-    const tipX = Math.min(rect.width - 140, Math.max(8, e.clientX - rect.left + 12));
+    const tipX = Math.min(rect.width - 160, Math.max(8, e.clientX - rect.left + 12));
     tooltip.style.left = tipX + 'px';
     tooltip.style.top = '14px';
   });
   hOverlay.addEventListener('mouseleave', () => {
     hLine.setAttribute('visibility', 'hidden');
-    hDot.setAttribute('visibility', 'hidden');
+    if (hDot) hDot.setAttribute('visibility', 'hidden');
     tooltip.style.display = 'none';
   });
 }
@@ -1434,6 +1644,103 @@ if (searchInput) {
   });
 }
 
+// ===== Price-move alerts =====
+const ALERT_THRESHOLD_PCT = 5;  // any stock moving >= ±5% today triggers an alert
+const alertBanner = document.getElementById('alertBanner');
+const alertList = document.getElementById('alertList');
+const alertBell = document.getElementById('alertBell');
+
+function scanAlerts() {
+  const alerts = [];
+  for (const ticker in PRICE_DATA) {
+    const d = PRICE_DATA[ticker];
+    if (!d.price || !d.prev_close) continue;
+    const chgPct = (d.price - d.prev_close) / d.prev_close * 100;
+    if (Math.abs(chgPct) >= ALERT_THRESHOLD_PCT) {
+      alerts.push({ ticker, name: d.name, chgPct, price: d.price });
+    }
+  }
+  alerts.sort((a, b) => Math.abs(b.chgPct) - Math.abs(a.chgPct));
+  return alerts;
+}
+
+function renderAlerts(alerts) {
+  if (!alerts.length) {
+    alertBanner.style.display = 'none';
+    return;
+  }
+  alertBanner.style.display = '';
+  alertList.innerHTML = alerts.map(a => {
+    const up = a.chgPct >= 0;
+    return '<div class="alert-pill" data-ticker="' + escapeHtml(a.ticker) + '">' +
+      '<span class="alert-pill-ticker">' + escapeHtml(a.ticker) + ' · ' + escapeHtml(a.name) + '</span>' +
+      '<span class="alert-pill-pct ' + (up ? 'up' : 'down') + '">' + (up ? '+' : '') + a.chgPct.toFixed(2) + '%</span>' +
+      '</div>';
+  }).join('');
+}
+
+alertList.addEventListener('click', e => {
+  const pill = e.target.closest('.alert-pill');
+  if (pill && pill.dataset.ticker) openPriceModal(pill.dataset.ticker);
+});
+
+function syncBellState() {
+  if (!('Notification' in window)) {
+    alertBell.style.display = 'none';
+    return;
+  }
+  if (Notification.permission === 'granted') {
+    alertBell.classList.add('granted');
+    alertBell.textContent = '🔔 桌面通知已开启';
+  } else if (Notification.permission === 'denied') {
+    alertBell.classList.remove('granted');
+    alertBell.textContent = '🔕 通知被拒绝（去浏览器设置开启）';
+    alertBell.disabled = true;
+  } else {
+    alertBell.textContent = '🔔 启用桌面提醒';
+  }
+}
+
+function fireDesktopNotifications(alerts) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  // Throttle: only fire once per session per ticker (using localStorage)
+  const seenKey = 'alertsSeen_' + new Date().toISOString().slice(0, 10);
+  let seen = {};
+  try { seen = JSON.parse(localStorage.getItem(seenKey) || '{}'); } catch (e) {}
+  for (const a of alerts) {
+    if (seen[a.ticker]) continue;
+    const up = a.chgPct >= 0;
+    new Notification('📊 ' + a.ticker + (up ? ' 大涨' : ' 大跌') + ' ' + (up?'+':'') + a.chgPct.toFixed(2) + '%', {
+      body: a.name + ' · 当前 $' + a.price.toFixed(2) + ' · 点击查看详情',
+      icon: 'https://charleslee96finance.github.io/nvidia-tracker/favicon.ico',
+      tag: 'stock-alert-' + a.ticker,
+    });
+    seen[a.ticker] = true;
+  }
+  try { localStorage.setItem(seenKey, JSON.stringify(seen)); } catch (e) {}
+}
+
+alertBell.addEventListener('click', () => {
+  if (!('Notification' in window) || Notification.permission === 'denied') return;
+  if (Notification.permission === 'granted') {
+    // Already granted — just refire current alerts
+    fireDesktopNotifications(scanAlerts());
+    return;
+  }
+  Notification.requestPermission().then(p => {
+    syncBellState();
+    if (p === 'granted') fireDesktopNotifications(scanAlerts());
+  });
+});
+
+// Run once on load
+const currentAlerts = scanAlerts();
+renderAlerts(currentAlerts);
+syncBellState();
+if (currentAlerts.length && Notification.permission === 'granted') {
+  fireDesktopNotifications(currentAlerts);
+}
+
 // ===== Back-to-top button =====
 const backBtn = document.getElementById('backToTop');
 if (backBtn) {
@@ -1472,7 +1779,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closePriceMo
 """
 
 
-def render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices=None):
+def render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices=None, main_periods=None):
     new_count = sum(1 for n in news if n["is_new"])
     sig_total = sum(len(v) for v in investments_by_co.values())
     sec_total = sum(len(v) for v in sec_by_co.values())
@@ -1494,6 +1801,7 @@ def render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices=Non
         if not d or d.get("price") is None:
             continue
         sent = sentiment_news.get(c["ticker"], {"positive": [], "negative": []})
+        periods = (main_periods or {}).get(c["ticker"], {})
         price_data_for_js[c["ticker"]] = {
             "name": c["name"],
             "color": c["color"],
@@ -1501,6 +1809,7 @@ def render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices=Non
             "prev_close": d["prev_close"],
             "closes": d["closes"],
             "timestamps": d["timestamps"],
+            "periods": periods,
             "positive_news": sent["positive"],
             "negative_news": sent["negative"],
             "investments": KNOWN_INVESTMENTS.get(c["name"], []),
@@ -1574,15 +1883,17 @@ def main():
     print(f"loaded {len(seen)} seen ids", file=sys.stderr)
 
     # Run fetches concurrently across external sources.
-    with cf.ThreadPoolExecutor(max_workers=4) as ex:
+    with cf.ThreadPoolExecutor(max_workers=5) as ex:
         f_news = ex.submit(fetch_news, seen)
         f_sec = ex.submit(fetch_sec_all)
         f_prices = ex.submit(fetch_prices_all)
         f_aux = ex.submit(fetch_aux_prices)
+        f_periods = ex.submit(fetch_main_periods)
         news = f_news.result()
         sec_by_co = f_sec.result()
         prices_by_co = f_prices.result()
         aux_prices = f_aux.result()
+        main_periods = f_periods.result()
 
     news = dedupe(news)
     news.sort(key=lambda x: parse_date(x["published"]), reverse=True)
@@ -1593,7 +1904,7 @@ def main():
         if sigs:
             print(f"signals[{co}]: {len(sigs)}", file=sys.stderr)
 
-    html = render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices)
+    html = render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices, main_periods)
     OUTPUT_FILE.write_text(html, encoding="utf-8")
     print(f"wrote {OUTPUT_FILE} ({len(html):,} bytes)", file=sys.stderr)
 
