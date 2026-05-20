@@ -702,6 +702,31 @@ def _fetch_ohlc(ticker, rng, interval):
     return ohlc
 
 
+def fetch_vix():
+    """Fetch VIX (CBOE Volatility Index, ticker ^VIX). The market 'fear gauge'."""
+    try:
+        data = fetch_price("^VIX")
+        if data and data.get("price") is not None:
+            data["display_name"] = "VIX 恐慌指数"
+            print(f"VIX: {data['price']:.2f}", file=sys.stderr)
+            return data
+    except Exception as e:
+        print(f"VIX fetch err: {e}", file=sys.stderr)
+    return None
+
+
+def fetch_vix_periods():
+    """Multi-period OHLC for VIX so the modal chart supports period switching."""
+    out = {}
+    for k, (rng, interval) in PERIOD_SPECS.items():
+        try:
+            out[k] = _fetch_ohlc("^VIX", rng, interval)
+        except Exception as e:
+            print(f"VIX period err {k}: {e}", file=sys.stderr)
+            out[k] = []
+    return out
+
+
 def fetch_main_periods():
     """For each main (non-aux) ticker, fetch OHLC data across PERIOD_SPECS.
     Returns {ticker: {period_key: [[ts,o,h,l,c], ...]}}.
@@ -973,6 +998,17 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .modal-price-row{display:flex;align-items:baseline;gap:16px;margin-bottom:18px;flex-wrap:wrap}
 .modal-price{font-size:42px;font-weight:800}
 .modal-chg{font-family:'Space Mono',monospace;font-size:14px;font-weight:700}
+.vix-widget{display:inline-block;background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:12px 18px;margin-top:14px;margin-left:0;cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .2s;min-width:240px;vertical-align:top}
+.vix-widget:hover{transform:translateY(-2px);border-color:var(--blue);box-shadow:0 8px 20px rgba(0,0,0,.4)}
+.vix-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
+.vix-label{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--text3);text-transform:uppercase;font-weight:700}
+.vix-sentiment{font-size:11px;font-weight:700}
+.vix-row{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.vix-num{font-size:26px;font-weight:800;font-family:'Space Mono',monospace}
+.vix-chg{font-family:'Space Mono',monospace;font-size:12px;font-weight:700}
+.vix-chg.up{color:#ff6b6b}
+.vix-chg.down{color:#00e5a0}
+.vix-info{font-size:10px;color:var(--text3);cursor:help}
 .alert-banner{background:linear-gradient(135deg,rgba(255,77,0,.10) 0%,rgba(245,166,35,.10) 100%);border:1px solid rgba(255,77,0,.3);border-radius:14px;padding:16px 20px;margin-bottom:20px}
 .alert-banner-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
 .alert-banner-title{font-size:14px;font-weight:700;color:var(--fire)}
@@ -1066,6 +1102,17 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
     <div class="stock-search">
       <input type="search" id="stockSearch" placeholder="🔍 搜索股票（代码或公司名，按 / 快速聚焦）" autocomplete="off" spellcheck="false">
       <div class="search-results" id="searchResults"></div>
+    </div>
+    <div class="vix-widget" id="vixWidget" tabindex="0" role="button" title="点击查看 VIX 详情" style="display:none">
+      <div class="vix-head">
+        <span class="vix-label">VIX 恐慌指数</span>
+        <span class="vix-sentiment" id="vixSentiment">—</span>
+      </div>
+      <div class="vix-row">
+        <span class="vix-num" id="vixNum">—</span>
+        <span class="vix-chg" id="vixChg">—</span>
+        <span class="vix-info" title="VIX < 20 平静 · 20–30 担忧 · &gt;30 恐慌">ⓘ</span>
+      </div>
     </div>
   </div>
 
@@ -1250,19 +1297,20 @@ function openPriceModal(ticker) {
   const invSection = document.querySelector('.modal-investments');
   const reasonsSection = document.querySelector('.modal-reasons');
   const chartCtrls = document.getElementById('chartControls');
+  const hasPeriods = d.periods && Object.keys(d.periods).some(k => d.periods[k] && d.periods[k].length);
   if (d.lite) {
     if (liteNote) liteNote.style.display = 'block';
     if (invSection) invSection.style.display = 'none';
     if (reasonsSection) reasonsSection.style.display = 'none';
-    if (chartCtrls) chartCtrls.style.display = 'none';
   } else {
     if (liteNote) liteNote.style.display = 'none';
     if (invSection) invSection.style.display = '';
     if (reasonsSection) reasonsSection.style.display = '';
-    if (chartCtrls) chartCtrls.style.display = '';
     renderInvestments(d.investments || []);
     renderReasons(d.positive_news || [], d.negative_news || []);
   }
+  // Chart controls visible whenever multi-period data exists (covers VIX even though it's lite).
+  if (chartCtrls) chartCtrls.style.display = hasPeriods ? '' : 'none';
   modalEl.classList.add('open');
   modalEl.setAttribute('aria-hidden', 'false');
   // Scroll back to top when switching stocks via cross-link
@@ -1532,6 +1580,38 @@ document.getElementById('investmentGrid').addEventListener('keydown', e => {
   }
 });
 
+// ===== VIX widget =====
+(function initVixWidget() {
+  const vixData = PRICE_DATA['VIX'];
+  const widget = document.getElementById('vixWidget');
+  if (!vixData || !widget) return;
+  const vix = vixData.price;
+  const prev = vixData.prev_close || vix;
+  const chg = vix - prev;
+  const chgPct = prev ? (chg / prev * 100) : 0;
+  const up = chg >= 0;
+  document.getElementById('vixNum').textContent = vix.toFixed(2);
+  const chgEl = document.getElementById('vixChg');
+  chgEl.textContent = (up ? '+' : '') + chg.toFixed(2) + ' (' + (up ? '+' : '') + chgPct.toFixed(2) + '%)';
+  chgEl.className = 'vix-chg ' + (up ? 'up' : 'down');  // VIX up = bad (red), down = good (green)
+  // Sentiment band
+  let sentText, sentColor;
+  if (vix < 12)      { sentText = '😌 极度平静'; sentColor = '#00e5a0'; }
+  else if (vix < 20) { sentText = '✅ 正常';     sentColor = '#76b900'; }
+  else if (vix < 30) { sentText = '⚠️ 担忧';     sentColor = '#f5a623'; }
+  else if (vix < 40) { sentText = '🚨 高度恐慌'; sentColor = '#ff4d00'; }
+  else               { sentText = '🔥 极度恐慌'; sentColor = '#ff0000'; }
+  const sentEl = document.getElementById('vixSentiment');
+  sentEl.textContent = sentText;
+  sentEl.style.color = sentColor;
+  widget.style.display = '';
+  widget.style.borderColor = sentColor + '55';
+  widget.addEventListener('click', () => openPriceModal('VIX'));
+  widget.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPriceModal('VIX'); }
+  });
+})();
+
 // ===== Stock search =====
 const searchInput = document.getElementById('stockSearch');
 const searchResults = document.getElementById('searchResults');
@@ -1779,7 +1859,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closePriceMo
 """
 
 
-def render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices=None, main_periods=None):
+def render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices=None, main_periods=None, vix_data=None, vix_periods=None):
     new_count = sum(1 for n in news if n["is_new"])
     sig_total = sum(len(v) for v in investments_by_co.values())
     sec_total = sum(len(v) for v in sec_by_co.values())
@@ -1813,6 +1893,23 @@ def render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices=Non
             "positive_news": sent["positive"],
             "negative_news": sent["negative"],
             "investments": KNOWN_INVESTMENTS.get(c["name"], []),
+        }
+
+    # Add VIX (CBOE Volatility Index) — special market indicator, lite mode + multi-period.
+    if vix_data and vix_data.get("price") is not None:
+        price_data_for_js["VIX"] = {
+            "name": "VIX 恐慌指数",
+            "color": "#ff6b6b",
+            "price": vix_data["price"],
+            "prev_close": vix_data["prev_close"],
+            "closes": vix_data["closes"],
+            "timestamps": vix_data["timestamps"],
+            "periods": vix_periods or {},
+            "positive_news": [],
+            "negative_news": [],
+            "investments": [],
+            "lite": True,
+            "is_vix": True,
         }
 
     # Add auxiliary tickers (from investment lists) — lite mode: price + chart only.
@@ -1883,17 +1980,21 @@ def main():
     print(f"loaded {len(seen)} seen ids", file=sys.stderr)
 
     # Run fetches concurrently across external sources.
-    with cf.ThreadPoolExecutor(max_workers=5) as ex:
+    with cf.ThreadPoolExecutor(max_workers=7) as ex:
         f_news = ex.submit(fetch_news, seen)
         f_sec = ex.submit(fetch_sec_all)
         f_prices = ex.submit(fetch_prices_all)
         f_aux = ex.submit(fetch_aux_prices)
         f_periods = ex.submit(fetch_main_periods)
+        f_vix = ex.submit(fetch_vix)
+        f_vix_periods = ex.submit(fetch_vix_periods)
         news = f_news.result()
         sec_by_co = f_sec.result()
         prices_by_co = f_prices.result()
         aux_prices = f_aux.result()
         main_periods = f_periods.result()
+        vix_data = f_vix.result()
+        vix_periods = f_vix_periods.result()
 
     news = dedupe(news)
     news.sort(key=lambda x: parse_date(x["published"]), reverse=True)
@@ -1904,7 +2005,7 @@ def main():
         if sigs:
             print(f"signals[{co}]: {len(sigs)}", file=sys.stderr)
 
-    html = render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices, main_periods)
+    html = render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices, main_periods, vix_data, vix_periods)
     OUTPUT_FILE.write_text(html, encoding="utf-8")
     print(f"wrote {OUTPUT_FILE} ({len(html):,} bytes)", file=sys.stderr)
 
