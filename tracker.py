@@ -702,6 +702,55 @@ def _fetch_ohlc(ticker, rng, interval):
     return ohlc
 
 
+# --- SpaceX special section (private company, no ticker / price) ------------
+SPACEX_PARTNERS = [
+    # Major investors
+    {"name": "Founders Fund",           "ticker": None,    "kind": "投资", "desc": "Peter Thiel · 早期种子轮领投", "date": "2008–今"},
+    {"name": "Sequoia Capital",         "ticker": None,    "kind": "投资", "desc": "Series 多轮领投",              "date": "2010–今"},
+    {"name": "Google (Alphabet)",       "ticker": "GOOGL", "kind": "投资", "desc": "$9 亿（与 Fidelity 共投 $10 亿）", "date": "2015"},
+    {"name": "Fidelity Investments",    "ticker": None,    "kind": "投资", "desc": "$1 亿（与 Google 共投）",      "date": "2015"},
+    {"name": "Saudi PIF",               "ticker": None,    "kind": "投资", "desc": "沙特公共投资基金",             "date": "2023"},
+    {"name": "Andreessen Horowitz",     "ticker": None,    "kind": "投资", "desc": "(a16z) 后期投资",              "date": "2020+"},
+    {"name": "Coatue Management",       "ticker": None,    "kind": "投资", "desc": "对冲基金 多轮",                "date": "2021+"},
+    {"name": "ARK Invest",              "ticker": None,    "kind": "投资", "desc": "Cathie Wood 基金",             "date": "2021+"},
+    {"name": "BlackRock",               "ticker": None,    "kind": "投资", "desc": "全球资管巨头",                 "date": "2022+"},
+    {"name": "Gigafund",                "ticker": None,    "kind": "投资", "desc": "SpaceX 专属基金 (Luke Nosek)",  "date": "2017+"},
+    {"name": "Tiger Global",            "ticker": None,    "kind": "投资", "desc": "对冲基金",                     "date": "2021+"},
+    # Major partners / customers
+    {"name": "NASA",                    "ticker": None,    "kind": "合作", "desc": "Crew Dragon / Artemis 月球",   "date": "2014–今"},
+    {"name": "US Space Force",          "ticker": None,    "kind": "合作", "desc": "NSSL 军用发射合同 $XX 亿",     "date": "2019–今"},
+    {"name": "T-Mobile",                "ticker": None,    "kind": "合作", "desc": "Starlink 直连手机服务",        "date": "2022"},
+    {"name": "Microsoft Azure",         "ticker": "MSFT",  "kind": "合作", "desc": "Starlink × Azure Orbital",     "date": "2020"},
+    {"name": "Northrop Grumman",        "ticker": None,    "kind": "合作", "desc": "Cargo Dragon 项目",            "date": "2008–今"},
+    {"name": "Iridium Communications",  "ticker": None,    "kind": "合作", "desc": "卫星组网发射客户",             "date": "2015–今"},
+    {"name": "Maxar Technologies",      "ticker": None,    "kind": "合作", "desc": "卫星制造合作",                 "date": "2020+"},
+]
+
+
+def fetch_spacex_news(max_items=10):
+    """Fetch latest SpaceX-related news from Google News RSS."""
+    url = ("https://news.google.com/rss/search?q="
+           + quote('"SpaceX" OR "Starship" OR "Starlink" OR "Falcon 9"')
+           + "&hl=en-US&gl=US&ceid=US:en")
+    items = []
+    try:
+        feed = feedparser.parse(url, request_headers={"User-Agent": USER_AGENT})
+        for entry in feed.entries[:max_items]:
+            title = (entry.get("title") or "").strip()
+            if not title:
+                continue
+            items.append({
+                "title": title,
+                "link": entry.get("link", ""),
+                "published": entry.get("published") or entry.get("updated") or "",
+                "source": "Google News · SpaceX",
+            })
+        print(f"SpaceX news: {len(items)}", file=sys.stderr)
+    except Exception as e:
+        print(f"SpaceX news err: {e}", file=sys.stderr)
+    return items
+
+
 def fetch_vix():
     """Fetch VIX (CBOE Volatility Index, ticker ^VIX). The market 'fear gauge'."""
     try:
@@ -998,6 +1047,19 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .modal-price-row{display:flex;align-items:baseline;gap:16px;margin-bottom:18px;flex-wrap:wrap}
 .modal-price{font-size:42px;font-weight:800}
 .modal-chg{font-family:'Space Mono',monospace;font-size:14px;font-weight:700}
+.spacex-section{margin-bottom:32px}
+.spacex-header{background:linear-gradient(135deg,var(--bg2) 0%,rgba(167,139,250,.10) 50%,rgba(255,107,107,.08) 100%);border:1px solid rgba(167,139,250,.3);border-radius:14px;padding:18px 22px;margin-bottom:14px}
+.spx-name{font-size:18px;font-weight:700;margin-bottom:4px;color:var(--text)}
+.spx-meta{font-size:12px;color:var(--text2)}
+.spacex-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:800px){.spacex-cols{grid-template-columns:1fr}}
+.spacex-col-title{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:1.5px;color:var(--text3);text-transform:uppercase;margin-bottom:10px;font-weight:700}
+.spacex-news{display:flex;flex-direction:column;gap:6px}
+.spacex-news-item{display:block;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;text-decoration:none;color:var(--text);transition:border-color .15s,transform .12s}
+.spacex-news-item:hover{border-color:var(--border2);transform:translateX(2px)}
+.spx-title{font-size:13px;line-height:1.4;margin-bottom:4px}
+.spacex-news-item:hover .spx-title{color:var(--blue)}
+.spx-date{font-family:'Space Mono',monospace;font-size:10px;color:var(--text3)}
 .vix-widget{display:inline-block;background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:12px 18px;margin-top:14px;margin-left:0;cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .2s;min-width:240px;vertical-align:top}
 .vix-widget:hover{transform:translateY(-2px);border-color:var(--blue);box-shadow:0 8px 20px rgba(0,0,0,.4)}
 .vix-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
@@ -1131,6 +1193,8 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
   <div class="price-grid">{{PRICE_MAG7}}</div>
   <div class="subgroup-label">🌟 其他追踪</div>
   <div class="price-grid">{{PRICE_OTHER}}</div>
+
+  {{SPACEX_SECTION}}
 
   <div class="section-label">🔥 投资 / 收购 / 合作信号</div>
   {{INV_SECTIONS}}
@@ -1859,7 +1923,50 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closePriceMo
 """
 
 
-def render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices=None, main_periods=None, vix_data=None, vix_periods=None):
+def render_spacex_section(spacex_news):
+    """Render dedicated SpaceX section: news + investors/partners."""
+    if not spacex_news:
+        news_html = '<div class="empty">暂无新闻</div>'
+    else:
+        news_html = "".join(f'''
+      <a class="spacex-news-item" href="{escape(n.get("link", ""))}" target="_blank" rel="noopener">
+        <div class="spx-title">{escape(n["title"])}</div>
+        <div class="spx-date">{escape(n.get("published", ""))}</div>
+      </a>''' for n in spacex_news)
+    kind_map = {"投资": "vc", "合作": "coll"}
+    inv_html = ""
+    for p in SPACEX_PARTNERS:
+        ticker_chip = f'<span class="inv-ticker">{escape(p["ticker"])}</span>' if p.get("ticker") else ""
+        kind_cls = kind_map.get(p["kind"], "inv")
+        inv_html += f'''
+      <div class="investment-card">
+        <div class="inv-row1"><span class="inv-name">{escape(p["name"])}</span>{ticker_chip}</div>
+        <div class="inv-row2"><span class="inv-kind inv-kind-{kind_cls}">{escape(p["kind"])}</span></div>
+        <div class="inv-desc">{escape(p["desc"])}</div>
+        <div class="inv-date">{escape(p["date"])}</div>
+      </div>'''
+    return f'''
+  <div class="section-label">🚀 SpaceX 专区（私有公司）</div>
+  <div class="spacex-section">
+    <div class="spacex-header">
+      <div class="spx-name">SpaceX (Space Exploration Technologies)</div>
+      <div class="spx-meta">估值 ~$4000+ 亿 (2026) · 创始人 Elon Musk · 私有公司，不在公开市场交易</div>
+    </div>
+    <div class="spacex-cols">
+      <div class="spacex-col">
+        <div class="spacex-col-title">📰 最新新闻（最近 {len(spacex_news)} 条）</div>
+        <div class="spacex-news">{news_html}</div>
+      </div>
+      <div class="spacex-col">
+        <div class="spacex-col-title">💼 投资者 / 合作伙伴（{len(SPACEX_PARTNERS)} 家）</div>
+        <div class="investment-grid">{inv_html}</div>
+      </div>
+    </div>
+  </div>
+'''
+
+
+def render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices=None, main_periods=None, vix_data=None, vix_periods=None, spacex_news=None):
     new_count = sum(1 for n in news if n["is_new"])
     sig_total = sum(len(v) for v in investments_by_co.values())
     sec_total = sum(len(v) for v in sec_by_co.values())
@@ -1963,6 +2070,7 @@ def render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices=Non
         "{{PRICE_CHIP}}": price_chip,
         "{{PRICE_MAG7}}": price_mag7,
         "{{PRICE_OTHER}}": price_other,
+        "{{SPACEX_SECTION}}": render_spacex_section(spacex_news or []),
         "{{PRICE_JSON}}": price_json,
         "{{INV_SECTIONS}}": inv_sections,
         "{{SEC_SECTIONS}}": sec_sections,
@@ -1980,7 +2088,7 @@ def main():
     print(f"loaded {len(seen)} seen ids", file=sys.stderr)
 
     # Run fetches concurrently across external sources.
-    with cf.ThreadPoolExecutor(max_workers=7) as ex:
+    with cf.ThreadPoolExecutor(max_workers=8) as ex:
         f_news = ex.submit(fetch_news, seen)
         f_sec = ex.submit(fetch_sec_all)
         f_prices = ex.submit(fetch_prices_all)
@@ -1988,6 +2096,7 @@ def main():
         f_periods = ex.submit(fetch_main_periods)
         f_vix = ex.submit(fetch_vix)
         f_vix_periods = ex.submit(fetch_vix_periods)
+        f_spacex = ex.submit(fetch_spacex_news)
         news = f_news.result()
         sec_by_co = f_sec.result()
         prices_by_co = f_prices.result()
@@ -1995,6 +2104,7 @@ def main():
         main_periods = f_periods.result()
         vix_data = f_vix.result()
         vix_periods = f_vix_periods.result()
+        spacex_news = f_spacex.result()
 
     news = dedupe(news)
     news.sort(key=lambda x: parse_date(x["published"]), reverse=True)
@@ -2005,7 +2115,7 @@ def main():
         if sigs:
             print(f"signals[{co}]: {len(sigs)}", file=sys.stderr)
 
-    html = render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices, main_periods, vix_data, vix_periods)
+    html = render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices, main_periods, vix_data, vix_periods, spacex_news)
     OUTPUT_FILE.write_text(html, encoding="utf-8")
     print(f"wrote {OUTPUT_FILE} ({len(html):,} bytes)", file=sys.stderr)
 
