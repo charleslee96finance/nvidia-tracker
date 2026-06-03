@@ -1138,7 +1138,8 @@ TEMPLATE = """<!DOCTYPE html>
   body::before{background-image:linear-gradient(var(--grid-line) 1px,transparent 1px),linear-gradient(90deg,var(--grid-line) 1px,transparent 1px)}
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;overscroll-behavior-x:none}
+html{overflow-x:hidden}
 body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(77,166,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(77,166,255,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
 .wrap{max-width:1280px;margin:0 auto;padding:40px 20px 60px;position:relative;z-index:1}
 .hero{margin-bottom:36px}
@@ -1170,6 +1171,12 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .stat-val.green{color:var(--green)}.stat-val.blue{color:var(--blue)}.stat-val.amber{color:var(--amber)}.stat-val.fire{color:var(--fire)}
 .section-label{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:var(--text3);margin:32px 0 14px;display:flex;align-items:center;gap:10px}
 .section-label::after{content:'';flex:1;height:1px;background:var(--border)}
+.section-label.collapsible{cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;transition:color .15s}
+.section-label.collapsible:hover{color:var(--text2)}
+.chevron{display:inline-block;transition:transform .2s;margin-left:6px;font-size:9px;opacity:.7;flex-shrink:0}
+.section-label.collapsed .chevron{transform:rotate(-90deg)}
+.collapsible-content{overflow:hidden;transition:max-height .3s ease,opacity .2s}
+.collapsible-content.collapsed{max-height:0;opacity:0;margin-top:-14px;pointer-events:none}
 .subgroup-label{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:2px;color:var(--text2);margin:14px 0 10px;text-transform:uppercase}
 .price-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-bottom:18px}
 .price-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:16px;transition:border-color .2s}
@@ -1352,8 +1359,8 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .portfolio-fab:hover{background:#00e5a0;border-color:#00e5a0;color:#000;transform:translateY(-2px)}
 .port-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:190;opacity:0;pointer-events:none;transition:opacity .2s}
 .port-backdrop.open{opacity:1;pointer-events:auto}
-.port-panel{position:fixed;top:0;right:0;height:100vh;width:min(540px,100vw);background:var(--bg2);border-left:1px solid var(--border2);box-shadow:-12px 0 32px rgba(0,0,0,.5);z-index:200;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s cubic-bezier(0.22,1,0.36,1)}
-.port-panel.open{transform:translateX(0)}
+.port-panel{position:fixed;top:0;right:0;height:100vh;width:min(540px,100vw);background:var(--bg2);border-left:1px solid var(--border2);z-index:200;display:flex;flex-direction:column;transform:translateX(110%);transition:transform .25s cubic-bezier(0.22,1,0.36,1),box-shadow .2s;box-shadow:none}
+.port-panel.open{transform:translateX(0);box-shadow:-12px 0 32px rgba(0,0,0,.5)}
 .port-head{display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid var(--border)}
 .port-title{font-size:16px;font-weight:700}
 .port-close{width:32px;height:32px;border-radius:50%;border:1px solid var(--border2);background:transparent;color:var(--text2);font-size:20px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center}
@@ -1440,15 +1447,19 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
   <div class="section-label">🔥 投资 / 收购 / 合作信号</div>
   {{INV_SECTIONS}}
 
-  <div class="section-label">📋 SEC 官方文件</div>
-  {{SEC_SECTIONS}}
-
-  <div class="section-label">📰 全部新闻（最新 60 条）</div>
-  <div class="filter-bar" id="filter-bar">
-    <button class="filter-btn active" data-filter="all">全部</button>
-    {{FILTER_BTNS}}
+  <div class="section-label collapsible" data-target="secWrap">📋 SEC 官方文件 <span class="chevron">▼</span></div>
+  <div id="secWrap" class="collapsible-content">
+    {{SEC_SECTIONS}}
   </div>
-  <div class="news-grid" id="news-grid">{{NEWS_HTML}}</div>
+
+  <div class="section-label collapsible" data-target="newsWrap">📰 全部新闻（最新 60 条） <span class="chevron">▼</span></div>
+  <div id="newsWrap" class="collapsible-content">
+    <div class="filter-bar" id="filter-bar">
+      <button class="filter-btn active" data-filter="all">全部</button>
+      {{FILTER_BTNS}}
+    </div>
+    <div class="news-grid" id="news-grid">{{NEWS_HTML}}</div>
+  </div>
 
   <div class="footer">
     数据源：Google News · Yahoo Finance（新闻 + 股价）· NVIDIA Blog · SEC EDGAR<br>
@@ -2200,6 +2211,39 @@ deferIdle(() => {
   if (currentAlerts.length && 'Notification' in window && Notification.permission === 'granted') {
     fireDesktopNotifications(currentAlerts);
   }
+});
+
+// ===== Collapsible sections (SEC / News etc.) =====
+document.querySelectorAll('.section-label.collapsible').forEach(label => {
+  const targetId = label.dataset.target;
+  const target = document.getElementById(targetId);
+  if (!target) return;
+  const key = 'collapsed_' + targetId;
+  // Restore saved collapsed state from a previous visit.
+  if (localStorage.getItem(key) === '1') {
+    label.classList.add('collapsed');
+    target.classList.add('collapsed');
+    target.style.maxHeight = '0';
+  }
+  label.addEventListener('click', () => {
+    const willCollapse = !label.classList.contains('collapsed');
+    if (willCollapse) {
+      // Capture current height first so the transition has somewhere to go.
+      target.style.maxHeight = target.scrollHeight + 'px';
+      // Next frame: animate down to 0
+      requestAnimationFrame(() => {
+        target.classList.add('collapsed');
+        target.style.maxHeight = '0';
+      });
+    } else {
+      target.classList.remove('collapsed');
+      target.style.maxHeight = target.scrollHeight + 'px';
+      // After transition, clear inline maxHeight so future content fits.
+      setTimeout(() => { target.style.maxHeight = ''; }, 320);
+    }
+    label.classList.toggle('collapsed');
+    localStorage.setItem(key, willCollapse ? '1' : '0');
+  });
 });
 
 // ===== Index card click → open modal =====
