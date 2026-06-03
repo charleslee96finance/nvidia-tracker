@@ -1447,13 +1447,13 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
   <div class="section-label">🔥 投资 / 收购 / 合作信号</div>
   {{INV_SECTIONS}}
 
-  <div class="section-label collapsible" data-target="secWrap">📋 SEC 官方文件 <span class="chevron">▼</span></div>
-  <div id="secWrap" class="collapsible-content">
+  <div class="section-label collapsible collapsed" data-target="secWrap">📋 SEC 官方文件 <span class="chevron">▼</span></div>
+  <div id="secWrap" class="collapsible-content collapsed" style="max-height:0">
     {{SEC_SECTIONS}}
   </div>
 
-  <div class="section-label collapsible" data-target="newsWrap">📰 全部新闻（最新 60 条） <span class="chevron">▼</span></div>
-  <div id="newsWrap" class="collapsible-content">
+  <div class="section-label collapsible collapsed" data-target="newsWrap">📰 全部新闻（最新 60 条） <span class="chevron">▼</span></div>
+  <div id="newsWrap" class="collapsible-content collapsed" style="max-height:0">
     <div class="filter-bar" id="filter-bar">
       <button class="filter-btn active" data-filter="all">全部</button>
       {{FILTER_BTNS}}
@@ -2219,11 +2219,19 @@ document.querySelectorAll('.section-label.collapsible').forEach(label => {
   const target = document.getElementById(targetId);
   if (!target) return;
   const key = 'collapsed_' + targetId;
-  // Restore saved collapsed state from a previous visit.
-  if (localStorage.getItem(key) === '1') {
+  const saved = localStorage.getItem(key);
+  // Default to whatever the HTML rendered (`collapsed` class in markup).
+  // If user previously set a different state, honor that.
+  const defaultCollapsed = label.classList.contains('collapsed');
+  const shouldCollapse = saved === null ? defaultCollapsed : saved === '1';
+  if (shouldCollapse) {
     label.classList.add('collapsed');
     target.classList.add('collapsed');
     target.style.maxHeight = '0';
+  } else {
+    label.classList.remove('collapsed');
+    target.classList.remove('collapsed');
+    target.style.maxHeight = '';
   }
   label.addEventListener('click', () => {
     const willCollapse = !label.classList.contains('collapsed');
@@ -2442,21 +2450,24 @@ def render_private_co_section(co, news_items):
         <div class="inv-desc">{escape(p["desc"])}</div>
         <div class="inv-date">{escape(p["date"])}</div>
       </div>'''
+    wrap_id = f'priv-{co["id"]}-wrap'
     return f'''
-  <div class="section-label" id="priv-{escape(co["id"])}">{icon} {escape(co["short_name"])} 专区（私有公司）</div>
-  <div class="spacex-section">
-    <div class="spacex-header" style="background:linear-gradient(135deg,var(--bg2) 0%,{co["color"]}1f 50%,{co["color"]}10 100%);border-color:{co["color"]}66">
-      <div class="spx-name">{escape(co["name"])}</div>
-      <div class="spx-meta">估值 {escape(co["valuation"])} · 创始人 {escape(co["founder"])} · 私有公司，不在公开市场交易</div>
-    </div>
-    <div class="spacex-cols">
-      <div class="spacex-col">
-        <div class="spacex-col-title">📰 最新新闻（最近 {len(news_items)} 条）</div>
-        <div class="spacex-news">{news_html}</div>
+  <div class="section-label collapsible collapsed" data-target="{wrap_id}" id="priv-{escape(co["id"])}">{icon} {escape(co["short_name"])} 专区（私有公司） <span class="chevron">▼</span></div>
+  <div id="{wrap_id}" class="collapsible-content collapsed" style="max-height:0">
+    <div class="spacex-section">
+      <div class="spacex-header" style="background:linear-gradient(135deg,var(--bg2) 0%,{co["color"]}1f 50%,{co["color"]}10 100%);border-color:{co["color"]}66">
+        <div class="spx-name">{escape(co["name"])}</div>
+        <div class="spx-meta">估值 {escape(co["valuation"])} · 创始人 {escape(co["founder"])} · 私有公司，不在公开市场交易</div>
       </div>
-      <div class="spacex-col">
-        <div class="spacex-col-title">💼 投资者 / 合作伙伴（{len(co["partners"])} 家）</div>
-        <div class="investment-grid">{inv_html}</div>
+      <div class="spacex-cols">
+        <div class="spacex-col">
+          <div class="spacex-col-title">📰 最新新闻（最近 {len(news_items)} 条）</div>
+          <div class="spacex-news">{news_html}</div>
+        </div>
+        <div class="spacex-col">
+          <div class="spacex-col-title">💼 投资者 / 合作伙伴（{len(co["partners"])} 家）</div>
+          <div class="investment-grid">{inv_html}</div>
+        </div>
       </div>
     </div>
   </div>
