@@ -405,6 +405,10 @@ def co_color(name):
     for c in COMPANIES:
         if c["name"] == name:
             return c["color"]
+    # Private companies (SpaceX, OpenAI, Anthropic) also have colors
+    for co in PRIVATE_COS:
+        if co["short_name"] == name:
+            return co["color"]
     return "#4da6ff"
 
 
@@ -702,7 +706,7 @@ def _fetch_ohlc(ticker, rng, interval):
     return ohlc
 
 
-# --- SpaceX special section (private company, no ticker / price) ------------
+# --- Private companies (no ticker / price) ----------------------------------
 SPACEX_PARTNERS = [
     # Major investors
     {"name": "Founders Fund",           "ticker": None,    "kind": "投资", "desc": "Peter Thiel · 早期种子轮领投", "date": "2008–今"},
@@ -727,10 +731,75 @@ SPACEX_PARTNERS = [
 ]
 
 
-def fetch_spacex_news(max_items=10):
-    """Fetch latest SpaceX-related news from Google News RSS."""
+OPENAI_PARTNERS = [
+    {"name": "Microsoft",            "ticker": "MSFT", "kind": "投资", "desc": "$130+ 亿 多轮投资 + Azure 独家云",  "date": "2019–今"},
+    {"name": "SoftBank Vision Fund", "ticker": None,   "kind": "投资", "desc": "$400 亿 Vision 3 领投",            "date": "2025"},
+    {"name": "Thrive Capital",       "ticker": None,   "kind": "投资", "desc": "领投多轮二级市场",                 "date": "2023–今"},
+    {"name": "Khosla Ventures",      "ticker": None,   "kind": "投资", "desc": "Vinod Khosla 早期投资",            "date": "2019"},
+    {"name": "Andreessen Horowitz",  "ticker": None,   "kind": "投资", "desc": "(a16z) Late stage",                "date": "2023+"},
+    {"name": "Sequoia Capital",      "ticker": None,   "kind": "投资", "desc": "多轮投资",                          "date": "2021+"},
+    {"name": "Tiger Global",         "ticker": None,   "kind": "投资", "desc": "对冲基金",                          "date": "2021+"},
+    {"name": "Founders Fund",        "ticker": None,   "kind": "投资", "desc": "Peter Thiel 基金",                  "date": "2019+"},
+    {"name": "Saudi PIF (via MGX)",  "ticker": None,   "kind": "投资", "desc": "通过阿联酋 MGX 间接投资",          "date": "2024+"},
+    {"name": "Apple",                "ticker": "AAPL", "kind": "合作", "desc": "iOS / Siri 集成 ChatGPT",          "date": "2024"},
+    {"name": "Oracle",               "ticker": None,   "kind": "合作", "desc": "Stargate $5000 亿 AI 数据中心",     "date": "2025"},
+    {"name": "NVIDIA",               "ticker": "NVDA", "kind": "合作", "desc": "GPU 主要供应商",                    "date": "2020–今"},
+    {"name": "Reid Hoffman",         "ticker": None,   "kind": "投资", "desc": "LinkedIn 创始人个人投资",           "date": "2015"},
+]
+
+ANTHROPIC_PARTNERS = [
+    {"name": "Amazon",               "ticker": "AMZN", "kind": "投资", "desc": "$80 亿 总投资 + AWS 优先",          "date": "2023–2025"},
+    {"name": "Google (Alphabet)",    "ticker": "GOOGL","kind": "投资", "desc": "$30+ 亿 + GCP 集成",                "date": "2023–今"},
+    {"name": "Salesforce Ventures",  "ticker": None,   "kind": "投资", "desc": "战略投资",                          "date": "2023"},
+    {"name": "Lightspeed",           "ticker": None,   "kind": "投资", "desc": "多轮跟投",                          "date": "2023+"},
+    {"name": "Spark Capital",        "ticker": None,   "kind": "投资", "desc": "Series B/C",                        "date": "2022+"},
+    {"name": "General Catalyst",     "ticker": None,   "kind": "投资", "desc": "Series C/D",                        "date": "2022+"},
+    {"name": "Fidelity",             "ticker": None,   "kind": "投资", "desc": "Late stage",                        "date": "2024+"},
+    {"name": "Wellington Management","ticker": None,   "kind": "投资", "desc": "$XXB Late stage",                   "date": "2024+"},
+    {"name": "ServiceNow",           "ticker": None,   "kind": "投资", "desc": "战略投资",                          "date": "2024"},
+    {"name": "Zoom Ventures",        "ticker": None,   "kind": "投资", "desc": "战略投资",                          "date": "2023"},
+    {"name": "AWS Bedrock",          "ticker": "AMZN", "kind": "合作", "desc": "Claude 在 Bedrock 独家发布",        "date": "2023–今"},
+    {"name": "Google Cloud",         "ticker": "GOOGL","kind": "合作", "desc": "TPU 训练 + GCP 部署",               "date": "2023–今"},
+]
+
+PRIVATE_COS = [
+    {
+        "id": "spacex",
+        "name": "SpaceX (Space Exploration Technologies)",
+        "short_name": "SpaceX",
+        "color": "#a78bfa",
+        "valuation": "~$4000+ 亿 (2026)",
+        "founder": "Elon Musk",
+        "search_query": '"SpaceX" OR "Starship" OR "Starlink" OR "Falcon 9"',
+        "partners": SPACEX_PARTNERS,
+    },
+    {
+        "id": "openai",
+        "name": "OpenAI",
+        "short_name": "OpenAI",
+        "color": "#00e5a0",
+        "valuation": "~$5000 亿 (2026 私募估值)",
+        "founder": "Sam Altman / Greg Brockman / Elon Musk (创始)",
+        "search_query": '"OpenAI" OR "ChatGPT" OR "Sam Altman"',
+        "partners": OPENAI_PARTNERS,
+    },
+    {
+        "id": "anthropic",
+        "name": "Anthropic",
+        "short_name": "Anthropic",
+        "color": "#ff6b6b",
+        "valuation": "~$1830 亿 (2026)",
+        "founder": "Dario Amodei / Daniela Amodei",
+        "search_query": '"Anthropic" OR "Claude AI" OR "Dario Amodei"',
+        "partners": ANTHROPIC_PARTNERS,
+    },
+]
+
+
+def fetch_private_news(co, max_items=10):
+    """Fetch latest news for a private company via Google News RSS."""
     url = ("https://news.google.com/rss/search?q="
-           + quote('"SpaceX" OR "Starship" OR "Starlink" OR "Falcon 9"')
+           + quote(co["search_query"])
            + "&hl=en-US&gl=US&ceid=US:en")
     items = []
     try:
@@ -743,12 +812,116 @@ def fetch_spacex_news(max_items=10):
                 "title": title,
                 "link": entry.get("link", ""),
                 "published": entry.get("published") or entry.get("updated") or "",
-                "source": "Google News · SpaceX",
+                "source": f"Google News · {co['short_name']}",
+                "primary_company": co["short_name"],
+                "id": entry.get("id") or entry.get("guid") or entry.get("link", "") or title,
             })
-        print(f"SpaceX news: {len(items)}", file=sys.stderr)
+        print(f"{co['short_name']} news: {len(items)}", file=sys.stderr)
     except Exception as e:
-        print(f"SpaceX news err: {e}", file=sys.stderr)
+        print(f"{co['short_name']} news err: {e}", file=sys.stderr)
     return items
+
+
+def fetch_all_private_news():
+    """Fetch news for all PRIVATE_COS in parallel. Returns {id: [items]}."""
+    out = {}
+    with cf.ThreadPoolExecutor(max_workers=len(PRIVATE_COS)) as ex:
+        futures = {ex.submit(fetch_private_news, co): co["id"] for co in PRIVATE_COS}
+        for fut in cf.as_completed(futures):
+            co_id = futures[fut]
+            try:
+                out[co_id] = fut.result()
+            except Exception as e:
+                print(f"private news err {co_id}: {e}", file=sys.stderr)
+                out[co_id] = []
+    return out
+
+
+# Backwards-compat shim so the old call site still works if referenced.
+def fetch_spacex_news(max_items=10):
+    return fetch_private_news(PRIVATE_COS[0], max_items)
+
+
+# --- Market indices: indices + commodities + rates --------------------------
+# Each entry: (ticker, display_name, color, unit). `unit` controls formatting.
+INDICES = [
+    {"ticker": "^GSPC",    "name": "S&P 500",         "color": "#4da6ff", "unit": "index"},
+    {"ticker": "^IXIC",    "name": "Nasdaq Composite","color": "#00e5a0", "unit": "index"},
+    {"ticker": "^DJI",     "name": "Dow Jones",       "color": "#f5a623", "unit": "index"},
+    {"ticker": "GC=F",     "name": "黄金期货",         "color": "#ffd700", "unit": "price"},
+    {"ticker": "CL=F",     "name": "WTI 原油",        "color": "#ff6b6b", "unit": "price"},
+    {"ticker": "^TNX",     "name": "10年美债收益率",   "color": "#a78bfa", "unit": "pct"},
+    {"ticker": "DX-Y.NYB", "name": "美元指数 DXY",    "color": "#8a9ab8", "unit": "index"},
+]
+
+
+def _fetch_index_price(spec):
+    """Fetch price + 1mo closes for an index ticker (Yahoo Chart API).
+    Returns dict with price/prev_close/closes/timestamps or None on error."""
+    try:
+        url = ("https://query1.finance.yahoo.com/v8/finance/chart/"
+               + quote(spec["ticker"], safe="")
+               + "?range=1mo&interval=1d")
+        r = requests.get(url, headers={"User-Agent": BROWSER_UA, "Accept": "application/json"}, timeout=15)
+        r.raise_for_status()
+        data = r.json()
+        result = data["chart"]["result"][0]
+        meta = result["meta"]
+        raw_closes = result["indicators"]["quote"][0].get("close", []) or []
+        raw_ts = result.get("timestamp", []) or []
+        pairs = [(t, c) for t, c in zip(raw_ts, raw_closes) if c is not None]
+        timestamps = [p[0] for p in pairs]
+        closes = [round(p[1], 4) for p in pairs]
+        day_baseline = (closes[-2] if len(closes) >= 2
+                        else meta.get("previousClose")
+                        or meta.get("chartPreviousClose"))
+        return {
+            "ticker": spec["ticker"],
+            "name": spec["name"],
+            "color": spec["color"],
+            "unit": spec["unit"],
+            "price": meta.get("regularMarketPrice"),
+            "prev_close": day_baseline,
+            "closes": closes,
+            "timestamps": timestamps,
+        }
+    except Exception as e:
+        print(f"index err {spec['ticker']}: {e}", file=sys.stderr)
+        return None
+
+
+def fetch_indices():
+    """Fetch price + 1mo for every index in INDICES (parallel)."""
+    out = {}
+    with cf.ThreadPoolExecutor(max_workers=len(INDICES)) as ex:
+        futs = {ex.submit(_fetch_index_price, s): s["ticker"] for s in INDICES}
+        for fut in cf.as_completed(futs):
+            ticker = futs[fut]
+            d = fut.result()
+            if d and d.get("price") is not None:
+                out[ticker] = d
+                print(f"index {ticker}: {d['price']:.2f}", file=sys.stderr)
+    return out
+
+
+def fetch_indices_periods():
+    """Fetch 4 OHLC periods (5d/1mo/3mo/1y) for every index, parallel."""
+    jobs = [(s["ticker"], k, rng, interval)
+            for s in INDICES
+            for k, (rng, interval) in PERIOD_SPECS.items()]
+    out = {}
+    with cf.ThreadPoolExecutor(max_workers=12) as ex:
+        futs = {}
+        for ticker, key, rng, intv in jobs:
+            futs[ex.submit(_fetch_ohlc, quote(ticker, safe=""), rng, intv)] = (ticker, key)
+        for fut in cf.as_completed(futs):
+            ticker, key = futs[fut]
+            try:
+                out.setdefault(ticker, {})[key] = fut.result()
+            except Exception as e:
+                print(f"index periods err {ticker} {key}: {e}", file=sys.stderr)
+                out.setdefault(ticker, {})[key] = []
+    return out
 
 
 def fetch_vix():
@@ -1047,6 +1220,16 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .modal-price-row{display:flex;align-items:baseline;gap:16px;margin-bottom:18px;flex-wrap:wrap}
 .modal-price{font-size:42px;font-weight:800}
 .modal-chg{font-family:'Space Mono',monospace;font-size:14px;font-weight:700}
+.indices-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:32px}
+.index-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;transition:transform .15s,border-color .15s,box-shadow .15s}
+.index-card.clickable{cursor:pointer}
+.index-card.clickable:hover{transform:translateY(-1px);border-color:var(--border2);box-shadow:0 4px 16px rgba(0,0,0,.3)}
+.idx-name{font-size:11px;color:var(--text2);font-weight:600;margin-bottom:6px}
+.idx-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.idx-price{font-family:'Space Mono',monospace;font-size:15px;font-weight:700;color:var(--text)}
+.idx-chg{font-family:'Space Mono',monospace;font-size:12px;font-weight:700}
+.idx-chg.up{color:#00e5a0}
+.idx-chg.down{color:#ff6b6b}
 .spacex-section{margin-bottom:32px}
 .spacex-header{background:linear-gradient(135deg,var(--bg2) 0%,rgba(167,139,250,.10) 50%,rgba(255,107,107,.08) 100%);border:1px solid rgba(167,139,250,.3);border-radius:14px;padding:18px 22px;margin-bottom:14px}
 .spx-name{font-size:18px;font-weight:700;margin-bottom:4px;color:var(--text)}
@@ -1142,6 +1325,37 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .reason-empty{font-size:11px;color:var(--text3);text-align:center;padding:14px;font-style:italic}
 .modal-meta{font-family:'Space Mono',monospace;font-size:10px;color:var(--text3);text-align:center;padding-top:12px;border-top:1px solid var(--border)}
 .modal-lite-note{background:rgba(245,166,35,.10);border:1px solid rgba(245,166,35,.3);border-radius:10px;padding:12px 16px;margin-bottom:18px;font-size:12px;color:#f5a623;text-align:center;line-height:1.5}
+.portfolio-fab{position:fixed;bottom:24px;right:84px;width:48px;height:48px;border-radius:50%;background:var(--bg2);border:1px solid var(--border2);color:var(--text);font-size:22px;cursor:pointer;z-index:50;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s,transform .15s;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+.portfolio-fab:hover{background:#00e5a0;border-color:#00e5a0;color:#000;transform:translateY(-2px)}
+.port-panel{position:fixed;top:0;right:0;height:100vh;width:min(540px,100vw);background:var(--bg2);border-left:1px solid var(--border2);box-shadow:-12px 0 32px rgba(0,0,0,.5);z-index:200;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s cubic-bezier(0.22,1,0.36,1)}
+.port-panel.open{transform:translateX(0)}
+.port-head{display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid var(--border)}
+.port-title{font-size:16px;font-weight:700}
+.port-close{width:32px;height:32px;border-radius:50%;border:1px solid var(--border2);background:transparent;color:var(--text2);font-size:20px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center}
+.port-close:hover{background:var(--border2);color:var(--text)}
+.port-summary{padding:14px 22px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.port-stat{text-align:center}
+.port-stat-label{font-family:'Space Mono',monospace;font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.port-stat-val{font-family:'Space Mono',monospace;font-size:16px;font-weight:700}
+.port-stat-val.up{color:#00e5a0}.port-stat-val.down{color:#ff6b6b}
+.port-table-wrap{flex:1;overflow-y:auto;padding:8px 22px}
+.port-table{width:100%;border-collapse:collapse;font-size:12px}
+.port-table th{font-family:'Space Mono',monospace;font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;text-align:left;padding:8px 4px;border-bottom:1px solid var(--border);font-weight:700}
+.port-table td{padding:10px 4px;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace}
+.port-table td.ticker{font-weight:700;color:var(--blue)}
+.port-table td.pnl.up{color:#00e5a0}
+.port-table td.pnl.down{color:#ff6b6b}
+.port-del{background:transparent;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px}
+.port-del:hover{background:rgba(255,107,107,.15);color:#ff6b6b}
+.port-empty{padding:30px 22px;text-align:center;color:var(--text3);font-size:12px}
+.port-add{padding:14px 22px;border-top:1px solid var(--border)}
+.port-add-title{font-family:'Space Mono',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:700}
+.port-add-form{display:grid;grid-template-columns:1fr 70px 90px auto;gap:6px;margin-bottom:6px}
+.port-add-form input{background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:8px 10px;color:var(--text);font-size:12px;font-family:'Space Mono',monospace;outline:none}
+.port-add-form input:focus{border-color:var(--blue)}
+.port-add-form button{background:#00e5a0;border:none;border-radius:6px;color:#000;font-weight:700;font-size:12px;padding:8px 14px;cursor:pointer;font-family:'Space Mono',monospace}
+.port-add-form button:hover{filter:brightness(1.1)}
+.port-hint{font-size:10px;color:var(--text3);font-style:italic}
 .back-to-top{position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:var(--bg2);border:1px solid var(--border2);color:var(--text);font-size:22px;font-weight:700;cursor:pointer;z-index:50;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transform:translateY(8px);transition:opacity .25s,transform .2s,background .15s,border-color .15s;box-shadow:0 4px 16px rgba(0,0,0,.4);font-family:'Space Mono',monospace}
 .back-to-top.visible{opacity:1;pointer-events:auto;transform:translateY(0)}
 .back-to-top:hover{background:var(--blue);border-color:var(--blue);color:#000}
@@ -1194,6 +1408,8 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
   <div class="subgroup-label">🌟 其他追踪</div>
   <div class="price-grid">{{PRICE_OTHER}}</div>
 
+  {{INDICES_SECTION}}
+
   {{SPACEX_SECTION}}
 
   <div class="section-label">🔥 投资 / 收购 / 合作信号</div>
@@ -1216,7 +1432,36 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
   </div>
 </div>
 
+<button class="portfolio-fab" id="portfolioFab" aria-label="打开持仓" title="打开持仓">💼</button>
 <button class="back-to-top" id="backToTop" aria-label="返回顶部" title="返回顶部">↑</button>
+
+<div class="port-panel" id="portPanel" aria-hidden="true">
+  <div class="port-head">
+    <h3 class="port-title">💼 我的持仓</h3>
+    <button class="port-close" id="portClose" aria-label="关闭">×</button>
+  </div>
+  <div class="port-summary" id="portSummary"></div>
+  <div class="port-table-wrap">
+    <table class="port-table" id="portTable">
+      <thead>
+        <tr>
+          <th>股票</th><th>股数</th><th>买入价</th><th>现价</th><th>盈亏</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="portTbody"></tbody>
+    </table>
+  </div>
+  <div class="port-add">
+    <div class="port-add-title">➕ 添加持仓</div>
+    <div class="port-add-form">
+      <input id="portTicker"  placeholder="代码（如 NVDA）" autocomplete="off">
+      <input id="portShares"  placeholder="股数" type="number" step="any" min="0">
+      <input id="portBuy"     placeholder="买入价 ($)" type="number" step="any" min="0">
+      <button id="portAdd">添加</button>
+    </div>
+    <div class="port-hint">数据保存在浏览器 localStorage（本地），换设备 / 清缓存会丢失</div>
+  </div>
+</div>
 
 <div class="modal-backdrop" id="priceModal" role="dialog" aria-labelledby="modalName" aria-hidden="true">
   <div class="modal">
@@ -1885,6 +2130,103 @@ if (currentAlerts.length && Notification.permission === 'granted') {
   fireDesktopNotifications(currentAlerts);
 }
 
+// ===== Index card click → open modal =====
+document.querySelectorAll('.index-card.clickable').forEach(card => {
+  card.addEventListener('click', () => openPriceModal(card.dataset.ticker));
+  card.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPriceModal(card.dataset.ticker); }
+  });
+});
+
+// ===== Portfolio P&L tracker (client-side, localStorage) =====
+const PORT_KEY = 'portfolio_v1';
+const portFab = document.getElementById('portfolioFab');
+const portPanel = document.getElementById('portPanel');
+const portClose = document.getElementById('portClose');
+const portTbody = document.getElementById('portTbody');
+const portSummary = document.getElementById('portSummary');
+const portTicker = document.getElementById('portTicker');
+const portShares = document.getElementById('portShares');
+const portBuy = document.getElementById('portBuy');
+const portAddBtn = document.getElementById('portAdd');
+
+function getPortfolio() {
+  try { return JSON.parse(localStorage.getItem(PORT_KEY) || '[]'); } catch (e) { return []; }
+}
+function savePortfolio(p) {
+  localStorage.setItem(PORT_KEY, JSON.stringify(p));
+  renderPortfolio();
+}
+function renderPortfolio() {
+  const positions = getPortfolio();
+  let totalCost = 0, totalValue = 0;
+  const rows = positions.map((pos, idx) => {
+    const d = PRICE_DATA[pos.ticker];
+    const price = d ? d.price : null;
+    const cost = pos.shares * pos.buyPrice;
+    const value = price ? pos.shares * price : null;
+    const pnl = value !== null ? value - cost : null;
+    const pnlPct = (pnl !== null && cost) ? (pnl / cost * 100) : null;
+    totalCost += cost;
+    if (value !== null) totalValue += value;
+    const cls = pnl === null ? '' : (pnl >= 0 ? 'up' : 'down');
+    const priceStr = price === null ? '<span style="color:var(--text3)">—</span>' : '$' + price.toFixed(2);
+    const pnlStr = pnl === null ? '<span style="color:var(--text3)">—</span>'
+      : (pnl >= 0 ? '+' : '') + '$' + Math.abs(pnl).toFixed(2).replace('-', '') + (pnlPct !== null ? '<br><small>' + (pnl >= 0 ? '+' : '') + pnlPct.toFixed(2) + '%</small>' : '');
+    return '<tr>' +
+      '<td class="ticker">' + escapeHtml(pos.ticker) + '</td>' +
+      '<td>' + pos.shares + '</td>' +
+      '<td>$' + (+pos.buyPrice).toFixed(2) + '</td>' +
+      '<td>' + priceStr + '</td>' +
+      '<td class="pnl ' + cls + '">' + (pnl !== null && pnl >= 0 ? '+' : '') + (pnl !== null ? (pnl >= 0 ? '$' : '-$') + Math.abs(pnl).toFixed(2) : '—') + (pnlPct !== null ? '<br><small>' + (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(2) + '%</small>' : '') + '</td>' +
+      '<td><button class="port-del" data-idx="' + idx + '" title="删除">✕</button></td>' +
+      '</tr>';
+  }).join('');
+  portTbody.innerHTML = rows || '<tr><td colspan="6" class="port-empty">还没有持仓 — 在下面添加</td></tr>';
+  const totalPnl = totalValue - totalCost;
+  const totalPnlPct = totalCost ? (totalPnl / totalCost * 100) : 0;
+  const pnlCls = totalPnl >= 0 ? 'up' : 'down';
+  portSummary.innerHTML =
+    '<div class="port-stat"><div class="port-stat-label">总成本</div><div class="port-stat-val">$' + totalCost.toFixed(2) + '</div></div>' +
+    '<div class="port-stat"><div class="port-stat-label">现值</div><div class="port-stat-val">$' + totalValue.toFixed(2) + '</div></div>' +
+    '<div class="port-stat"><div class="port-stat-label">盈亏</div><div class="port-stat-val ' + pnlCls + '">' + (totalPnl >= 0 ? '+' : '') + '$' + Math.abs(totalPnl).toFixed(2) + ' (' + (totalPnl >= 0 ? '+' : '') + totalPnlPct.toFixed(2) + '%)</div></div>';
+}
+
+portFab.addEventListener('click', () => {
+  portPanel.classList.add('open');
+  portPanel.setAttribute('aria-hidden', 'false');
+  renderPortfolio();
+});
+portClose.addEventListener('click', () => {
+  portPanel.classList.remove('open');
+  portPanel.setAttribute('aria-hidden', 'true');
+});
+portTbody.addEventListener('click', e => {
+  const btn = e.target.closest('.port-del');
+  if (!btn) return;
+  const idx = parseInt(btn.dataset.idx, 10);
+  const p = getPortfolio();
+  p.splice(idx, 1);
+  savePortfolio(p);
+});
+portAddBtn.addEventListener('click', () => {
+  const ticker = (portTicker.value || '').trim().toUpperCase();
+  const shares = parseFloat(portShares.value);
+  const buy = parseFloat(portBuy.value);
+  if (!ticker || !shares || !buy || shares <= 0 || buy <= 0) {
+    alert('请填代码 + 股数 + 买入价（均为正数）');
+    return;
+  }
+  if (!PRICE_DATA[ticker]) {
+    if (!confirm('"' + ticker + '" 不在追踪列表中，加入后将无法显示现价 / 盈亏。仍要添加？')) return;
+  }
+  const p = getPortfolio();
+  p.push({ ticker, shares, buyPrice: buy, addedAt: new Date().toISOString() });
+  savePortfolio(p);
+  portTicker.value = ''; portShares.value = ''; portBuy.value = '';
+});
+renderPortfolio();
+
 // ===== Back-to-top button =====
 const backBtn = document.getElementById('backToTop');
 if (backBtn) {
@@ -1923,19 +2265,23 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closePriceMo
 """
 
 
-def render_spacex_section(spacex_news):
-    """Render dedicated SpaceX section: news + investors/partners."""
-    if not spacex_news:
+_ICON_FOR = {"spacex": "🚀", "openai": "🤖", "anthropic": "🧠"}
+
+
+def render_private_co_section(co, news_items):
+    """Render one private-company block: header + news + partners columns."""
+    icon = _ICON_FOR.get(co["id"], "🏢")
+    if not news_items:
         news_html = '<div class="empty">暂无新闻</div>'
     else:
         news_html = "".join(f'''
       <a class="spacex-news-item" href="{escape(n.get("link", ""))}" target="_blank" rel="noopener">
         <div class="spx-title">{escape(n["title"])}</div>
         <div class="spx-date">{escape(n.get("published", ""))}</div>
-      </a>''' for n in spacex_news)
+      </a>''' for n in news_items)
     kind_map = {"投资": "vc", "合作": "coll"}
     inv_html = ""
-    for p in SPACEX_PARTNERS:
+    for p in co["partners"]:
         ticker_chip = f'<span class="inv-ticker">{escape(p["ticker"])}</span>' if p.get("ticker") else ""
         kind_cls = kind_map.get(p["kind"], "inv")
         inv_html += f'''
@@ -1946,19 +2292,19 @@ def render_spacex_section(spacex_news):
         <div class="inv-date">{escape(p["date"])}</div>
       </div>'''
     return f'''
-  <div class="section-label">🚀 SpaceX 专区（私有公司）</div>
+  <div class="section-label" id="priv-{escape(co["id"])}">{icon} {escape(co["short_name"])} 专区（私有公司）</div>
   <div class="spacex-section">
-    <div class="spacex-header">
-      <div class="spx-name">SpaceX (Space Exploration Technologies)</div>
-      <div class="spx-meta">估值 ~$4000+ 亿 (2026) · 创始人 Elon Musk · 私有公司，不在公开市场交易</div>
+    <div class="spacex-header" style="background:linear-gradient(135deg,var(--bg2) 0%,{co["color"]}1f 50%,{co["color"]}10 100%);border-color:{co["color"]}66">
+      <div class="spx-name">{escape(co["name"])}</div>
+      <div class="spx-meta">估值 {escape(co["valuation"])} · 创始人 {escape(co["founder"])} · 私有公司，不在公开市场交易</div>
     </div>
     <div class="spacex-cols">
       <div class="spacex-col">
-        <div class="spacex-col-title">📰 最新新闻（最近 {len(spacex_news)} 条）</div>
+        <div class="spacex-col-title">📰 最新新闻（最近 {len(news_items)} 条）</div>
         <div class="spacex-news">{news_html}</div>
       </div>
       <div class="spacex-col">
-        <div class="spacex-col-title">💼 投资者 / 合作伙伴（{len(SPACEX_PARTNERS)} 家）</div>
+        <div class="spacex-col-title">💼 投资者 / 合作伙伴（{len(co["partners"])} 家）</div>
         <div class="investment-grid">{inv_html}</div>
       </div>
     </div>
@@ -1966,7 +2312,46 @@ def render_spacex_section(spacex_news):
 '''
 
 
-def render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices=None, main_periods=None, vix_data=None, vix_periods=None, spacex_news=None):
+def render_all_private_sections(private_news_by_co):
+    return "".join(render_private_co_section(co, private_news_by_co.get(co["id"], []))
+                   for co in PRIVATE_COS)
+
+
+def render_indices_widgets(indices_data):
+    """Render mini cards for each market index in INDICES."""
+    if not indices_data:
+        return ""
+    cards = []
+    for spec in INDICES:
+        d = indices_data.get(spec["ticker"])
+        if not d:
+            continue
+        price = d["price"]
+        prev = d["prev_close"] or price
+        chg = price - prev
+        chg_pct = (chg / prev * 100) if prev else 0
+        cls = "up" if chg >= 0 else "down"
+        sign = "+" if chg >= 0 else ""
+        if spec["unit"] == "pct":
+            price_str = f"{price:.2f}%"
+        elif spec["unit"] == "index":
+            price_str = f"{price:,.2f}"
+        else:
+            price_str = f"${price:.2f}"
+        cards.append(f'''
+    <div class="index-card clickable" data-ticker="{escape(spec["ticker"])}" role="button" tabindex="0" style="border-left:3px solid {spec["color"]}">
+      <div class="idx-name">{escape(spec["name"])}</div>
+      <div class="idx-row">
+        <span class="idx-price">{price_str}</span>
+        <span class="idx-chg {cls}">{sign}{chg_pct:.2f}%</span>
+      </div>
+    </div>''')
+    return f'''
+  <div class="section-label">🌐 大盘指数 · 商品 · 利率</div>
+  <div class="indices-grid">{"".join(cards)}</div>'''
+
+
+def render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices=None, main_periods=None, vix_data=None, vix_periods=None, private_news_by_co=None, indices_data=None, indices_periods=None):
     new_count = sum(1 for n in news if n["is_new"])
     sig_total = sum(len(v) for v in investments_by_co.values())
     sec_total = sum(len(v) for v in sec_by_co.values())
@@ -2019,6 +2404,25 @@ def render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices=Non
             "is_vix": True,
         }
 
+    # Add market indices — lite mode (no news/investments), with periods.
+    if indices_data:
+        for ticker, d in indices_data.items():
+            periods = (indices_periods or {}).get(ticker, {})
+            price_data_for_js[ticker] = {
+                "name": d["name"],
+                "color": d["color"],
+                "price": d["price"],
+                "prev_close": d["prev_close"],
+                "closes": d["closes"],
+                "timestamps": d["timestamps"],
+                "periods": periods,
+                "positive_news": [],
+                "negative_news": [],
+                "investments": [],
+                "is_index": True,
+                "unit": d.get("unit", "price"),
+                "lite": True,
+            }
     # Add auxiliary tickers (from investment lists) — lite mode: price + chart only.
     for ticker, data in (aux_prices or {}).items():
         price_data_for_js[ticker] = {
@@ -2035,11 +2439,13 @@ def render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices=Non
         }
     price_json = json.dumps(price_data_for_js, ensure_ascii=False)
 
-    # Filter buttons for news (one per company)
+    # Filter buttons for news (one per company + one per private co)
+    filter_entries = [(c["name"], c["color"]) for c in COMPANIES]
+    filter_entries += [(co["short_name"], co["color"]) for co in PRIVATE_COS]
     filter_btns = "".join(
-        f'<button class="filter-btn" data-filter="{escape(c["name"])}" '
-        f'style="color:{c["color"]}">{escape(c["name"])}</button>'
-        for c in COMPANIES)
+        f'<button class="filter-btn" data-filter="{escape(name)}" '
+        f'style="color:{color}">{escape(name)}</button>'
+        for name, color in filter_entries)
 
     news_html_parts = []
     for it in news[:100]:
@@ -2070,7 +2476,8 @@ def render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices=Non
         "{{PRICE_CHIP}}": price_chip,
         "{{PRICE_MAG7}}": price_mag7,
         "{{PRICE_OTHER}}": price_other,
-        "{{SPACEX_SECTION}}": render_spacex_section(spacex_news or []),
+        "{{SPACEX_SECTION}}": render_all_private_sections(private_news_by_co or {}),
+        "{{INDICES_SECTION}}": render_indices_widgets(indices_data or {}),
         "{{PRICE_JSON}}": price_json,
         "{{INV_SECTIONS}}": inv_sections,
         "{{SEC_SECTIONS}}": sec_sections,
@@ -2088,7 +2495,7 @@ def main():
     print(f"loaded {len(seen)} seen ids", file=sys.stderr)
 
     # Run fetches concurrently across external sources.
-    with cf.ThreadPoolExecutor(max_workers=8) as ex:
+    with cf.ThreadPoolExecutor(max_workers=10) as ex:
         f_news = ex.submit(fetch_news, seen)
         f_sec = ex.submit(fetch_sec_all)
         f_prices = ex.submit(fetch_prices_all)
@@ -2096,7 +2503,9 @@ def main():
         f_periods = ex.submit(fetch_main_periods)
         f_vix = ex.submit(fetch_vix)
         f_vix_periods = ex.submit(fetch_vix_periods)
-        f_spacex = ex.submit(fetch_spacex_news)
+        f_priv_news = ex.submit(fetch_all_private_news)
+        f_indices = ex.submit(fetch_indices)
+        f_idx_periods = ex.submit(fetch_indices_periods)
         news = f_news.result()
         sec_by_co = f_sec.result()
         prices_by_co = f_prices.result()
@@ -2104,7 +2513,17 @@ def main():
         main_periods = f_periods.result()
         vix_data = f_vix.result()
         vix_periods = f_vix_periods.result()
-        spacex_news = f_spacex.result()
+        private_news_by_co = f_priv_news.result()
+        indices_data = f_indices.result()
+        indices_periods = f_idx_periods.result()
+    # Inject private-company news into the main news pool so filter buttons work
+    flat_private_news = [item for items in private_news_by_co.values() for item in items]
+    # Mark them as "is_new" against the seen cache, with the same logic as fetch_news
+    for it in flat_private_news:
+        it["is_new"] = it["id"] not in seen
+        it["summary"] = ""  # private feeds don't include summaries; keep schema consistent
+    news = news + flat_private_news
+    spacex_news = private_news_by_co.get("spacex", [])  # back-compat for any code still using this
 
     news = dedupe(news)
     news.sort(key=lambda x: parse_date(x["published"]), reverse=True)
@@ -2115,7 +2534,7 @@ def main():
         if sigs:
             print(f"signals[{co}]: {len(sigs)}", file=sys.stderr)
 
-    html = render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices, main_periods, vix_data, vix_periods, spacex_news)
+    html = render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices, main_periods, vix_data, vix_periods, private_news_by_co, indices_data, indices_periods)
     OUTPUT_FILE.write_text(html, encoding="utf-8")
     print(f"wrote {OUTPUT_FILE} ({len(html):,} bytes)", file=sys.stderr)
 
