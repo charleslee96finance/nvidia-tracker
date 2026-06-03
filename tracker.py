@@ -1524,6 +1524,11 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 </div>
 
 <script>
+// Shared helper: run on browser idle (200ms setTimeout fallback for Safari).
+// Must be defined FIRST so any later code can call it without hitting the
+// const Temporal Dead Zone.
+const deferIdle = window.requestIdleCallback || function(cb){ return setTimeout(cb, 200); };
+
 const badge = document.getElementById('time-badge');
 const utc = '{{NOW_ISO}}';
 if (utc) {
@@ -2135,10 +2140,6 @@ deferIdle(() => {
   }
 });
 
-// Shared helper: run on browser idle (or 200ms fallback). Used by portfolio,
-// alerts, etc. to keep the initial paint snappy on slow phones.
-const deferIdle = window.requestIdleCallback || function(cb){ return setTimeout(cb, 200); };
-
 // ===== Index card click → open modal =====
 document.querySelectorAll('.index-card.clickable').forEach(card => {
   card.addEventListener('click', () => openPriceModal(card.dataset.ticker));
@@ -2203,21 +2204,31 @@ function renderPortfolio() {
 
 const portBackdrop = document.getElementById('portBackdrop');
 function openPort() {
-  portPanel.classList.add('open');
-  portBackdrop.classList.add('open');
-  portPanel.setAttribute('aria-hidden', 'false');
-  renderPortfolio();
+  // Visual feedback so user sees that the click registered.
+  if (portFab) {
+    portFab.style.transform = 'scale(0.85)';
+    setTimeout(() => { portFab.style.transform = ''; }, 150);
+  }
+  if (portPanel) {
+    portPanel.classList.add('open');
+    portPanel.setAttribute('aria-hidden', 'false');
+  }
+  if (portBackdrop) portBackdrop.classList.add('open');
+  try { renderPortfolio(); } catch (e) { console.error('renderPortfolio:', e); }
 }
 function closePort() {
-  portPanel.classList.remove('open');
-  portBackdrop.classList.remove('open');
-  portPanel.setAttribute('aria-hidden', 'true');
+  if (portPanel) {
+    portPanel.classList.remove('open');
+    portPanel.setAttribute('aria-hidden', 'true');
+  }
+  if (portBackdrop) portBackdrop.classList.remove('open');
 }
-portFab.addEventListener('click', openPort);
-portClose.addEventListener('click', closePort);
-portBackdrop.addEventListener('click', closePort);  // click outside to close
-document.addEventListener('keydown', e => {  // ESC to close
-  if (e.key === 'Escape' && portPanel.classList.contains('open')) closePort();
+// Attach listeners independently so any single failure doesn't kill the rest.
+if (portFab)      portFab.addEventListener('click', openPort);
+if (portClose)    portClose.addEventListener('click', closePort);
+if (portBackdrop) portBackdrop.addEventListener('click', closePort);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && portPanel && portPanel.classList.contains('open')) closePort();
 });
 portTbody.addEventListener('click', e => {
   const btn = e.target.closest('.port-del');
