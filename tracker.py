@@ -1325,8 +1325,10 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .reason-empty{font-size:11px;color:var(--text3);text-align:center;padding:14px;font-style:italic}
 .modal-meta{font-family:'Space Mono',monospace;font-size:10px;color:var(--text3);text-align:center;padding-top:12px;border-top:1px solid var(--border)}
 .modal-lite-note{background:rgba(245,166,35,.10);border:1px solid rgba(245,166,35,.3);border-radius:10px;padding:12px 16px;margin-bottom:18px;font-size:12px;color:#f5a623;text-align:center;line-height:1.5}
-.portfolio-fab{position:fixed;bottom:24px;right:84px;width:48px;height:48px;border-radius:50%;background:var(--bg2);border:1px solid var(--border2);color:var(--text);font-size:22px;cursor:pointer;z-index:50;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s,transform .15s;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+.portfolio-fab{position:fixed;bottom:calc(24px + env(safe-area-inset-bottom));right:calc(84px + env(safe-area-inset-right));width:52px;height:52px;border-radius:50%;background:var(--bg2);border:1px solid var(--border2);color:var(--text);font-size:24px;cursor:pointer;z-index:90;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s,transform .15s;box-shadow:0 4px 16px rgba(0,0,0,.5);-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .portfolio-fab:hover{background:#00e5a0;border-color:#00e5a0;color:#000;transform:translateY(-2px)}
+.port-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:190;opacity:0;pointer-events:none;transition:opacity .2s}
+.port-backdrop.open{opacity:1;pointer-events:auto}
 .port-panel{position:fixed;top:0;right:0;height:100vh;width:min(540px,100vw);background:var(--bg2);border-left:1px solid var(--border2);box-shadow:-12px 0 32px rgba(0,0,0,.5);z-index:200;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s cubic-bezier(0.22,1,0.36,1)}
 .port-panel.open{transform:translateX(0)}
 .port-head{display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid var(--border)}
@@ -1356,7 +1358,7 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .port-add-form button{background:#00e5a0;border:none;border-radius:6px;color:#000;font-weight:700;font-size:12px;padding:8px 14px;cursor:pointer;font-family:'Space Mono',monospace}
 .port-add-form button:hover{filter:brightness(1.1)}
 .port-hint{font-size:10px;color:var(--text3);font-style:italic}
-.back-to-top{position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:var(--bg2);border:1px solid var(--border2);color:var(--text);font-size:22px;font-weight:700;cursor:pointer;z-index:50;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transform:translateY(8px);transition:opacity .25s,transform .2s,background .15s,border-color .15s;box-shadow:0 4px 16px rgba(0,0,0,.4);font-family:'Space Mono',monospace}
+.back-to-top{position:fixed;bottom:calc(24px + env(safe-area-inset-bottom));right:calc(24px + env(safe-area-inset-right));width:52px;height:52px;border-radius:50%;background:var(--bg2);border:1px solid var(--border2);color:var(--text);font-size:22px;font-weight:700;cursor:pointer;z-index:90;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transform:translateY(8px);transition:opacity .25s,transform .2s,background .15s,border-color .15s;box-shadow:0 4px 16px rgba(0,0,0,.5);font-family:'Space Mono',monospace;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .back-to-top.visible{opacity:1;pointer-events:auto;transform:translateY(0)}
 .back-to-top:hover{background:var(--blue);border-color:var(--blue);color:#000}
 </style>
@@ -1435,6 +1437,7 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 <button class="portfolio-fab" id="portfolioFab" aria-label="打开持仓" title="打开持仓">💼</button>
 <button class="back-to-top" id="backToTop" aria-label="返回顶部" title="返回顶部">↑</button>
 
+<div class="port-backdrop" id="portBackdrop"></div>
 <div class="port-panel" id="portPanel" aria-hidden="true">
   <div class="port-head">
     <h3 class="port-title">💼 我的持仓</h3>
@@ -2198,14 +2201,23 @@ function renderPortfolio() {
     '<div class="port-stat"><div class="port-stat-label">盈亏</div><div class="port-stat-val ' + pnlCls + '">' + (totalPnl >= 0 ? '+' : '') + '$' + Math.abs(totalPnl).toFixed(2) + ' (' + (totalPnl >= 0 ? '+' : '') + totalPnlPct.toFixed(2) + '%)</div></div>';
 }
 
-portFab.addEventListener('click', () => {
+const portBackdrop = document.getElementById('portBackdrop');
+function openPort() {
   portPanel.classList.add('open');
+  portBackdrop.classList.add('open');
   portPanel.setAttribute('aria-hidden', 'false');
   renderPortfolio();
-});
-portClose.addEventListener('click', () => {
+}
+function closePort() {
   portPanel.classList.remove('open');
+  portBackdrop.classList.remove('open');
   portPanel.setAttribute('aria-hidden', 'true');
+}
+portFab.addEventListener('click', openPort);
+portClose.addEventListener('click', closePort);
+portBackdrop.addEventListener('click', closePort);  // click outside to close
+document.addEventListener('keydown', e => {  // ESC to close
+  if (e.key === 'Escape' && portPanel.classList.contains('open')) closePort();
 });
 portTbody.addEventListener('click', e => {
   const btn = e.target.closest('.port-del');
