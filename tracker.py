@@ -849,6 +849,7 @@ INDICES = [
     {"ticker": "^IXIC",    "name": "Nasdaq Composite","color": "#00e5a0", "unit": "index"},
     {"ticker": "^DJI",     "name": "Dow Jones",       "color": "#f5a623", "unit": "index"},
     {"ticker": "GC=F",     "name": "黄金期货",         "color": "#ffd700", "unit": "price"},
+    {"ticker": "BTC-USD",  "name": "比特币 (BTC)",     "color": "#f7931a", "unit": "price"},
     {"ticker": "CL=F",     "name": "WTI 原油",        "color": "#ff6b6b", "unit": "price"},
     {"ticker": "^TNX",     "name": "10年美债收益率",   "color": "#a78bfa", "unit": "pct"},
     {"ticker": "DX-Y.NYB", "name": "美元指数 DXY",    "color": "#8a9ab8", "unit": "index"},
@@ -2499,7 +2500,8 @@ def render_indices_widgets(indices_data):
         elif spec["unit"] == "index":
             price_str = f"{price:,.2f}"
         else:
-            price_str = f"${price:.2f}"
+            # commodities / crypto — comma separators for readability ($100,000.00)
+            price_str = f"${price:,.2f}"
         cards.append(f'''
     <div class="index-card clickable" data-ticker="{escape(spec["ticker"])}" role="button" tabindex="0" style="border-left:3px solid {spec["color"]}">
       <div class="idx-name">{escape(spec["name"])}</div>
