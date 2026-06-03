@@ -603,7 +603,7 @@ def fetch_price(ticker):
         # Keep only timestamp/close pairs where close is non-null
         pairs = [(t, c) for t, c in zip(raw_ts, raw_closes) if c is not None]
         timestamps = [p[0] for p in pairs]
-        closes = [p[1] for p in pairs]
+        closes = [round(p[1], 2) for p in pairs]  # rounded to 2dp to keep page small
         # Yesterday's close = second-to-last daily close. Yahoo's
         # meta.previousClose is often null on multi-day range queries, and
         # meta.chartPreviousClose is the price BEFORE the chart window (1 month ago) —
@@ -1418,7 +1418,7 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
   <div class="section-label">📋 SEC 官方文件</div>
   {{SEC_SECTIONS}}
 
-  <div class="section-label">📰 全部新闻（最新 100 条）</div>
+  <div class="section-label">📰 全部新闻（最新 60 条）</div>
   <div class="filter-bar" id="filter-bar">
     <button class="filter-btn active" data-filter="all">全部</button>
     {{FILTER_BTNS}}
@@ -2122,13 +2122,19 @@ alertBell.addEventListener('click', () => {
   });
 });
 
-// Run once on load
-const currentAlerts = scanAlerts();
-renderAlerts(currentAlerts);
-syncBellState();
-if (currentAlerts.length && Notification.permission === 'granted') {
-  fireDesktopNotifications(currentAlerts);
-}
+// Defer alert scanning until the browser is idle — keeps initial render snappy on mobile.
+deferIdle(() => {
+  const currentAlerts = scanAlerts();
+  renderAlerts(currentAlerts);
+  syncBellState();
+  if (currentAlerts.length && 'Notification' in window && Notification.permission === 'granted') {
+    fireDesktopNotifications(currentAlerts);
+  }
+});
+
+// Shared helper: run on browser idle (or 200ms fallback). Used by portfolio,
+// alerts, etc. to keep the initial paint snappy on slow phones.
+const deferIdle = window.requestIdleCallback || function(cb){ return setTimeout(cb, 200); };
 
 // ===== Index card click → open modal =====
 document.querySelectorAll('.index-card.clickable').forEach(card => {
@@ -2225,7 +2231,8 @@ portAddBtn.addEventListener('click', () => {
   savePortfolio(p);
   portTicker.value = ''; portShares.value = ''; portBuy.value = '';
 });
-renderPortfolio();
+// Defer first render — portfolio is only visible when user opens the panel.
+deferIdle(renderPortfolio);
 
 // ===== Back-to-top button =====
 const backBtn = document.getElementById('backToTop');
@@ -2242,20 +2249,35 @@ if (backBtn) {
 }
 
 // News-card company badge → open that stock's modal.
-document.querySelectorAll('#news-grid .news-card').forEach(nc => {
-  const company = nc.dataset.company;
-  const ticker = COMPANY_TO_TICKER[company];
-  if (!ticker || !PRICE_DATA[ticker]) return;
-  const badge = nc.querySelector('.co-badge');
-  if (!badge) return;
-  badge.classList.add('clickable-badge');
-  badge.setAttribute('title', '点击查看 ' + company + ' 详情');
-  badge.addEventListener('click', e => {
-    e.stopPropagation();
-    e.preventDefault();
-    openPriceModal(ticker);
+// Use event delegation: ONE listener on the grid handles all badges (cheap on mobile).
+// Mark clickable badges via CSS class only when they're hovered (delegated check).
+const newsGrid = document.getElementById('news-grid');
+if (newsGrid) {
+  // Add clickable-badge class up-front so the cursor pointer hint shows.
+  newsGrid.querySelectorAll('.news-card').forEach(nc => {
+    const t = COMPANY_TO_TICKER[nc.dataset.company];
+    if (t && PRICE_DATA[t]) {
+      const b = nc.querySelector('.co-badge');
+      if (b) {
+        b.classList.add('clickable-badge');
+        b.setAttribute('title', '点击查看 ' + nc.dataset.company + ' 详情');
+      }
+    }
   });
-});
+  // Single delegated click handler instead of one per card.
+  newsGrid.addEventListener('click', e => {
+    const badge = e.target.closest('.co-badge.clickable-badge');
+    if (!badge) return;
+    const card = badge.closest('.news-card');
+    if (!card) return;
+    const ticker = COMPANY_TO_TICKER[card.dataset.company];
+    if (ticker && PRICE_DATA[ticker]) {
+      e.stopPropagation();
+      e.preventDefault();
+      openPriceModal(ticker);
+    }
+  });
+}
 document.getElementById('modalClose').addEventListener('click', closePriceModal);
 modalEl.addEventListener('click', e => { if (e.target === modalEl) closePriceModal(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closePriceModal(); });
@@ -2448,7 +2470,7 @@ def render_html(news, investments_by_co, sec_by_co, prices_by_co, aux_prices=Non
         for name, color in filter_entries)
 
     news_html_parts = []
-    for it in news[:100]:
+    for it in news[:60]:
         new_badge = '<span class="badge badge-new">NEW</span>' if it["is_new"] else ""
         new_cls = "news-new" if it["is_new"] else ""
         news_html_parts.append(f'''
