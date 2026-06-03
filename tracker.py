@@ -1114,7 +1114,29 @@ TEMPLATE = """<!DOCTYPE html>
 <title>美股巨头 · 投资追踪 · {{NOW}}</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#050810;--bg2:#0b0f1e;--border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.15);--text:#e8edf5;--text2:#8a9ab8;--text3:#4a5a78;--green:#00e5a0;--blue:#4da6ff;--amber:#f5a623;--fire:#ff4d00;--purple:#a78bfa}
+:root{--bg:#050810;--bg2:#0b0f1e;--border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.15);--text:#e8edf5;--text2:#8a9ab8;--text3:#4a5a78;--green:#00e5a0;--blue:#4da6ff;--amber:#f5a623;--fire:#ff4d00;--purple:#a78bfa;--grid-line:rgba(77,166,255,.03);--alpha-soft:rgba(255,255,255,.06);--alpha-soft2:rgba(255,255,255,.05)}
+/* ===== Auto-adapt to iOS / macOS / Windows light mode ===== */
+@media (prefers-color-scheme: light) {
+  :root{--bg:#f4f6fb;--bg2:#ffffff;--border:rgba(0,0,0,.07);--border2:rgba(0,0,0,.16);--text:#0a1428;--text2:#475974;--text3:#94a0b8;--grid-line:rgba(77,166,255,.08);--alpha-soft:rgba(0,0,0,.04);--alpha-soft2:rgba(0,0,0,.05)}
+  /* Hero title gradient: first stop #fff would be invisible on white — use dark text */
+  .hero-title{background:linear-gradient(135deg,#0a1428 0%,#76b900 30%,#4da6ff 60%,#ed1c24 100%);-webkit-background-clip:text}
+  /* Modal & portfolio backdrops: lighter overlay */
+  .modal-backdrop{background:rgba(20,30,50,.45)}
+  .port-backdrop{background:rgba(20,30,50,.3)}
+  /* Various places hardcode rgba(255,255,255,.06) for subtle bg — keep as a single var alias */
+  .chart-bar-wrap, .sec-default{background:var(--alpha-soft)}
+  /* News badges have low-alpha colored bgs — tweak for legibility on white */
+  .cb-nvda{background:rgba(118,185,0,.18);color:#5a8c00}
+  .cb-intc{background:rgba(0,113,197,.18);color:#0071c5}
+  .cb-amd{background:rgba(237,28,36,.18);color:#c5181f}
+  /* Code-mono price text — slightly darker for contrast */
+  .price-now, .modal-price, .sr-price{color:#0a1428}
+  /* Soft fills used for "up" / "down" pills — bump alpha on white */
+  .up{filter:none}
+  .alert-banner{background:linear-gradient(135deg,rgba(255,77,0,.06) 0%,rgba(245,166,35,.08) 100%)}
+  /* The bg grid is too faint on light bg — use a touch more alpha */
+  body::before{background-image:linear-gradient(var(--grid-line) 1px,transparent 1px),linear-gradient(90deg,var(--grid-line) 1px,transparent 1px)}
+}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
 body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(77,166,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(77,166,255,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
@@ -1140,6 +1162,7 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .sr-chg.up{color:#00e5a0}.sr-chg.down{color:#ff6b6b}
 .sr-lite{font-family:'Space Mono',monospace;font-size:8px;background:rgba(245,166,35,.18);color:#f5a623;padding:1px 5px;border-radius:8px;margin-left:6px;font-weight:700;vertical-align:middle}
 .search-empty{padding:24px;text-align:center;color:var(--text3);font-size:12px}
+.search-section{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1.5px;color:var(--text3);text-transform:uppercase;padding:12px 14px 6px;font-weight:700;background:var(--bg);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:1}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:36px}
 .stat{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:16px 18px;text-align:center}
 .stat-label{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:8px}
@@ -1934,11 +1957,62 @@ const searchInput = document.getElementById('stockSearch');
 const searchResults = document.getElementById('searchResults');
 let searchSelIdx = -1;
 
+// Renders one stock row for the dropdown. `idx` is the global flat index used by keyboard nav.
+function renderSearchRow(ticker, d, idx, selected) {
+  const prev = d.prev_close || d.price;
+  const chg = d.price - prev;
+  const chgPct = prev ? (chg / prev * 100) : 0;
+  const up = chg >= 0;
+  const liteTag = d.lite ? '<span class="sr-lite">辅助</span>' : '';
+  return '<div class="search-result' + (selected ? ' selected' : '') + '" data-ticker="' + escapeHtml(ticker) + '" data-idx="' + idx + '">' +
+    '<span class="sr-ticker">' + escapeHtml(ticker) + '</span>' +
+    '<span class="sr-name">' + escapeHtml(d.name) + liteTag + '</span>' +
+    '<span class="sr-price">$' + d.price.toFixed(2) + '</span>' +
+    '<span class="sr-chg ' + (up ? 'up' : 'down') + '">' + (up ? '+' : '') + chgPct.toFixed(2) + '%</span>' +
+    '</div>';
+}
+
+// Categorize a PRICE_DATA entry for the grouped browse view.
+function categorize(ticker, d) {
+  if (d.is_index) return 'idx';        // S&P / Nasdaq / Gold / Oil etc.
+  if (ticker === 'VIX') return 'other';
+  if (ticker === 'ONDS') return 'other';
+  if (d.lite) return 'aux';            // Aux tickers (CRWV, LITE, RIVN, ...)
+  return 'main';                        // 9 chip + Mag7 tickers
+}
+
+const SECTION_TITLES = {
+  main:  '🟢 主追踪股票（10）',
+  other: '🌟 其他追踪',
+  idx:   '🌐 大盘指数 · 商品 · 利率',
+  aux:   '💎 辅助股票（仅价格 / 走势）',
+};
+
+function showFullList() {
+  // Group all tickers by category, sorted alphabetically within each group.
+  const groups = { main: [], other: [], idx: [], aux: [] };
+  for (const ticker in PRICE_DATA) {
+    groups[categorize(ticker, PRICE_DATA[ticker])].push(ticker);
+  }
+  for (const k in groups) groups[k].sort();
+  let html = '';
+  let flatIdx = 0;
+  for (const k of ['main', 'other', 'idx', 'aux']) {
+    if (!groups[k].length) continue;
+    html += '<div class="search-section">' + SECTION_TITLES[k] + '</div>';
+    for (const ticker of groups[k]) {
+      html += renderSearchRow(ticker, PRICE_DATA[ticker], flatIdx, flatIdx === 0);
+      flatIdx++;
+    }
+  }
+  searchResults.innerHTML = html;
+  searchResults.classList.add('open');
+  searchSelIdx = 0;
+}
+
 function performSearch(query) {
   if (!query || !query.trim()) {
-    searchResults.classList.remove('open');
-    searchResults.innerHTML = '';
-    searchSelIdx = -1;
+    showFullList();  // Empty input → browse all
     return;
   }
   const q = query.trim().toLowerCase();
@@ -1949,7 +2023,6 @@ function performSearch(query) {
       matches.push({ticker: ticker, data: d});
     }
   }
-  // Exact ticker match first, then by name
   matches.sort((a, b) => {
     const aExact = a.ticker.toLowerCase() === q ? 0 : 1;
     const bExact = b.ticker.toLowerCase() === q ? 0 : 1;
@@ -1962,20 +2035,8 @@ function performSearch(query) {
     searchSelIdx = -1;
     return;
   }
-  searchResults.innerHTML = matches.map((m, idx) => {
-    const d = m.data;
-    const prev = d.prev_close || d.price;
-    const chg = d.price - prev;
-    const chgPct = prev ? (chg / prev * 100) : 0;
-    const up = chg >= 0;
-    const liteTag = d.lite ? '<span class="sr-lite">辅助</span>' : '';
-    return '<div class="search-result' + (idx === 0 ? ' selected' : '') + '" data-ticker="' + escapeHtml(m.ticker) + '" data-idx="' + idx + '">' +
-      '<span class="sr-ticker">' + escapeHtml(m.ticker) + '</span>' +
-      '<span class="sr-name">' + escapeHtml(d.name) + liteTag + '</span>' +
-      '<span class="sr-price">$' + d.price.toFixed(2) + '</span>' +
-      '<span class="sr-chg ' + (up ? 'up' : 'down') + '">' + (up ? '+' : '') + chgPct.toFixed(2) + '%</span>' +
-      '</div>';
-  }).join('');
+  searchResults.innerHTML = matches.map((m, idx) =>
+    renderSearchRow(m.ticker, m.data, idx, idx === 0)).join('');
   searchResults.classList.add('open');
   searchSelIdx = 0;
 }
@@ -2005,7 +2066,8 @@ function updateSearchSel() {
 
 if (searchInput) {
   searchInput.addEventListener('input', e => performSearch(e.target.value));
-  searchInput.addEventListener('focus', e => { if (e.target.value) performSearch(e.target.value); });
+  // Focus → always show list (full browse when empty, filtered when typing)
+  searchInput.addEventListener('focus', e => performSearch(e.target.value));
   searchInput.addEventListener('keydown', e => {
     const rows = searchResults.querySelectorAll('.search-result');
     if (e.key === 'ArrowDown') {
