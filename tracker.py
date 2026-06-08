@@ -1228,6 +1228,16 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .news-date{font-family:'Space Mono',monospace;font-size:10px;color:var(--text3)}
 .badge{font-size:9px;padding:2px 7px;border-radius:20px;font-weight:700;letter-spacing:.5px}
 .badge-new{background:var(--green);color:#000}
+.plugin-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.plugin-card{display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,var(--bg2) 0%,rgba(167,139,250,0.06) 100%);border:1px solid rgba(167,139,250,0.22);border-radius:14px;padding:16px 18px;text-decoration:none;color:var(--text);transition:border-color .2s,transform .15s}
+.plugin-card:hover{border-color:rgba(167,139,250,0.55);transform:translateY(-2px)}
+.plugin-icon{font-size:26px;flex-shrink:0;line-height:1}
+.plugin-body{flex:1;min-width:0}
+.plugin-name{font-size:15px;font-weight:700;margin-bottom:3px;display:flex;align-items:center;gap:6px}
+.plugin-tag{font-family:'Space Mono',monospace;font-size:8.5px;letter-spacing:1px;padding:1px 6px;border-radius:4px;background:rgba(167,139,250,0.18);color:var(--purple);font-weight:600}
+.plugin-desc{font-size:11px;color:var(--text2);font-family:'Space Mono',monospace;line-height:1.4}
+.plugin-arrow{color:var(--purple);font-size:18px;flex-shrink:0;transition:transform .2s}
+.plugin-card:hover .plugin-arrow{transform:translateX(4px)}
 .empty{padding:20px;text-align:center;color:var(--text3);background:var(--bg2);border:1px dashed var(--border2);border-radius:12px;font-size:12px}
 .footer{text-align:center;font-size:11px;color:var(--text3);line-height:1.8;padding-top:24px;margin-top:40px;border-top:1px solid var(--border)}
 .filter-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
@@ -1431,6 +1441,18 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
     <div class="stat"><div class="stat-label">本次新增</div><div class="stat-val green">{{NEW}}</div></div>
     <div class="stat"><div class="stat-label">投资信号</div><div class="stat-val fire">{{SIG_TOTAL}}</div></div>
     <div class="stat"><div class="stat-label">SEC 文件</div><div class="stat-val amber">{{SEC_TOTAL}}</div></div>
+  </div>
+
+  <div class="section-label">🧩 插件 · 自建工具</div>
+  <div class="plugin-grid">
+    <a href="./spcx.html" target="_blank" class="plugin-card">
+      <div class="plugin-icon">🚀</div>
+      <div class="plugin-body">
+        <div class="plugin-name">SPCX 涟漪回流 <span class="plugin-tag">SCORECARD</span></div>
+        <div class="plugin-desc">SpaceX IPO · 影子标的复盘 · 每日 02:00 UTC 自动刷新</div>
+      </div>
+      <div class="plugin-arrow">→</div>
+    </a>
   </div>
 
   <div class="section-label">📈 股价 · 1 个月走势</div>
