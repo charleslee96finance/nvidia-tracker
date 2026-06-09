@@ -133,7 +133,7 @@ def build_html(prices: dict[str, float], base_prices: dict[str, float], update_b
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SPCX 涟漪回流 · 复盘记分卡</title>
+<title>SPCX 的追踪 · 复盘记分卡</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
 :root{{
@@ -212,7 +212,7 @@ input.px.locked{{background:rgba(157,139,255,.06);border-color:rgba(157,139,255,
   <a class="backlink" href="./index.html">← 返回 NVIDIA 追踪器</a>
   <header>
     <div class="kicker">POST-IPO REVIEW · 全自动模式 · 云端版</div>
-    <h1>SPCX 涟漪回流 · 复盘记分卡</h1>
+    <h1>SPCX 的追踪 · 复盘记分卡</h1>
     <div class="sub">验证假设:上市后,资金是否从"影子标的"回流到 SpaceX 本身?(sell-the-news)</div>
     <div class="updated">现价上次自动更新: <b>{stamp_bjt} BJT | {len(prices)}/{len(TICKERS)} | {mode_tag}</b> · 数据源 Yahoo Finance · 每日 02:00 UTC(10:00 BJT)由 GitHub Actions 刷新</div>
   </header>
