@@ -140,6 +140,14 @@ def build_html(prices: dict[str, float], base_prices: dict[str, float], update_b
   --bg:#0a0c12;--bg2:#0f121b;--panel:#141823;--panel2:#1a1f2d;--line:#242b3d;
   --ink:#e8edf7;--dim:#8b97b0;--faint:#5b6479;
   --cyan:#56d7ff;--amber:#ffb454;--red:#ff5d6c;--green:#52e09a;--violet:#9d8bff;
+  color-scheme:dark light;
+}}
+@media (prefers-color-scheme: light){{
+  :root{{
+    --bg:#f7f9fc;--bg2:#ffffff;--panel:#f1f5fa;--panel2:#e8edf5;--line:#dde2eb;
+    --ink:#1a1f2d;--dim:#5b6479;--faint:#9aa3b5;
+    --cyan:#0080a8;--amber:#c2410c;--red:#dc2626;--green:#047857;--violet:#6d28d9;
+  }}
 }}
 *{{margin:0;padding:0;box-sizing:border-box}}
 body{{background:radial-gradient(1100px 600px at 70% -8%,rgba(86,215,255,.08),transparent 55%),var(--bg);
