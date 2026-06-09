@@ -10,6 +10,14 @@
   --bg:#0a0c12;--bg2:#0f121b;--panel:#141823;--panel2:#1a1f2d;--line:#242b3d;
   --ink:#e8edf7;--dim:#8b97b0;--faint:#5b6479;
   --cyan:#56d7ff;--amber:#ffb454;--red:#ff5d6c;--green:#52e09a;--violet:#9d8bff;
+  color-scheme:dark light;
+}
+@media (prefers-color-scheme: light){
+  :root{
+    --bg:#f7f9fc;--bg2:#ffffff;--panel:#f1f5fa;--panel2:#e8edf5;--line:#dde2eb;
+    --ink:#1a1f2d;--dim:#5b6479;--faint:#9aa3b5;
+    --cyan:#0080a8;--amber:#c2410c;--red:#dc2626;--green:#047857;--violet:#6d28d9;
+  }
 }
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:radial-gradient(1100px 600px at 70% -8%,rgba(86,215,255,.08),transparent 55%),var(--bg);
@@ -76,7 +84,7 @@ input.px.locked{background:rgba(157,139,255,.06);border-color:rgba(157,139,255,.
     <div class="kicker">POST-IPO REVIEW · 全自动模式 · 云端版</div>
     <h1>SPCX 涟漪回流 · 复盘记分卡</h1>
     <div class="sub">验证假设:上市后,资金是否从"影子标的"回流到 SpaceX 本身?(sell-the-news)</div>
-    <div class="updated">现价上次自动更新: <b>2026-06-08 17:44 BJT | 12/12 | BASE+CUR</b> · 数据源 Yahoo Finance · 每日 02:00 UTC(10:00 BJT)由 GitHub Actions 刷新</div>
+    <div class="updated">现价上次自动更新: <b>2026-06-09 11:56 BJT | 12/12 | BASE+CUR</b> · 数据源 Yahoo Finance · 每日 02:00 UTC(10:00 BJT)由 GitHub Actions 刷新</div>
   </header>
 
   <div class="howto">
@@ -116,19 +124,19 @@ input.px.locked{background:rgba(157,139,255,.06);border-color:rgba(157,139,255,.
       <div class="verdict v-empty">—</div>
     </div>
     <div class="section-div">▸ 第一圈 · 直接对标</div>
-    <div class="trow" data-row data-role="comp"><div class="nm">RKLB <span class="tier-tag tt-comp">对标</span><small>Rocket Lab</small></div><div><input class="px base auto" type="number" data-ticker="RKLB" placeholder="基准" value="110.08"></div><div><input class="px cur auto" type="number" data-ticker="RKLB" placeholder="现价" value="110.08"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
-    <div class="trow" data-row data-role="comp"><div class="nm">ASTS <span class="tier-tag tt-comp">对标</span><small>AST SpaceMobile</small></div><div><input class="px base auto" type="number" data-ticker="ASTS" placeholder="基准" value="93.6"></div><div><input class="px cur auto" type="number" data-ticker="ASTS" placeholder="现价" value="93.6"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
-    <div class="trow" data-row data-role="comp"><div class="nm">SIDU <span class="tier-tag tt-comp">对标</span><small>Sidus Space</small></div><div><input class="px base auto" type="number" data-ticker="SIDU" placeholder="基准" value="4.21"></div><div><input class="px cur auto" type="number" data-ticker="SIDU" placeholder="现价" value="4.21"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
-    <div class="trow" data-row data-role="comp"><div class="nm">BKSY <span class="tier-tag tt-comp">对标</span><small>BlackSky</small></div><div><input class="px base auto" type="number" data-ticker="BKSY" placeholder="基准" value="34.76"></div><div><input class="px cur auto" type="number" data-ticker="BKSY" placeholder="现价" value="34.76"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
-    <div class="trow" data-row data-role="comp"><div class="nm">LUNR <span class="tier-tag tt-comp">对标</span><small>Intuitive Machines</small></div><div><input class="px base auto" type="number" data-ticker="LUNR" placeholder="基准" value="29.36"></div><div><input class="px cur auto" type="number" data-ticker="LUNR" placeholder="现价" value="29.36"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
-    <div class="trow" data-row data-role="comp"><div class="nm">RDW <span class="tier-tag tt-comp">对标</span><small>Redwire</small></div><div><input class="px base auto" type="number" data-ticker="RDW" placeholder="基准" value="18.45"></div><div><input class="px cur auto" type="number" data-ticker="RDW" placeholder="现价" value="18.45"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
+    <div class="trow" data-row data-role="comp"><div class="nm">RKLB <span class="tier-tag tt-comp">对标</span><small>Rocket Lab</small></div><div><input class="px base auto" type="number" data-ticker="RKLB" placeholder="基准" value="113.65"></div><div><input class="px cur auto" type="number" data-ticker="RKLB" placeholder="现价" value="113.65"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
+    <div class="trow" data-row data-role="comp"><div class="nm">ASTS <span class="tier-tag tt-comp">对标</span><small>AST SpaceMobile</small></div><div><input class="px base auto" type="number" data-ticker="ASTS" placeholder="基准" value="92.06"></div><div><input class="px cur auto" type="number" data-ticker="ASTS" placeholder="现价" value="92.06"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
+    <div class="trow" data-row data-role="comp"><div class="nm">SIDU <span class="tier-tag tt-comp">对标</span><small>Sidus Space</small></div><div><input class="px base auto" type="number" data-ticker="SIDU" placeholder="基准" value="4.06"></div><div><input class="px cur auto" type="number" data-ticker="SIDU" placeholder="现价" value="4.06"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
+    <div class="trow" data-row data-role="comp"><div class="nm">BKSY <span class="tier-tag tt-comp">对标</span><small>BlackSky</small></div><div><input class="px base auto" type="number" data-ticker="BKSY" placeholder="基准" value="34.28"></div><div><input class="px cur auto" type="number" data-ticker="BKSY" placeholder="现价" value="34.28"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
+    <div class="trow" data-row data-role="comp"><div class="nm">LUNR <span class="tier-tag tt-comp">对标</span><small>Intuitive Machines</small></div><div><input class="px base auto" type="number" data-ticker="LUNR" placeholder="基准" value="29.73"></div><div><input class="px cur auto" type="number" data-ticker="LUNR" placeholder="现价" value="29.73"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
+    <div class="trow" data-row data-role="comp"><div class="nm">RDW <span class="tier-tag tt-comp">对标</span><small>Redwire</small></div><div><input class="px base auto" type="number" data-ticker="RDW" placeholder="基准" value="18.57"></div><div><input class="px cur auto" type="number" data-ticker="RDW" placeholder="现价" value="18.57"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
     <div class="section-div">▸ 第二圈 · 代理标的</div>
-    <div class="trow" data-row data-role="comp"><div class="nm">SATS <span class="tier-tag tt-proxy">代理</span><small>EchoStar</small></div><div><input class="px base auto" type="number" data-ticker="SATS" placeholder="基准" value="116.28"></div><div><input class="px cur auto" type="number" data-ticker="SATS" placeholder="现价" value="116.28"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
-    <div class="trow" data-row data-role="comp"><div class="nm">VSAT <span class="tier-tag tt-proxy">代理</span><small>Viasat</small></div><div><input class="px base auto" type="number" data-ticker="VSAT" placeholder="基准" value="67.18"></div><div><input class="px cur auto" type="number" data-ticker="VSAT" placeholder="现价" value="67.18"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
+    <div class="trow" data-row data-role="comp"><div class="nm">SATS <span class="tier-tag tt-proxy">代理</span><small>EchoStar</small></div><div><input class="px base auto" type="number" data-ticker="SATS" placeholder="基准" value="116.62"></div><div><input class="px cur auto" type="number" data-ticker="SATS" placeholder="现价" value="116.62"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
+    <div class="trow" data-row data-role="comp"><div class="nm">VSAT <span class="tier-tag tt-proxy">代理</span><small>Viasat</small></div><div><input class="px base auto" type="number" data-ticker="VSAT" placeholder="基准" value="65.48"></div><div><input class="px cur auto" type="number" data-ticker="VSAT" placeholder="现价" value="65.48"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
     <div class="section-div">▸ 第三圈 · AI 算力链(你的持仓)</div>
-    <div class="trow" data-row data-role="comp"><div class="nm">NBIS <span class="tier-tag tt-ai">AI</span><small>Nebius</small></div><div><input class="px base auto" type="number" data-ticker="NBIS" placeholder="基准" value="227.81"></div><div><input class="px cur auto" type="number" data-ticker="NBIS" placeholder="现价" value="227.81"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
-    <div class="trow" data-row data-role="comp"><div class="nm">CRWV <span class="tier-tag tt-ai">AI</span><small>CoreWeave</small></div><div><input class="px base auto" type="number" data-ticker="CRWV" placeholder="基准" value="100.39"></div><div><input class="px cur auto" type="number" data-ticker="CRWV" placeholder="现价" value="100.39"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
-    <div class="trow" data-row data-role="comp"><div class="nm">IREN <span class="tier-tag tt-ai">AI</span><small>IREN Ltd</small></div><div><input class="px base auto" type="number" data-ticker="IREN" placeholder="基准" value="54.35"></div><div><input class="px cur auto" type="number" data-ticker="IREN" placeholder="现价" value="54.35"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
+    <div class="trow" data-row data-role="comp"><div class="nm">NBIS <span class="tier-tag tt-ai">AI</span><small>Nebius</small></div><div><input class="px base auto" type="number" data-ticker="NBIS" placeholder="基准" value="218.0"></div><div><input class="px cur auto" type="number" data-ticker="NBIS" placeholder="现价" value="218.0"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
+    <div class="trow" data-row data-role="comp"><div class="nm">CRWV <span class="tier-tag tt-ai">AI</span><small>CoreWeave</small></div><div><input class="px base auto" type="number" data-ticker="CRWV" placeholder="基准" value="102.37"></div><div><input class="px cur auto" type="number" data-ticker="CRWV" placeholder="现价" value="102.37"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
+    <div class="trow" data-row data-role="comp"><div class="nm">IREN <span class="tier-tag tt-ai">AI</span><small>IREN Ltd</small></div><div><input class="px base auto" type="number" data-ticker="IREN" placeholder="基准" value="59.19"></div><div><input class="px cur auto" type="number" data-ticker="IREN" placeholder="现价" value="59.19"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
   </div>
 
   <div class="signals">
