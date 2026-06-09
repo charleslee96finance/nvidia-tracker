@@ -1448,7 +1448,7 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
     <a href="./spcx.html" target="_blank" class="plugin-card">
       <div class="plugin-icon">🚀</div>
       <div class="plugin-body">
-        <div class="plugin-name">SPCX 涟漪回流 <span class="plugin-tag">SCORECARD</span></div>
+        <div class="plugin-name">SPCX 的追踪 <span class="plugin-tag">SCORECARD</span></div>
         <div class="plugin-desc">SpaceX IPO · 影子标的复盘 · 每日 02:00 UTC 自动刷新</div>
       </div>
       <div class="plugin-arrow">→</div>
