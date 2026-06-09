@@ -1453,6 +1453,14 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       </div>
       <div class="plugin-arrow">→</div>
     </a>
+    <a href="./spacex_earnings.html" target="_blank" class="plugin-card" style="background:linear-gradient(135deg,var(--bg2) 0%,rgba(245,166,35,0.06) 100%);border-color:rgba(245,166,35,0.22)">
+      <div class="plugin-icon">📊</div>
+      <div class="plugin-body">
+        <div class="plugin-name">SpaceX 财报速览 <span class="plugin-tag" style="background:rgba(245,166,35,0.18);color:var(--amber)">BRIEF</span></div>
+        <div class="plugin-desc">营收结构 · 增长引擎 · 风险清单 · 重点分析</div>
+      </div>
+      <div class="plugin-arrow" style="color:var(--amber)">→</div>
+    </a>
   </div>
 
   <div class="section-label">📈 股价 · 1 个月走势</div>

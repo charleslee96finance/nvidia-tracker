@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SpaceX 财报速览 · 重点分析</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+:root{
+  --bg:#0a0c12;--bg2:#0f121b;--panel:#141823;--panel2:#1a1f2d;--line:#242b3d;
+  --ink:#e8edf7;--dim:#8b97b0;--faint:#5b6479;
+  --amber:#f5a623;--green:#52e09a;--red:#ff5d6c;--blue:#56d7ff;--violet:#9d8bff;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:radial-gradient(1100px 600px at 70% -8%,rgba(245,166,35,.08),transparent 55%),var(--bg);
+  color:var(--ink);font-family:'Noto Sans SC',sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased;padding:30px 18px 70px}
+.wrap{max-width:1000px;margin:0 auto}
+.head-font{font-family:'Chakra Petch',sans-serif}.mono{font-family:'Space Mono',monospace}
+
+header{border:1px solid var(--line);border-radius:16px;background:var(--bg2);padding:24px 26px;margin-bottom:14px}
+.kicker{font-family:'Chakra Petch';font-size:12px;letter-spacing:3px;color:var(--amber);text-transform:uppercase}
+h1{font-family:'Chakra Petch';font-weight:700;font-size:30px;letter-spacing:1px;margin:5px 0 4px}
+.sub{color:var(--dim);font-size:13.5px}
+.disclaimer{margin-top:10px;font-family:'Space Mono';font-size:11px;color:var(--faint);padding-top:10px;border-top:1px dashed var(--line)}
+.disclaimer b{color:var(--amber);font-weight:400}
+
+.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:24px}
+.kc{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:14px 16px}
+.kc .lbl{font-family:'Chakra Petch';font-size:10px;letter-spacing:1.5px;color:var(--faint);text-transform:uppercase}
+.kc .val{font-family:'Space Mono';font-size:22px;font-weight:700;margin-top:4px;color:var(--amber)}
+.kc .delta{font-size:11px;color:var(--dim);margin-top:2px}
+.kc .delta.up{color:var(--green)}.kc .delta.dn{color:var(--red)}
+
+section{border:1px solid var(--line);border-radius:14px;background:var(--bg2);padding:22px 24px;margin-bottom:14px}
+section h2{font-family:'Chakra Petch';font-size:16px;letter-spacing:1px;color:var(--amber);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+section h2::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--amber),transparent)}
+section p{font-size:13.5px;color:var(--dim);margin-bottom:8px}
+section p b{color:var(--ink);font-weight:600}
+section ul{list-style:none;padding-left:0}
+section li{font-size:13.5px;color:var(--dim);margin-bottom:8px;padding-left:18px;position:relative;line-height:1.55}
+section li::before{content:'▸';position:absolute;left:0;color:var(--amber);font-weight:700}
+section li b{color:var(--ink);font-weight:600}
+
+.bar-row{display:grid;grid-template-columns:120px 1fr 80px;gap:12px;align-items:center;padding:7px 0;font-size:12.5px;color:var(--dim)}
+.bar-row .label{font-weight:600;color:var(--ink)}
+.bar-track{height:18px;background:var(--panel);border-radius:4px;overflow:hidden;position:relative}
+.bar-fill{height:100%;background:linear-gradient(90deg,var(--amber),#ff8800);border-radius:4px;transition:width .4s}
+.bar-row .pct{font-family:'Space Mono';font-size:12px;text-align:right;color:var(--amber);font-weight:700}
+
+.risk-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.risk-tbl th,.risk-tbl td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+.risk-tbl th{font-family:'Chakra Petch';font-size:10.5px;letter-spacing:1px;color:var(--faint);text-transform:uppercase;font-weight:600}
+.risk-tbl td.sev{font-family:'Chakra Petch';font-weight:700;letter-spacing:.5px;width:60px}
+.sev-high{color:var(--red)}.sev-mid{color:var(--amber)}.sev-low{color:var(--green)}
+.risk-tbl td b{color:var(--ink);font-weight:600}
+
+.takeaway{background:linear-gradient(135deg,rgba(245,166,35,.06),rgba(82,224,154,.03));border-color:rgba(245,166,35,.3)}
+.takeaway li{font-size:14px;color:var(--ink);margin-bottom:14px;padding-left:32px;line-height:1.6}
+.takeaway li::before{content:counter(t-counter);counter-increment:t-counter;background:var(--amber);color:#000;width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:50%;font-family:'Chakra Petch';font-size:12px;font-weight:700;left:0;top:1px}
+.takeaway ul{counter-reset:t-counter}
+.takeaway li small{display:block;color:var(--dim);font-size:12px;margin-top:4px;font-weight:400}
+
+.foot{margin-top:14px;border:1px solid var(--line);border-radius:12px;background:rgba(245,166,35,.05);padding:14px 18px;font-size:11.5px;color:var(--faint);line-height:1.7}
+.foot b{color:var(--amber)}
+.backbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.backlink{display:inline-block;font-family:'Chakra Petch';font-size:12px;letter-spacing:1.5px;color:var(--amber);text-decoration:none;border:1px solid var(--line);padding:6px 14px;border-radius:8px;transition:border-color .2s}
+.backlink:hover{border-color:var(--amber)}
+.backlink.alt{color:var(--violet)}
+.backlink.alt:hover{border-color:var(--violet)}
+
+@media(max-width:680px){
+  .bar-row{grid-template-columns:90px 1fr 60px;font-size:11.5px}
+  section{padding:18px 18px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="backbar">
+    <a class="backlink" href="./index.html">← 返回 NVIDIA 追踪器</a>
+    <a class="backlink alt" href="./spcx.html">→ SPCX 涟漪记分卡</a>
+  </div>
+  <header>
+    <div class="kicker">PRE-IPO BRIEF · 2026-06-08</div>
+    <h1>SpaceX 财报速览 · 重点分析</h1>
+    <div class="sub">6/12 上市倒计时 4 天 · 招股书核心数据 + 我对值得盯的几条线的拆解</div>
+    <div class="disclaimer"><b>⚠ 数据说明</b>:SpaceX 是私人公司,所有数字均来自媒体报道 / 投资人会议泄露 / 行业估算,<b>非 GAAP 审计数据</b>。准确财报需待 6/12 S-1 招股书与首份 10-Q 披露。本页不构成投资建议。</div>
+  </header>
+
+  <div class="kpi">
+    <div class="kc"><div class="lbl">2024 营收估</div><div class="val">~$13.1B</div><div class="delta up">+51% YoY</div></div>
+    <div class="kc"><div class="lbl">Starlink 用户</div><div class="val">5.0M+</div><div class="delta up">+150% YoY</div></div>
+    <div class="kc"><div class="lbl">2024 发射次数</div><div class="val">134</div><div class="delta up">+38% vs 2023(98次)</div></div>
+    <div class="kc"><div class="lbl">IPO 估值区间</div><div class="val">$400–500B</div><div class="delta">P/S ≈ 30x</div></div>
+    <div class="kc"><div class="lbl">发行价</div><div class="val">$135</div><div class="delta">SPCX 代码</div></div>
+    <div class="kc"><div class="lbl">现金消耗(Starship)</div><div class="val">~$5B/年</div><div class="delta dn">尚未盈亏平衡</div></div>
+  </div>
+
+  <section>
+    <h2>📊 营收结构拆解(2024 估)</h2>
+    <p>分析师估算 SpaceX 2024 年 ~$13B 营收的三大来源构成。<b>Starlink 已超越发射服务,成为最大业务板块</b>——这是 IPO 估值故事的核心。</p>
+    <div class="bar-row"><div class="label">Starlink</div><div class="bar-track"><div class="bar-fill" style="width:58%"></div></div><div class="pct">~58% · $7.6B</div></div>
+    <div class="bar-row"><div class="label">发射服务</div><div class="bar-track"><div class="bar-fill" style="width:27%"></div></div><div class="pct">~27% · $3.5B</div></div>
+    <div class="bar-row"><div class="label">Starshield(政府)</div><div class="bar-track"><div class="bar-fill" style="width:11%"></div></div><div class="pct">~11% · $1.4B</div></div>
+    <div class="bar-row"><div class="label">载人 / 其他</div><div class="bar-track"><div class="bar-fill" style="width:4%"></div></div><div class="pct">~4% · $0.6B</div></div>
+    <p style="margin-top:12px;font-size:12.5px;color:var(--faint);font-style:italic">来源:Bloomberg、Payload Research、Quilty Space 等行业估算综合,2024 全年口径。S-1 披露后将以官方数据替换。</p>
+  </section>
+
+  <section>
+    <h2>🚀 增长引擎(下一阶段的故事)</h2>
+    <ul>
+      <li><b>Starlink Direct-to-Cell(直连手机)</b>:与 T-Mobile / Verizon 等运营商合作的卫星短信/数据服务全面铺开,潜在 TAM ≫ 当前消费级宽带。商业模式从月费 ARPU 拓展到运营商批发,可能成 2026-27 主要增量。</li>
+      <li><b>Starship 商用化时点</b>:V2 第二代版本若能在 2026 H2 实现"满载+回收+复用"闭环,单位发射成本可降至 $200/kg 以下(Falcon 9 当前 ~$1500/kg),颠覆性 cost curve。但目前仍处实验性发射阶段,<b>任何爆炸都会重置时间表</b>。</li>
+      <li><b>Starshield 国防订单</b>:NSSL Phase 3 Lane 2 已锁定 ~$5.9B 多年期框架合同,DoD 加速从"购买发射"转向"购买能力"(卫星即服务),Starshield 把 Starlink 技术栈商业化输出给情报体系。</li>
+      <li><b>NASA Artemis HLS</b>:月球着陆器合同 ~$4B,2027 载人登月若达成,品牌溢价不可估量;若延期(高概率),会拖累 cash flow 但不致命。</li>
+      <li><b>Starlink 设备销售</b>:终端从 $599 降到 $349,边际亏损卖硬件换 LTV 订阅 — 类似 Kindle 模式,2025 装机量已破 600 万。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>💰 烧钱与盈利时点</h2>
+    <ul>
+      <li><b>Starship 研发</b>:估计 2024 烧 ~$5B,预计 2025-26 维持高位,主要在 Boca Chica + Cape Canaveral 双发射场扩产、第二代 Raptor 引擎、Super Heavy 复用迭代。</li>
+      <li><b>Starlink 卫星批量化生产</b>:每月发射 ~120 颗 V2 mini,星座维护成本随规模线性增长,但单星收入贡献已转正(2024 H2 节点)。</li>
+      <li><b>经营性现金流(估)</b>:2024 已转正(~$2-3B 净流入,主要来自 Starlink + 政府合同预收款),但全公司 GAAP 净利润仍为负——折旧摊销 + Starship 研发抵消了 Starlink 利润。</li>
+      <li><b>盈利预期时点</b>:多数分析师预测 <b>2026 全年 GAAP 净利润转正</b>,这将是 IPO 后第一份 10-K 的最大看点。若不达预期,$400B+ 估值会被严重质疑。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>📋 IPO 关键参数</h2>
+    <ul>
+      <li><b>代码 / 交易所</b>:SPCX · NYSE(2026-06-12 挂牌)</li>
+      <li><b>发行价</b>:$135 / 股(区间中间值,反映强需求)</li>
+      <li><b>募资规模(估)</b>:$5-8B,主要用于 Starship 量产与 Starlink V3 卫星部署</li>
+      <li><b>老股 vs 新股</b>:预计 ~70% 新股 + 30% 老股(早期员工与 a16z/Founders Fund 等部分套现)</li>
+      <li><b>绿鞋机制</b>:承销商超额配售权 15%,稳价窗口 30 天</li>
+      <li><b>锁定期</b>:内部人 180 天(2026-12-09 到期)— <span style="color:var(--red)">⚠ 这是首个真实供给冲击窗口</span></li>
+      <li><b>双重股权</b>:Musk 保留多重投票权 A 类股,投资人买的是单票 B 类——治理结构集权</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>⚠ 风险清单</h2>
+    <table class="risk-tbl">
+      <tr><th>严重度</th><th>风险</th><th>触发条件 / 监测点</th></tr>
+      <tr><td class="sev sev-high">高</td><td><b>Starship 爆炸 / 试飞失败</b></td><td>每次试飞;FAA mishap investigation 启动 = 短期延期 3-6 月</td></tr>
+      <tr><td class="sev sev-high">高</td><td><b>180 天锁定期到期</b></td><td>2026-12-09:大量内部人 / 早期投资者解禁,潜在供给冲击</td></tr>
+      <tr><td class="sev sev-mid">中</td><td><b>Starlink 竞争(Amazon Kuiper)</b></td><td>2026-2027 Kuiper 进入商用,价格战可能压缩 ARPU</td></tr>
+      <tr><td class="sev sev-mid">中</td><td><b>政府订单依赖</b></td><td>NASA + DoD ≈ 营收 35%;预算被砍直接影响</td></tr>
+      <tr><td class="sev sev-mid">中</td><td><b>监管 / 频谱争议</b></td><td>FCC 卫星频谱重新分配;各国地面站准入(印度/欧盟尤其敏感)</td></tr>
+      <tr><td class="sev sev-low">低</td><td><b>Musk 注意力分散</b></td><td>Tesla、xAI、X 多线作战;市场对此已有预期定价</td></tr>
+      <tr><td class="sev sev-low">低</td><td><b>中国千帆 / 国网竞争</b></td><td>主要影响中国本土 + "一带一路" 市场,对欧美核心市场冲击小</td></tr>
+    </table>
+  </section>
+
+  <section class="takeaway">
+    <h2>🔑 重点分析(我的看法)</h2>
+    <ul>
+      <li><b>Starlink 是估值大头,但增速看顶</b>
+        <small>用户从 0 → 5M 用了 4 年,这是"早期渗透红利"。后续要靠 Direct-to-Cell 转 ToB(运营商批发)+ 企业级专网拉新,ARPU 受卫星宽带物理上限制约,5M→20M 周期会比 0→5M 长。</small></li>
+      <li><b>发射服务是 cash cow,不是估值故事</b>
+        <small>年 134 次发射很稳,但 NASA/DoD 是主客户,合同价被 cost-plus 限定,毛利率 25-30% 而非 SaaS 级 70%+。把它看作"补血器",不要算到成长性里。</small></li>
+      <li><b>Starship 是估值杀手锏,也是定时炸弹</b>
+        <small>成功 → 月球/火星/低成本互联网新版图,估值能再翻一倍;延期 3-5 年 → 当前 $400B+ 估值要打 20-30% 折扣。每次试飞是事件驱动的高波动窗口,期权策略比正股更有效。</small></li>
+      <li><b>Sell-the-news 概率高,SPCX 首日多半冲高回落</b>
+        <small>过去 2-3 年 RKLB +200%+、ASTS +400%+、SIDU +180% 已经把"SpaceX 板块"的预期透支。机构 IPO 配售后大概率立即换手,叠加左侧 SPCX 涟漪记分卡可以验证回流。</small></li>
+      <li><b>真正的买点在 2026 Q4 锁定期前后</b>
+        <small>180 天解禁(2026-12-09)叠加首份 10-Q 披露(2026-11 左右),会形成"业绩 + 供给"双重压力测试。如果届时 Starlink 用户增长仍在 +80% YoY 以上,且 Starship 完成 1-2 次成功满载发射,逢低布局窗口出现。</small></li>
+      <li><b>持仓建议(纯个人思考)</b>
+        <small>IPO 首日不追;6-12 个月观察期内用 SPCX 涟漪记分卡盯对标股 + 持续盯 Starship 试飞节奏 + Starlink 月度披露(若 IR 持续给数);锁定期后第一次大跌(如果有)再分批建仓。</small></li>
+    </ul>
+  </section>
+
+  <div class="foot">
+    <b>📚 数据来源</b>:Bloomberg(估值 + 营收估算)· Payload Research / Quilty Space(发射 + 卫星行业)· SpaceNews(Starshield 合同)· FCC / FAA 公开文件 · NASA OIG 报告 · Reuters(2024-12 营收泄露)· 公司创始人公开演讲。<br>
+    <b>🔄 更新计划</b>:6/12 上市后,本页计划接入 SEC EDGAR 接口,自动展示 SPCX 最新 8-K / 10-Q / 10-K 文件链接 + 关键数字摘要(类似 NVIDIA 追踪器的 SEC 区块)。<br>
+    <b>⚠ 免责声明</b>:本页所有数字均为公开渠道汇总估算,<b>非 GAAP 审计数据</b>,可能与 S-1 实际披露存在重大差异。<b>本页不构成任何投资建议</b>,仅作复盘与思路整理工具。
+  </div>
+</div>
+</body>
+</html>
