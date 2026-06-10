@@ -46,18 +46,30 @@ USER_AGENT = (
 )
 
 
-def fetch_price(ticker: str) -> float | None:
-    url = f'https://query1.finance.yahoo.com/v8/finance/chart/{ticker}'
+def fetch_quote(ticker: str) -> tuple[float | None, float | None]:
+    """Return (price, relative_volume). RVOL = latest daily volume / ~1-month average."""
+    # range=1mo&interval=1d gives price (meta) + a daily volume series in one call
+    url = f'https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?range=1mo&interval=1d'
     req = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.load(resp)
-        meta = data['chart']['result'][0]['meta']
-        price = meta.get('regularMarketPrice')
-        return round(float(price), 2) if price else None
-    except (urllib.error.URLError, KeyError, IndexError, ValueError, TypeError) as e:
+        result = data['chart']['result'][0]
+        price = result['meta'].get('regularMarketPrice')
+        price = round(float(price), 2) if price else None
+        rvol = None
+        try:
+            vols = [v for v in result['indicators']['quote'][0]['volume'] if v]
+            if len(vols) >= 5:
+                avg = sum(vols) / len(vols)
+                if avg > 0:
+                    rvol = round(vols[-1] / avg, 2)
+        except (KeyError, IndexError, TypeError, ZeroDivisionError):
+            rvol = None
+        return price, rvol
+    except (urllib.error.URLError, KeyError, ValueError, TypeError, IndexError) as e:
         print(f'  {ticker:5s} FETCH FAILED: {e}', file=sys.stderr)
-        return None
+        return None, None
 
 
 BASELINE_FILE = Path(__file__).parent / 'data' / 'spcx_baseline.json'
@@ -80,10 +92,11 @@ def save_baseline(base_prices: dict[str, float], stamp: str) -> None:
     )
 
 
-def row_html(ticker: str, base_price: float | None, cur_price: float | None, base_locked: bool) -> str:
+def row_html(ticker: str, base_price: float | None, cur_price: float | None, base_locked: bool, rvol: float | None = None) -> str:
     role, tier_label, tier_class = TIER[ticker]
     company = COMPANY_NAMES[ticker]
     cur_val = f' value="{cur_price}"' if cur_price is not None else ''
+    rvol_attr = f' data-rvol="{rvol}"' if rvol is not None else ''
     if ticker == 'SPCX':
         base_input = '<input class="px base locked" type="number" value="135" placeholder="135" readonly>'
     elif base_locked:
@@ -99,7 +112,7 @@ def row_html(ticker: str, base_price: float | None, cur_price: float | None, bas
             f'    <div class="trow" data-row data-role="{role}">\n'
             f'      <div class="nm">SPCX <span class="tier-tag {tier_class}">{tier_label}</span><small>{ticker_small}</small></div>\n'
             f'      <div>{base_input}</div>\n'
-            f'      <div><input class="px cur auto" type="number" data-ticker="SPCX" placeholder="首日价"{cur_val}></div>\n'
+            f'      <div><input class="px cur auto" type="number" data-ticker="SPCX" placeholder="首日价"{cur_val}{rvol_attr}></div>\n'
             f'      <div class="pct">—</div>\n'
             f'      <div class="verdict v-empty">—</div>\n'
             f'    </div>'
@@ -108,12 +121,12 @@ def row_html(ticker: str, base_price: float | None, cur_price: float | None, bas
         f'    <div class="trow" data-row data-role="{role}">'
         f'<div class="nm">{ticker} <span class="tier-tag {tier_class}">{tier_label}</span><small>{company}</small></div>'
         f'<div>{base_input}</div>'
-        f'<div><input class="px cur auto" type="number" data-ticker="{ticker}" placeholder="现价"{cur_val}></div>'
+        f'<div><input class="px cur auto" type="number" data-ticker="{ticker}" placeholder="现价"{cur_val}{rvol_attr}></div>'
         f'<div class="pct">—</div><div class="verdict v-empty">—</div></div>'
     )
 
 
-def build_html(prices: dict[str, float], base_prices: dict[str, float], update_base: bool, stamp_bjt: str, mode_tag: str) -> str:
+def build_html(prices: dict[str, float], base_prices: dict[str, float], rvols: dict[str, float], update_base: bool, stamp_bjt: str, mode_tag: str) -> str:
     """Assemble full spcx.html from template + dynamic rows."""
     base_locked = not update_base
     sections: list[tuple[str, list[str]]] = [
@@ -126,7 +139,7 @@ def build_html(prices: dict[str, float], base_prices: dict[str, float], update_b
     for section_title, section_tickers in sections:
         table_inner.append(f'    <div class="section-div">{section_title}</div>')
         for t in section_tickers:
-            table_inner.append(row_html(t, base_prices.get(t), prices.get(t), base_locked))
+            table_inner.append(row_html(t, base_prices.get(t), prices.get(t), base_locked, rvols.get(t)))
     rows_html = '\n'.join(table_inner)
 
     return f"""<!DOCTYPE html>
@@ -171,6 +184,15 @@ h1{{font-family:'Chakra Petch';font-weight:700;font-size:30px;letter-spacing:1px
 .scard .lbl{{font-family:'Chakra Petch';font-size:11px;letter-spacing:1.5px;color:var(--faint);text-transform:uppercase}}
 .scard .big{{font-family:'Space Mono';font-size:34px;font-weight:700;margin-top:6px}}
 .scard .vd{{font-size:12.5px;margin-top:4px;color:var(--dim)}}
+.sigpanel{{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}}
+.sp-card{{border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:16px 18px}}
+.sp-lbl{{font-family:'Chakra Petch';font-size:10.5px;letter-spacing:1px;color:var(--faint);text-transform:uppercase}}
+.sp-big{{font-family:'Space Mono';font-size:25px;font-weight:700;margin-top:6px;color:var(--cyan)}}
+.sp-sub{{font-size:11px;margin-top:3px;color:var(--dim);line-height:1.4}}
+.sp-bar{{height:8px;background:var(--panel2);border-radius:4px;overflow:hidden;margin-top:8px}}
+.sp-fill{{height:100%;background:linear-gradient(90deg,var(--cyan),var(--violet));border-radius:4px;width:0;transition:width .4s}}
+.pct .rv{{display:block;font-size:10px;font-weight:700;margin-top:2px;letter-spacing:.3px}}
+.rv-hi{{color:var(--amber)}}.rv-mid{{color:var(--faint)}}.rv-lo{{color:var(--faint);opacity:.55}}
 .tbl{{border:1px solid var(--line);border-radius:16px;background:var(--bg2);overflow:hidden}}
 .trow{{display:grid;grid-template-columns:1.6fr .9fr .9fr .8fr 1.2fr;gap:8px;align-items:center;padding:11px 16px;border-bottom:1px solid var(--line)}}
 .trow.hd{{background:var(--panel2);font-family:'Chakra Petch';font-size:11px;letter-spacing:1px;color:var(--faint);text-transform:uppercase}}
@@ -202,7 +224,7 @@ input.px.locked{{background:rgba(157,139,255,.06);border-color:rgba(157,139,255,
 .foot{{margin-top:16px;border:1px solid var(--line);border-radius:12px;background:rgba(255,180,84,.05);padding:14px 18px;font-size:12px;color:var(--dim)}}
 .foot b{{color:var(--amber)}}
 @media(max-width:680px){{
-  .score{{grid-template-columns:1fr}}
+  .score,.sigpanel{{grid-template-columns:1fr}}
   .trow{{grid-template-columns:1.4fr 1fr 1fr;font-size:12px}}
   .trow .hide-m,.trow.hd .hide-m{{display:none}}
 }}
@@ -242,9 +264,28 @@ input.px.locked{{background:rgba(157,139,255,.06);border-color:rgba(157,139,255,
     </div>
   </div>
 
+  <div class="sigpanel">
+    <div class="sp-card">
+      <div class="sp-lbl">🔒 锁定期解禁倒计时</div>
+      <div class="sp-big" id="lockDays">—</div>
+      <div class="sp-bar"><div class="sp-fill" id="lockFill"></div></div>
+      <div class="sp-sub" id="lockSub">180 天内部人锁定 · 2026-12-09</div>
+    </div>
+    <div class="sp-card">
+      <div class="sp-lbl">📊 板块离散度(σ)</div>
+      <div class="sp-big" id="dispVal">—</div>
+      <div class="sp-sub" id="dispSub">普跌(情绪)还是分化(基本面)?</div>
+    </div>
+    <div class="sp-card">
+      <div class="sp-lbl">🔊 板块放量度(中位 RVOL)</div>
+      <div class="sp-big" id="rvolVal">—</div>
+      <div class="sp-sub" id="rvolSub">当日量 vs 近 1 月均量</div>
+    </div>
+  </div>
+
   <div class="tbl">
     <div class="trow hd">
-      <div>标的</div><div style="text-align:right">基准价 ($)</div><div style="text-align:right">上市后价 ($)</div><div style="text-align:right">涨跌</div><div style="text-align:center">判定</div>
+      <div>标的</div><div style="text-align:right">基准价 ($)</div><div style="text-align:right">上市后价 ($)</div><div style="text-align:right">涨跌 · 量</div><div style="text-align:center">判定</div>
     </div>
 {rows_html}
   </div>
@@ -264,23 +305,34 @@ input.px.locked{{background:rgba(157,139,255,.06);border-color:rgba(157,139,255,
 </div>
 
 <script>
+function fmtRvol(rv){{
+  if(!rv||rv<=0||isNaN(rv)) return '';
+  const cls = rv>=1.5?'rv-hi':(rv<0.8?'rv-lo':'rv-mid');
+  return '<span class="rv '+cls+'">量 '+rv.toFixed(1)+'x</span>';
+}}
+function median(a){{if(!a.length)return null;const s=[...a].sort((x,y)=>x-y);const m=Math.floor(s.length/2);return s.length%2?s[m]:(s[m-1]+s[m])/2;}}
+function stdev(a){{if(a.length<2)return 0;const m=a.reduce((x,y)=>x+y,0)/a.length;return Math.sqrt(a.reduce((s,x)=>s+(x-m)*(x-m),0)/a.length);}}
+
 function recompute(){{
   const rows=[...document.querySelectorAll('[data-row]')];
   let comps=0,reflux=0,defy=0;
+  const compPcts=[], compRvols=[];
   rows.forEach(r=>{{
     const base=parseFloat(r.querySelector('.base').value);
-    const cur=parseFloat(r.querySelector('.cur').value);
+    const curEl=r.querySelector('.cur');
+    const cur=parseFloat(curEl.value);
+    const rv=parseFloat(curEl.dataset.rvol);
     const pctEl=r.querySelector('.pct');
     const vEl=r.querySelector('.verdict');
     const role=r.dataset.role;
     if(!base||!cur||base<=0){{
-      pctEl.textContent='—';pctEl.className='pct';
+      pctEl.innerHTML='—';pctEl.className='pct';
       vEl.textContent='—';vEl.className='verdict v-empty';
       if(role==='epi'){{document.getElementById('spcxPct').textContent='—';document.getElementById('spcxVd').textContent='填入上市后价';}}
       return;
     }}
     const p=(cur-base)/base*100;
-    pctEl.textContent=(p>=0?'+':'')+p.toFixed(1)+'%';
+    pctEl.innerHTML='<span>'+(p>=0?'+':'')+p.toFixed(1)+'%</span>'+fmtRvol(rv);
     pctEl.className='pct '+(p>0.5?'up':(p<-0.5?'down':'flat'));
     if(role==='epi'){{
       const el=document.getElementById('spcxPct');
@@ -291,16 +343,62 @@ function recompute(){{
       vEl.className='verdict '+(p<0?'v-reflux':'v-defy');
       return;
     }}
-    comps++;
+    comps++; compPcts.push(p); if(rv>0&&!isNaN(rv)) compRvols.push(rv);
     if(p<-2){{vEl.textContent='🔴 回流(应验)';vEl.className='verdict v-reflux';reflux++;}}
     else if(p<=2){{vEl.textContent='🟡 抗跌';vEl.className='verdict v-hold';}}
     else{{vEl.textContent='🟢 反预期';vEl.className='verdict v-defy';defy++;}}
   }});
   document.getElementById('refluxCount').innerHTML=reflux+'<span style="font-size:16px;color:var(--faint)">/'+(comps||'—')+'</span>';
   document.getElementById('defyCount').innerHTML=defy+'<span style="font-size:16px;color:var(--faint)">/'+(comps||'—')+'</span>';
+  updateSignals(compPcts, compRvols);
 }}
+
+function updateSignals(pcts, rvols){{
+  const dEl=document.getElementById('dispVal'), dSub=document.getElementById('dispSub');
+  const spread = stdev(pcts);
+  const maxAbs = pcts.length?Math.max(...pcts.map(Math.abs)):0;
+  if(pcts.length<2 || maxAbs<0.1){{
+    dEl.textContent='—'; dEl.style.color='var(--faint)'; dSub.textContent='待 6/12 上市后数据';
+  }} else {{
+    dEl.textContent='σ '+spread.toFixed(1)+'%';
+    if(spread<2){{dEl.style.color='var(--red)';dSub.textContent='高度同步 · 普跌/普涨(情绪 / 流动性驱动)';}}
+    else if(spread<=5){{dEl.style.color='var(--amber)';dSub.textContent='中等分化 · 板块内部开始分胜负';}}
+    else{{dEl.style.color='var(--green)';dSub.textContent='明显分化 · 资金在挑赢家(真正的机会)';}}
+  }}
+  const rEl=document.getElementById('rvolVal'), rSub=document.getElementById('rvolSub');
+  const med=median(rvols);
+  if(med==null){{rEl.textContent='—';rEl.style.color='var(--faint)';rSub.textContent='等待量能数据';}}
+  else{{
+    rEl.textContent=med.toFixed(1)+'x';
+    if(med>=1.5){{rEl.style.color='var(--amber)';rSub.textContent='板块放量 · 有真实资金博弈(回流可信)';}}
+    else if(med>=0.8){{rEl.style.color='var(--cyan)';rSub.textContent='量能正常 vs 近 1 月均量';}}
+    else{{rEl.style.color='var(--faint)';rSub.textContent='缩量 · 无差别观望,信号弱';}}
+  }}
+}}
+
+function updateLockup(){{
+  const ipo=new Date('2026-06-12T00:00:00'), lock=new Date('2026-12-09T00:00:00'), now=new Date();
+  const day=86400000, total=Math.round((lock-ipo)/day), remain=Math.ceil((lock-now)/day);
+  const bEl=document.getElementById('lockDays'), fEl=document.getElementById('lockFill'), sEl=document.getElementById('lockSub');
+  if(now<ipo){{
+    const toIpo=Math.ceil((ipo-now)/day);
+    bEl.textContent=remain+'天'; bEl.style.color='var(--violet)'; fEl.style.width='0%';
+    sEl.textContent='距 6/12 上市还有 '+toIpo+' 天 · 解禁日 12/9';
+  }} else if(now<lock){{
+    const elapsed=total-remain;
+    bEl.textContent=remain+'天';
+    bEl.style.color = remain<=30?'var(--red)':(remain<=60?'var(--amber)':'var(--cyan)');
+    fEl.style.width=Math.min(100,Math.max(0,elapsed/total*100)).toFixed(0)+'%';
+    sEl.textContent='距 2026-12-09 解禁 · 已过 '+elapsed+'/'+total+' 天';
+  }} else {{
+    bEl.textContent='已解禁'; bEl.style.color='var(--red)'; fEl.style.width='100%';
+    sEl.textContent='180 天锁定期已结束 · 紧盯内部人 Form 4 减持';
+  }}
+}}
+
 document.querySelectorAll('input.px').forEach(i=>i.addEventListener('input',recompute));
 recompute();
+updateLockup();
 </script>
 </body>
 </html>
@@ -314,11 +412,14 @@ def main() -> int:
 
     print(f'[{now_bjt:%Y-%m-%d %H:%M} BJT] Fetching prices… mode={mode_tag}')
     prices: dict[str, float] = {}
+    rvols: dict[str, float] = {}
     with cf.ThreadPoolExecutor(max_workers=len(TICKERS)) as ex:
-        for t, p in zip(TICKERS, ex.map(fetch_price, TICKERS)):
+        for t, (p, rv) in zip(TICKERS, ex.map(fetch_quote, TICKERS)):
             if p is not None:
                 prices[t] = p
-                print(f'  {t:5s} = {p}')
+                if rv is not None:
+                    rvols[t] = rv
+                print(f'  {t:5s} = {p:<9} RVOL={rv if rv is not None else "n/a"}')
 
     if not prices:
         print('No prices fetched. Aborting (spcx.html unchanged).', file=sys.stderr)
@@ -338,7 +439,7 @@ def main() -> int:
         base_prices = load_baseline()
         print(f'Baseline LOCKED — loaded {len(base_prices)} tickers from {BASELINE_FILE.name}.')
 
-    html = build_html(prices, base_prices, update_base, stamp, mode_tag)
+    html = build_html(prices, base_prices, rvols, update_base, stamp, mode_tag)
 
     out = Path(__file__).parent / 'spcx.html'
     out.write_text(html, encoding='utf-8')
