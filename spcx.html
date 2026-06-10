@@ -40,6 +40,15 @@ h1{font-family:'Chakra Petch';font-weight:700;font-size:30px;letter-spacing:1px;
 .scard .lbl{font-family:'Chakra Petch';font-size:11px;letter-spacing:1.5px;color:var(--faint);text-transform:uppercase}
 .scard .big{font-family:'Space Mono';font-size:34px;font-weight:700;margin-top:6px}
 .scard .vd{font-size:12.5px;margin-top:4px;color:var(--dim)}
+.sigpanel{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.sp-card{border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:16px 18px}
+.sp-lbl{font-family:'Chakra Petch';font-size:10.5px;letter-spacing:1px;color:var(--faint);text-transform:uppercase}
+.sp-big{font-family:'Space Mono';font-size:25px;font-weight:700;margin-top:6px;color:var(--cyan)}
+.sp-sub{font-size:11px;margin-top:3px;color:var(--dim);line-height:1.4}
+.sp-bar{height:8px;background:var(--panel2);border-radius:4px;overflow:hidden;margin-top:8px}
+.sp-fill{height:100%;background:linear-gradient(90deg,var(--cyan),var(--violet));border-radius:4px;width:0;transition:width .4s}
+.pct .rv{display:block;font-size:10px;font-weight:700;margin-top:2px;letter-spacing:.3px}
+.rv-hi{color:var(--amber)}.rv-mid{color:var(--faint)}.rv-lo{color:var(--faint);opacity:.55}
 .tbl{border:1px solid var(--line);border-radius:16px;background:var(--bg2);overflow:hidden}
 .trow{display:grid;grid-template-columns:1.6fr .9fr .9fr .8fr 1.2fr;gap:8px;align-items:center;padding:11px 16px;border-bottom:1px solid var(--line)}
 .trow.hd{background:var(--panel2);font-family:'Chakra Petch';font-size:11px;letter-spacing:1px;color:var(--faint);text-transform:uppercase}
@@ -71,7 +80,7 @@ input.px.locked{background:rgba(157,139,255,.06);border-color:rgba(157,139,255,.
 .foot{margin-top:16px;border:1px solid var(--line);border-radius:12px;background:rgba(255,180,84,.05);padding:14px 18px;font-size:12px;color:var(--dim)}
 .foot b{color:var(--amber)}
 @media(max-width:680px){
-  .score{grid-template-columns:1fr}
+  .score,.sigpanel{grid-template-columns:1fr}
   .trow{grid-template-columns:1.4fr 1fr 1fr;font-size:12px}
   .trow .hide-m,.trow.hd .hide-m{display:none}
 }
@@ -84,7 +93,7 @@ input.px.locked{background:rgba(157,139,255,.06);border-color:rgba(157,139,255,.
     <div class="kicker">POST-IPO REVIEW · 全自动模式 · 云端版</div>
     <h1>SPCX 的追踪 · 复盘记分卡</h1>
     <div class="sub">验证假设:上市后,资金是否从"影子标的"回流到 SpaceX 本身?(sell-the-news)</div>
-    <div class="updated">现价上次自动更新: <b>2026-06-09 20:26 BJT | 12/12 | BASE+CUR</b> · 数据源 Yahoo Finance · 每日 02:00 UTC(10:00 BJT)由 GitHub Actions 刷新</div>
+    <div class="updated">现价上次自动更新: <b>2026-06-10 15:55 BJT | 12/12 | BASE+CUR</b> · 数据源 Yahoo Finance · 每日 02:00 UTC(10:00 BJT)由 GitHub Actions 刷新</div>
   </header>
 
   <div class="howto">
@@ -111,9 +120,28 @@ input.px.locked{background:rgba(157,139,255,.06);border-color:rgba(157,139,255,.
     </div>
   </div>
 
+  <div class="sigpanel">
+    <div class="sp-card">
+      <div class="sp-lbl">🔒 锁定期解禁倒计时</div>
+      <div class="sp-big" id="lockDays">—</div>
+      <div class="sp-bar"><div class="sp-fill" id="lockFill"></div></div>
+      <div class="sp-sub" id="lockSub">180 天内部人锁定 · 2026-12-09</div>
+    </div>
+    <div class="sp-card">
+      <div class="sp-lbl">📊 板块离散度(σ)</div>
+      <div class="sp-big" id="dispVal">—</div>
+      <div class="sp-sub" id="dispSub">普跌(情绪)还是分化(基本面)?</div>
+    </div>
+    <div class="sp-card">
+      <div class="sp-lbl">🔊 板块放量度(中位 RVOL)</div>
+      <div class="sp-big" id="rvolVal">—</div>
+      <div class="sp-sub" id="rvolSub">当日量 vs 近 1 月均量</div>
+    </div>
+  </div>
+
   <div class="tbl">
     <div class="trow hd">
-      <div>标的</div><div style="text-align:right">基准价 ($)</div><div style="text-align:right">上市后价 ($)</div><div style="text-align:right">涨跌</div><div style="text-align:center">判定</div>
+      <div>标的</div><div style="text-align:right">基准价 ($)</div><div style="text-align:right">上市后价 ($)</div><div style="text-align:right">涨跌 · 量</div><div style="text-align:center">判定</div>
     </div>
     <div class="section-div">▸ 震中</div>
     <div class="trow" data-row data-role="epi">
@@ -124,19 +152,19 @@ input.px.locked{background:rgba(157,139,255,.06);border-color:rgba(157,139,255,.
       <div class="verdict v-empty">—</div>
     </div>
     <div class="section-div">▸ 第一圈 · 直接对标</div>
-    <div class="trow" data-row data-role="comp"><div class="nm">RKLB <span class="tier-tag tt-comp">对标</span><small>Rocket Lab</small></div><div><input class="px base auto" type="number" data-ticker="RKLB" placeholder="基准" value="113.65"></div><div><input class="px cur auto" type="number" data-ticker="RKLB" placeholder="现价" value="113.65"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
-    <div class="trow" data-row data-role="comp"><div class="nm">ASTS <span class="tier-tag tt-comp">对标</span><small>AST SpaceMobile</small></div><div><input class="px base auto" type="number" data-ticker="ASTS" placeholder="基准" value="92.06"></div><div><input class="px cur auto" type="number" data-ticker="ASTS" placeholder="现价" value="92.06"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
-    <div class="trow" data-row data-role="comp"><div class="nm">SIDU <span class="tier-tag tt-comp">对标</span><small>Sidus Space</small></div><div><input class="px base auto" type="number" data-ticker="SIDU" placeholder="基准" value="4.06"></div><div><input class="px cur auto" type="number" data-ticker="SIDU" placeholder="现价" value="4.06"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
-    <div class="trow" data-row data-role="comp"><div class="nm">BKSY <span class="tier-tag tt-comp">对标</span><small>BlackSky</small></div><div><input class="px base auto" type="number" data-ticker="BKSY" placeholder="基准" value="34.28"></div><div><input class="px cur auto" type="number" data-ticker="BKSY" placeholder="现价" value="34.28"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
-    <div class="trow" data-row data-role="comp"><div class="nm">LUNR <span class="tier-tag tt-comp">对标</span><small>Intuitive Machines</small></div><div><input class="px base auto" type="number" data-ticker="LUNR" placeholder="基准" value="29.73"></div><div><input class="px cur auto" type="number" data-ticker="LUNR" placeholder="现价" value="29.73"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
-    <div class="trow" data-row data-role="comp"><div class="nm">RDW <span class="tier-tag tt-comp">对标</span><small>Redwire</small></div><div><input class="px base auto" type="number" data-ticker="RDW" placeholder="基准" value="18.57"></div><div><input class="px cur auto" type="number" data-ticker="RDW" placeholder="现价" value="18.57"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
+    <div class="trow" data-row data-role="comp"><div class="nm">RKLB <span class="tier-tag tt-comp">对标</span><small>Rocket Lab</small></div><div><input class="px base auto" type="number" data-ticker="RKLB" placeholder="基准" value="108.23"></div><div><input class="px cur auto" type="number" data-ticker="RKLB" placeholder="现价" value="108.23" data-rvol="0.83"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
+    <div class="trow" data-row data-role="comp"><div class="nm">ASTS <span class="tier-tag tt-comp">对标</span><small>AST SpaceMobile</small></div><div><input class="px base auto" type="number" data-ticker="ASTS" placeholder="基准" value="88.71"></div><div><input class="px cur auto" type="number" data-ticker="ASTS" placeholder="现价" value="88.71" data-rvol="0.99"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
+    <div class="trow" data-row data-role="comp"><div class="nm">SIDU <span class="tier-tag tt-comp">对标</span><small>Sidus Space</small></div><div><input class="px base auto" type="number" data-ticker="SIDU" placeholder="基准" value="3.77"></div><div><input class="px cur auto" type="number" data-ticker="SIDU" placeholder="现价" value="3.77" data-rvol="0.72"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
+    <div class="trow" data-row data-role="comp"><div class="nm">BKSY <span class="tier-tag tt-comp">对标</span><small>BlackSky</small></div><div><input class="px base auto" type="number" data-ticker="BKSY" placeholder="基准" value="31.65"></div><div><input class="px cur auto" type="number" data-ticker="BKSY" placeholder="现价" value="31.65" data-rvol="1.09"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
+    <div class="trow" data-row data-role="comp"><div class="nm">LUNR <span class="tier-tag tt-comp">对标</span><small>Intuitive Machines</small></div><div><input class="px base auto" type="number" data-ticker="LUNR" placeholder="基准" value="27.47"></div><div><input class="px cur auto" type="number" data-ticker="LUNR" placeholder="现价" value="27.47" data-rvol="0.76"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
+    <div class="trow" data-row data-role="comp"><div class="nm">RDW <span class="tier-tag tt-comp">对标</span><small>Redwire</small></div><div><input class="px base auto" type="number" data-ticker="RDW" placeholder="基准" value="15.75"></div><div><input class="px cur auto" type="number" data-ticker="RDW" placeholder="现价" value="15.75" data-rvol="1.14"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
     <div class="section-div">▸ 第二圈 · 代理标的</div>
-    <div class="trow" data-row data-role="comp"><div class="nm">SATS <span class="tier-tag tt-proxy">代理</span><small>EchoStar</small></div><div><input class="px base auto" type="number" data-ticker="SATS" placeholder="基准" value="116.62"></div><div><input class="px cur auto" type="number" data-ticker="SATS" placeholder="现价" value="116.62"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
-    <div class="trow" data-row data-role="comp"><div class="nm">VSAT <span class="tier-tag tt-proxy">代理</span><small>Viasat</small></div><div><input class="px base auto" type="number" data-ticker="VSAT" placeholder="基准" value="65.48"></div><div><input class="px cur auto" type="number" data-ticker="VSAT" placeholder="现价" value="65.48"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
+    <div class="trow" data-row data-role="comp"><div class="nm">SATS <span class="tier-tag tt-proxy">代理</span><small>EchoStar</small></div><div><input class="px base auto" type="number" data-ticker="SATS" placeholder="基准" value="116.77"></div><div><input class="px cur auto" type="number" data-ticker="SATS" placeholder="现价" value="116.77" data-rvol="0.99"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
+    <div class="trow" data-row data-role="comp"><div class="nm">VSAT <span class="tier-tag tt-proxy">代理</span><small>Viasat</small></div><div><input class="px base auto" type="number" data-ticker="VSAT" placeholder="基准" value="63.94"></div><div><input class="px cur auto" type="number" data-ticker="VSAT" placeholder="现价" value="63.94" data-rvol="1.0"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
     <div class="section-div">▸ 第三圈 · AI 算力链(你的持仓)</div>
-    <div class="trow" data-row data-role="comp"><div class="nm">NBIS <span class="tier-tag tt-ai">AI</span><small>Nebius</small></div><div><input class="px base auto" type="number" data-ticker="NBIS" placeholder="基准" value="218.0"></div><div><input class="px cur auto" type="number" data-ticker="NBIS" placeholder="现价" value="218.0"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
-    <div class="trow" data-row data-role="comp"><div class="nm">CRWV <span class="tier-tag tt-ai">AI</span><small>CoreWeave</small></div><div><input class="px base auto" type="number" data-ticker="CRWV" placeholder="基准" value="102.37"></div><div><input class="px cur auto" type="number" data-ticker="CRWV" placeholder="现价" value="102.37"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
-    <div class="trow" data-row data-role="comp"><div class="nm">IREN <span class="tier-tag tt-ai">AI</span><small>IREN Ltd</small></div><div><input class="px base auto" type="number" data-ticker="IREN" placeholder="基准" value="59.19"></div><div><input class="px cur auto" type="number" data-ticker="IREN" placeholder="现价" value="59.19"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
+    <div class="trow" data-row data-role="comp"><div class="nm">NBIS <span class="tier-tag tt-ai">AI</span><small>Nebius</small></div><div><input class="px base auto" type="number" data-ticker="NBIS" placeholder="基准" value="220.12"></div><div><input class="px cur auto" type="number" data-ticker="NBIS" placeholder="现价" value="220.12" data-rvol="1.18"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
+    <div class="trow" data-row data-role="comp"><div class="nm">CRWV <span class="tier-tag tt-ai">AI</span><small>CoreWeave</small></div><div><input class="px base auto" type="number" data-ticker="CRWV" placeholder="基准" value="98.45"></div><div><input class="px cur auto" type="number" data-ticker="CRWV" placeholder="现价" value="98.45" data-rvol="0.85"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
+    <div class="trow" data-row data-role="comp"><div class="nm">IREN <span class="tier-tag tt-ai">AI</span><small>IREN Ltd</small></div><div><input class="px base auto" type="number" data-ticker="IREN" placeholder="基准" value="54.02"></div><div><input class="px cur auto" type="number" data-ticker="IREN" placeholder="现价" value="54.02" data-rvol="1.02"></div><div class="pct">—</div><div class="verdict v-empty">—</div></div>
   </div>
 
   <div class="signals">
@@ -154,23 +182,34 @@ input.px.locked{background:rgba(157,139,255,.06);border-color:rgba(157,139,255,.
 </div>
 
 <script>
+function fmtRvol(rv){
+  if(!rv||rv<=0||isNaN(rv)) return '';
+  const cls = rv>=1.5?'rv-hi':(rv<0.8?'rv-lo':'rv-mid');
+  return '<span class="rv '+cls+'">量 '+rv.toFixed(1)+'x</span>';
+}
+function median(a){if(!a.length)return null;const s=[...a].sort((x,y)=>x-y);const m=Math.floor(s.length/2);return s.length%2?s[m]:(s[m-1]+s[m])/2;}
+function stdev(a){if(a.length<2)return 0;const m=a.reduce((x,y)=>x+y,0)/a.length;return Math.sqrt(a.reduce((s,x)=>s+(x-m)*(x-m),0)/a.length);}
+
 function recompute(){
   const rows=[...document.querySelectorAll('[data-row]')];
   let comps=0,reflux=0,defy=0;
+  const compPcts=[], compRvols=[];
   rows.forEach(r=>{
     const base=parseFloat(r.querySelector('.base').value);
-    const cur=parseFloat(r.querySelector('.cur').value);
+    const curEl=r.querySelector('.cur');
+    const cur=parseFloat(curEl.value);
+    const rv=parseFloat(curEl.dataset.rvol);
     const pctEl=r.querySelector('.pct');
     const vEl=r.querySelector('.verdict');
     const role=r.dataset.role;
     if(!base||!cur||base<=0){
-      pctEl.textContent='—';pctEl.className='pct';
+      pctEl.innerHTML='—';pctEl.className='pct';
       vEl.textContent='—';vEl.className='verdict v-empty';
       if(role==='epi'){document.getElementById('spcxPct').textContent='—';document.getElementById('spcxVd').textContent='填入上市后价';}
       return;
     }
     const p=(cur-base)/base*100;
-    pctEl.textContent=(p>=0?'+':'')+p.toFixed(1)+'%';
+    pctEl.innerHTML='<span>'+(p>=0?'+':'')+p.toFixed(1)+'%</span>'+fmtRvol(rv);
     pctEl.className='pct '+(p>0.5?'up':(p<-0.5?'down':'flat'));
     if(role==='epi'){
       const el=document.getElementById('spcxPct');
@@ -181,16 +220,62 @@ function recompute(){
       vEl.className='verdict '+(p<0?'v-reflux':'v-defy');
       return;
     }
-    comps++;
+    comps++; compPcts.push(p); if(rv>0&&!isNaN(rv)) compRvols.push(rv);
     if(p<-2){vEl.textContent='🔴 回流(应验)';vEl.className='verdict v-reflux';reflux++;}
     else if(p<=2){vEl.textContent='🟡 抗跌';vEl.className='verdict v-hold';}
     else{vEl.textContent='🟢 反预期';vEl.className='verdict v-defy';defy++;}
   });
   document.getElementById('refluxCount').innerHTML=reflux+'<span style="font-size:16px;color:var(--faint)">/'+(comps||'—')+'</span>';
   document.getElementById('defyCount').innerHTML=defy+'<span style="font-size:16px;color:var(--faint)">/'+(comps||'—')+'</span>';
+  updateSignals(compPcts, compRvols);
 }
+
+function updateSignals(pcts, rvols){
+  const dEl=document.getElementById('dispVal'), dSub=document.getElementById('dispSub');
+  const spread = stdev(pcts);
+  const maxAbs = pcts.length?Math.max(...pcts.map(Math.abs)):0;
+  if(pcts.length<2 || maxAbs<0.1){
+    dEl.textContent='—'; dEl.style.color='var(--faint)'; dSub.textContent='待 6/12 上市后数据';
+  } else {
+    dEl.textContent='σ '+spread.toFixed(1)+'%';
+    if(spread<2){dEl.style.color='var(--red)';dSub.textContent='高度同步 · 普跌/普涨(情绪 / 流动性驱动)';}
+    else if(spread<=5){dEl.style.color='var(--amber)';dSub.textContent='中等分化 · 板块内部开始分胜负';}
+    else{dEl.style.color='var(--green)';dSub.textContent='明显分化 · 资金在挑赢家(真正的机会)';}
+  }
+  const rEl=document.getElementById('rvolVal'), rSub=document.getElementById('rvolSub');
+  const med=median(rvols);
+  if(med==null){rEl.textContent='—';rEl.style.color='var(--faint)';rSub.textContent='等待量能数据';}
+  else{
+    rEl.textContent=med.toFixed(1)+'x';
+    if(med>=1.5){rEl.style.color='var(--amber)';rSub.textContent='板块放量 · 有真实资金博弈(回流可信)';}
+    else if(med>=0.8){rEl.style.color='var(--cyan)';rSub.textContent='量能正常 vs 近 1 月均量';}
+    else{rEl.style.color='var(--faint)';rSub.textContent='缩量 · 无差别观望,信号弱';}
+  }
+}
+
+function updateLockup(){
+  const ipo=new Date('2026-06-12T00:00:00'), lock=new Date('2026-12-09T00:00:00'), now=new Date();
+  const day=86400000, total=Math.round((lock-ipo)/day), remain=Math.ceil((lock-now)/day);
+  const bEl=document.getElementById('lockDays'), fEl=document.getElementById('lockFill'), sEl=document.getElementById('lockSub');
+  if(now<ipo){
+    const toIpo=Math.ceil((ipo-now)/day);
+    bEl.textContent=remain+'天'; bEl.style.color='var(--violet)'; fEl.style.width='0%';
+    sEl.textContent='距 6/12 上市还有 '+toIpo+' 天 · 解禁日 12/9';
+  } else if(now<lock){
+    const elapsed=total-remain;
+    bEl.textContent=remain+'天';
+    bEl.style.color = remain<=30?'var(--red)':(remain<=60?'var(--amber)':'var(--cyan)');
+    fEl.style.width=Math.min(100,Math.max(0,elapsed/total*100)).toFixed(0)+'%';
+    sEl.textContent='距 2026-12-09 解禁 · 已过 '+elapsed+'/'+total+' 天';
+  } else {
+    bEl.textContent='已解禁'; bEl.style.color='var(--red)'; fEl.style.width='100%';
+    sEl.textContent='180 天锁定期已结束 · 紧盯内部人 Form 4 减持';
+  }
+}
+
 document.querySelectorAll('input.px').forEach(i=>i.addEventListener('input',recompute));
 recompute();
+updateLockup();
 </script>
 </body>
 </html>
