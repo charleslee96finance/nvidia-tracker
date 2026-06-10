@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>太阳系 3D 实时模拟 · Solar System 3D</title>
+<style>
+  html, body { margin: 0; padding: 0; overflow: hidden; background: #04040f;
+               font-family: "PingFang SC", "Microsoft YaHei", Arial, Helvetica, sans-serif;
+               height: 100%; -webkit-tap-highlight-color: transparent; }
+  canvas { display: block; cursor: grab; touch-action: none; }
+  .panel { position: fixed; color: #e8eaf6; background: rgba(10, 12, 32, 0.72);
+           border: 1px solid rgba(140, 150, 220, 0.35); border-radius: 12px;
+           padding: 12px 16px; backdrop-filter: blur(6px);
+           -webkit-backdrop-filter: blur(6px); z-index: 10; }
+  #hud { top: 14px; left: 14px; max-width: 290px; }
+  #hud h1 { margin: 0 0 4px; font-size: 19px; }
+  #hud p { margin: 0; font-size: 12px; color: #9aa0c0; line-height: 1.55; }
+  #datePanel { top: 14px; left: 50%; transform: translateX(-50%);
+               font-size: 13px; padding: 9px 16px; white-space: nowrap; }
+  #datePanel b { color: #ffd97a; font-size: 15px; margin: 0 4px; }
+  #dateElapsed { color: #9aa0c0; font-size: 12px; }
+  #controls { top: 14px; right: 14px; display: flex; align-items: center;
+              gap: 10px; font-size: 13px; flex-wrap: wrap; max-width: 320px; }
+  #controls button { background: rgba(90, 100, 190, 0.35); color: #e8eaf6;
+                     border: 1px solid rgba(140, 150, 220, 0.5); border-radius: 8px;
+                     padding: 6px 12px; font-size: 13px; cursor: pointer; }
+  #controls button:hover { background: rgba(110, 120, 210, 0.55); }
+  #controls input[type="range"] { width: 100px; vertical-align: middle; }
+  #speedVal { display: inline-block; min-width: 38px; }
+  #info { bottom: 18px; left: 50%; transform: translateX(-50%);
+          max-width: 540px; min-width: 280px; text-align: center;
+          transition: opacity 0.25s; }
+  #info.hidden { opacity: 0; pointer-events: none; }
+  #info h2 { margin: 0 0 6px; font-size: 18px; color: #ffd97a; }
+  #info p { margin: 3px 0; font-size: 13px; line-height: 1.5; }
+  #infoFun { color: #9aa0c0; font-style: italic; }
+  @media (max-width: 760px) {
+    #hud { max-width: 170px; padding: 8px 12px; }
+    #hud h1 { font-size: 15px; }
+    #hud p { display: none; }
+    #datePanel { top: auto; bottom: 14px; left: 14px; transform: none;
+                 font-size: 11px; padding: 7px 10px; }
+    #datePanel b { font-size: 12px; }
+    #controls { top: auto; bottom: 14px; right: 14px; left: auto;
+                max-width: 230px; gap: 7px; padding: 8px 10px; }
+    #controls input[type="range"] { width: 70px; }
+    #info { bottom: 80px; max-width: 92vw; min-width: 0; }
+  }
+</style>
+</head>
+<body>
+<div id="hud" class="panel">
+  <h1 id="hudTitle">太阳系 3D 实时模拟</h1>
+  <p id="hudHints"></p>
+</div>
+<div id="datePanel" class="panel">
+  <span id="dateLabel">模拟日期</span> <b id="dateValue">—</b>
+  <span id="dateElapsed"></span>
+</div>
+<div id="controls" class="panel">
+  <button id="pauseBtn">❚❚ 暂停</button>
+  <label><span id="speedLabel">速度</span>
+    <input type="range" id="speed" min="0" max="10" step="0.1" value="1"></label>
+  <span id="speedVal">1.0×</span>
+  <button id="resetBtn">重置视角</button>
+  <button id="langBtn">EN</button>
+</div>
+<div id="info" class="panel hidden">
+  <h2 id="infoName"></h2>
+  <p id="infoFacts"></p>
+  <p id="infoFun"></p>
+</div>
+<!--TEXTURES-->
+<!--THREE_JS-->
+<!--APP_JS-->
+</body>
+</html>
