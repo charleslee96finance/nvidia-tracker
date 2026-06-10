@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>三人麻将</title>
+<style>
+:root{
+  --felt:#14532d; --felt2:#0c3b1f;
+  --ivory:#faf6ea; --ink:#1f2937;
+  --blue:#1d4ed8; --green:#15803d; --red:#dc2626;
+  --gold:#fbbf24;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;height:100%;overflow:hidden;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:radial-gradient(ellipse at 50% 30%, var(--felt) 0%, var(--felt2) 100%);
+  color:#f0fdf4; touch-action:manipulation;}
+.screen{display:none;height:100%;height:100dvh;flex-direction:column;}
+.screen.active{display:flex;}
+
+/* ===== 首页 ===== */
+#scr-home{align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;}
+#scr-home h1{font-size:42px;margin:0 0 4px;letter-spacing:8px;color:var(--gold);text-shadow:0 2px 8px rgba(0,0,0,.5);}
+#scr-home .sub{opacity:.85;margin-bottom:18px;font-size:14px;line-height:1.7;}
+.bigbtn{display:block;width:min(320px,80vw);padding:16px 0;margin:0;border:none;border-radius:14px;
+  font-size:19px;font-weight:700;cursor:pointer;color:#fff;
+  background:linear-gradient(180deg,#16a34a,#15803d);box-shadow:0 4px 12px rgba(0,0,0,.35);}
+.bigbtn.alt{background:linear-gradient(180deg,#2563eb,#1d4ed8);}
+.bigbtn.gold{background:linear-gradient(180deg,#f59e0b,#d97706);}
+.bigbtn:active{transform:scale(.97);}
+.note{font-size:12px;opacity:.65;max-width:320px;line-height:1.6;}
+
+/* ===== 牌 ===== */
+.tile{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;
+  width:clamp(26px,6.5vw,46px);height:clamp(36px,9vw,62px);
+  background:linear-gradient(180deg,#fffdf5,var(--ivory));color:var(--ink);
+  border-radius:5px;border:1px solid #d6cdb4;box-shadow:0 2px 3px rgba(0,0,0,.35);
+  margin:1px;user-select:none;-webkit-user-select:none;flex:0 0 auto;position:relative;}
+.tile b{font-size:clamp(13px,3.4vw,22px);line-height:1;}
+.tile i{font-style:normal;font-size:clamp(10px,2.6vw,15px);line-height:1.1;}
+.tile.td b,.tile.td i{color:var(--blue);}
+.tile.tt b,.tile.tt i{color:var(--green);}
+.tile.th b{font-size:clamp(15px,4vw,26px);}
+.tile.h4 b{color:var(--red);}      /* 中 */
+.tile.h5 b{color:var(--green);}    /* 发 */
+.tile.h6 b{color:var(--blue);}     /* 白 */
+.tile.h0 b,.tile.h1 b,.tile.h2 b,.tile.h3 b{color:var(--ink);}
+.tile.back{background:linear-gradient(180deg,#2563eb,#1e40af);border-color:#1e3a8a;}
+.tile.small{width:clamp(19px,4.6vw,32px);height:clamp(27px,6.4vw,44px);}
+.tile.small b{font-size:clamp(10px,2.6vw,15px);}
+.tile.small i{font-size:clamp(8px,2vw,11px);}
+.tile.small.th b{font-size:clamp(11px,3vw,18px);}
+.tile.sel{transform:translateY(-9px);box-shadow:0 0 0 2px var(--gold),0 5px 8px rgba(0,0,0,.4);}
+.tile.suggest{box-shadow:0 0 0 2px #38bdf8,0 2px 3px rgba(0,0,0,.35);}
+.tile.lastd{box-shadow:0 0 0 2px var(--gold);animation:pulse 1.2s infinite;}
+.tile.winT{box-shadow:0 0 0 2px var(--red);}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 2px var(--gold);}50%{box-shadow:0 0 6px 3px var(--gold);}}
+
+/* ===== 牌局界面 ===== */
+#scr-game{padding:env(safe-area-inset-top) 6px env(safe-area-inset-bottom);}
+#topbar{display:flex;align-items:center;justify-content:space-between;padding:6px 4px;font-size:13px;}
+#topbar .info{opacity:.9;}
+#topbar button{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;
+  border-radius:8px;padding:5px 12px;font-size:13px;cursor:pointer;}
+#opps{display:flex;gap:6px;padding:2px 0;}
+.opp{flex:1;background:rgba(0,0,0,.22);border-radius:10px;padding:6px;min-width:0;}
+.opp.cur{outline:2px solid var(--gold);}
+.opp .nm{font-size:13px;font-weight:700;display:flex;justify-content:space-between;}
+.opp .nm .sc{color:var(--gold);font-weight:400;}
+.opp .tiles{display:flex;flex-wrap:wrap;margin-top:3px;}
+.opp .tiles .tile{width:13px;height:19px;margin:.5px;border-radius:2px;}
+.opp .melds{display:flex;flex-wrap:wrap;margin-top:2px;}
+#rivers{flex:1;overflow-y:auto;background:rgba(0,0,0,.18);border-radius:10px;padding:6px;margin:4px 0;min-height:60px;}
+.river{margin-bottom:5px;}
+.river .lab{font-size:11px;opacity:.75;margin-bottom:1px;}
+.river .tl{display:flex;flex-wrap:wrap;}
+.river .tile{width:clamp(17px,4.2vw,28px);height:clamp(24px,5.8vw,38px);}
+.river .tile b{font-size:clamp(9px,2.4vw,13px);}
+.river .tile i{font-size:clamp(7px,1.8vw,10px);}
+.river .tile.th b{font-size:clamp(10px,2.8vw,16px);}
+#hintbox{display:none;background:rgba(8,47,73,.92);border:1px solid #38bdf8;border-radius:10px;
+  padding:8px 10px;font-size:13px;line-height:1.55;margin:2px 0;}
+#hintbox.show{display:block;}
+#hintbox .ttl{color:#7dd3fc;font-weight:700;margin-right:4px;}
+#selfzone{padding:4px 0 2px;}
+#selfinfo{display:flex;align-items:center;gap:8px;font-size:13px;padding:0 2px 3px;}
+#selfinfo .nm{font-weight:700;}
+#selfinfo .sc{color:var(--gold);}
+#selfinfo .tag{background:var(--red);border-radius:6px;padding:1px 8px;font-size:12px;font-weight:700;}
+#selfmelds{display:flex;flex-wrap:wrap;min-height:2px;}
+#myhand{display:flex;align-items:flex-end;padding:10px 0 4px;flex-wrap:nowrap;}
+#myhand .drawn{margin-left:clamp(6px,2vw,14px);}
+#actions{display:flex;gap:8px;justify-content:flex-end;align-items:center;padding:6px 2px calc(6px + env(safe-area-inset-bottom));min-height:54px;flex-wrap:wrap;}
+.abtn{border:none;border-radius:10px;padding:11px 20px;font-size:17px;font-weight:700;color:#fff;cursor:pointer;
+  box-shadow:0 3px 8px rgba(0,0,0,.4);}
+.abtn:active{transform:scale(.95);}
+.abtn.hu{background:linear-gradient(180deg,#ef4444,#b91c1c);}
+.abtn.peng{background:linear-gradient(180deg,#f59e0b,#d97706);}
+.abtn.gang{background:linear-gradient(180deg,#8b5cf6,#6d28d9);}
+.abtn.pass{background:linear-gradient(180deg,#6b7280,#4b5563);}
+.abtn.hint{background:linear-gradient(180deg,#0ea5e9,#0369a1);font-size:14px;padding:9px 14px;}
+#turnmsg{font-size:13px;opacity:.85;margin-right:auto;}
+
+/* ===== 遮罩层 ===== */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:50;
+  align-items:center;justify-content:center;flex-direction:column;padding:20px;text-align:center;}
+.overlay.show{display:flex;}
+.overlay .card{background:#1c2a22;border:1px solid rgba(255,255,255,.15);border-radius:16px;
+  padding:22px 18px;max-width:560px;width:100%;max-height:86vh;overflow-y:auto;}
+.overlay h2{margin:0 0 10px;color:var(--gold);}
+.overlay .fanline{display:flex;justify-content:space-between;font-size:14px;padding:3px 8px;background:rgba(255,255,255,.06);border-radius:6px;margin:3px 0;}
+.overlay .scline{font-size:14px;margin:2px 0;}
+.overlay .scline .plus{color:#4ade80;} .overlay .scline .minus{color:#f87171;}
+.revhand{margin:8px 0;text-align:left;}
+.revhand .lab{font-size:12px;opacity:.8;margin-bottom:2px;}
+.revhand .tl{display:flex;flex-wrap:wrap;}
+
+/* ===== 教学 ===== */
+#scr-tut{padding:10px 12px calc(10px + env(safe-area-inset-bottom));overflow-y:auto;}
+#scr-tut header{display:flex;align-items:center;gap:10px;padding:6px 0 12px;}
+#scr-tut header h1{font-size:22px;margin:0;color:var(--gold);}
+.lesson{background:rgba(0,0,0,.25);border-radius:12px;margin-bottom:10px;overflow:hidden;}
+.lesson>button{width:100%;text-align:left;background:none;border:none;color:#fff;font-size:16px;font-weight:700;
+  padding:14px;cursor:pointer;display:flex;justify-content:space-between;}
+.lesson .body{display:none;padding:0 14px 14px;font-size:14px;line-height:1.8;}
+.lesson.open .body{display:block;}
+.lesson .ex{margin:6px 0;display:flex;flex-wrap:wrap;align-items:center;gap:2px;}
+.lesson table{border-collapse:collapse;width:100%;font-size:13px;}
+.lesson td,.lesson th{border:1px solid rgba(255,255,255,.2);padding:5px 8px;text-align:left;}
+.backbtn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:7px 14px;font-size:14px;cursor:pointer;}
+</style>
+</head>
+<body>
+
+<!-- 首页 -->
+<div id="scr-home" class="screen active">
+  <h1>三人麻将</h1>
+  <div class="sub">筒 · 条 · 字牌 共 100 张<br>不能吃牌，可碰 / 杠 / 胡</div>
+  <button class="bigbtn gold" onclick="openTutorial()">📖 教学模式（新手必看）</button>
+  <button class="bigbtn" onclick="startMatch('ai',false)">🤖 人机对战</button>
+  <button class="bigbtn alt" onclick="startMatch('hotseat',false)">👥 真人对战（同屏轮流）</button>
+  <div class="note">真人对战为同一台设备轮流传递操作（面对面玩）。换人时会有遮挡画面，避免偷看手牌。支持手机与电脑浏览器。</div>
+</div>
+
+<!-- 教学 -->
+<div id="scr-tut" class="screen">
+  <header>
+    <button class="backbtn" onclick="showScreen('home')">← 返回</button>
+    <h1>麻将教学</h1>
+  </header>
+  <button class="bigbtn gold" style="margin:0 auto 14px" onclick="startMatch('ai',true)">🎓 开始引导对局（边玩边教）</button>
+  <div id="lessons"></div>
+</div>
+
+<!-- 牌局 -->
+<div id="scr-game" class="screen">
+  <div id="topbar">
+    <span class="info" id="roundinfo"></span>
+    <button onclick="confirmExit()">退出</button>
+  </div>
+  <div id="opps"></div>
+  <div id="rivers"></div>
+  <div id="hintbox"></div>
+  <div id="selfzone">
+    <div id="selfinfo"></div>
+    <div id="selfmelds"></div>
+    <div id="myhand"></div>
+  </div>
+  <div id="actions"></div>
+</div>
+
+<!-- 换人遮罩 -->
+<div id="ov-handoff" class="overlay">
+  <div class="card">
+    <h2 id="ho-title"></h2>
+    <p id="ho-msg" style="font-size:14px;opacity:.85"></p>
+    <button class="bigbtn" style="margin:10px auto 0" id="ho-btn">我已接手，开始</button>
+  </div>
+</div>
+
+<!-- 结果 -->
+<div id="ov-result" class="overlay">
+  <div class="card" id="res-card"></div>
+</div>
+
+<script>
+'use strict';
+/* ================= 引擎：牌与判定 ================= */
+// 0-8: 1-9筒  9-17: 1-9条  18-24: 东南西北中发白
+const HONORS=['东','南','西','北','中','发','白'];
+function tileLabel(k){ if(k<9)return (k+1)+'筒'; if(k<18)return (k-8)+'条'; return HONORS[k-18]; }
+function tileHTML(k,cls){
+  cls=cls||'';
+  if(k<9)  return '<div class="tile td '+cls+'" data-k="'+k+'"><b>'+'一二三四五六七八九'[k]+'</b><i>筒</i></div>';
+  if(k<18) return '<div class="tile tt '+cls+'" data-k="'+k+'"><b>'+'一二三四五六七八九'[k-9]+'</b><i>条</i></div>';
+  return '<div class="tile th h'+(k-18)+' '+cls+'" data-k="'+k+'"><b>'+HONORS[k-18]+'</b></div>';
+}
+function backHTML(cls){ return '<div class="tile back '+(cls||'')+'"></div>'; }
+function countsOf(arr){ const c=new Array(25).fill(0); for(const k of arr)c[k]++; return c; }
+
+// 标准胡牌判定：hand(数组,不含melds) + extra，需要 (4-meldCount) 组面子 + 1 对
+function canWinHand(hand, meldCount, extra){
+  const c=countsOf(hand); if(extra!=null)c[extra]++;
+  if(meldCount===0){ // 七对
+    let pairs=0,ok=true;
+    for(let i=0;i<25;i++){ if(c[i]%2!==0){ok=false;break;} pairs+=c[i]/2; }
+    if(ok&&pairs===7) return true;
+  }
+  for(let i=0;i<25;i++){
+    if(c[i]>=2){
+      c[i]-=2;
+      if(decompSets(c,4-meldCount)){ c[i]+=2; return true; }
+      c[i]+=2;
+    }
+  }
+  return false;
+}
+function decompSets(c,need){
+  let i=0; while(i<25&&c[i]===0)i++;
+  if(i===25) return need===0;
+  if(need===0) return false;
+  if(c[i]>=3){
+    c[i]-=3; if(decompSets(c,need-1)){c[i]+=3;return true;} c[i]+=3;
+  }
+  if(i<18 && (i%9)<=6 && c[i+1]>0 && c[i+2]>0){
+    c[i]--;c[i+1]--;c[i+2]--;
+    if(decompSets(c,need-1)){c[i]++;c[i+1]++;c[i+2]++;return true;}
+    c[i]++;c[i+1]++;c[i+2]++;
+  }
+  return false;
+}
+
+// 向听数（0=听牌，-1=已胡）
+function calcShanten(hand, meldCount){
+  const c=countsOf(hand);
+  const st={min:8};
+  shWalk(c,0,0,0,false,meldCount,st);
+  if(meldCount===0){ // 七对向听
+    let pairs=0,kinds=0;
+    for(let i=0;i<25;i++){ if(c[i]>0)kinds++; if(c[i]>=2)pairs++; }
+    const sp=6-pairs+Math.max(0,7-kinds);
+    if(sp<st.min)st.min=sp;
+  }
+  return st.min;
+}
+function shWalk(c,i,sets,parts,pair,melds,st){
+  while(i<25&&c[i]===0)i++;
+  if(i===25){
+    const maxP=Math.max(0,4-melds-sets);
+    const p=Math.min(parts,maxP);
+    const v=8-2*(sets+melds)-p-(pair?1:0);
+    if(v<st.min)st.min=v;
+    return;
+  }
+  if(8-2*(sets+melds)-parts-1 >= st.min){ /* 无剪枝收益时仍继续 */ }
+  if(sets+melds<4){
+    if(c[i]>=3){ c[i]-=3; shWalk(c,i,sets+1,parts,pair,melds,st); c[i]+=3; }
+    if(i<18&&(i%9)<=6&&c[i+1]>0&&c[i+2]>0){
+      c[i]--;c[i+1]--;c[i+2]--; shWalk(c,i,sets+1,parts,pair,melds,st); c[i]++;c[i+1]++;c[i+2]++;
+    }
+  }
+  if(sets+melds+parts<4){
+    if(c[i]>=2){ c[i]-=2; shWalk(c,i,sets,parts+1,pair,melds,st); c[i]+=2; }
+    if(i<18&&(i%9)<=7&&c[i+1]>0){ c[i]--;c[i+1]--; shWalk(c,i,sets,parts+1,pair,melds,st); c[i]++;c[i+1]++; }
+    if(i<18&&(i%9)<=6&&c[i+2]>0){ c[i]--;c[i+2]--; shWalk(c,i,sets,parts+1,pair,melds,st); c[i]++;c[i+2]++; }
+  }
+  if(!pair&&c[i]>=2){ c[i]-=2; shWalk(c,i,sets,parts,true,melds,st); c[i]+=2; }
+  const keep=c[i]; c[i]=0; shWalk(c,i+1,sets,parts,pair,melds,st); c[i]=keep;
+}
+
+// 听哪些牌
+function winningTiles(hand, meldCount, usedCounts){
+  const out=[];
+  for(let k=0;k<25;k++){
+    if(usedCounts&&usedCounts[k]>=4) continue;
+    if(canWinHand(hand,meldCount,k)) out.push(k);
+  }
+  return out;
+}
+
+/* ================= 引擎：番种与算分 ================= */
+function calcFans(pl, winTile, selfDraw){
+  const fans=[['底番',1]];
+  const c=countsOf(pl.hand); c[winTile]++;
+  const meldN=pl.melds.length;
+  let seven=false;
+  if(meldN===0){
+    let pairs=0,ok=true;
+    for(let i=0;i<25;i++){ if(c[i]%2!==0){ok=false;break;} pairs+=c[i]/2; }
+    seven=ok&&pairs===7;
+  }
+  if(seven) fans.push(['七对',3]);
+  if(selfDraw) fans.push(['自摸',1]);
+  if(meldN===0&&!seven) fans.push(['门前清',1]);
+  // 碰碰胡：暗牌部分全是刻子+一对
+  if(!seven){
+    let pairCnt=0,ok=true;
+    for(let i=0;i<25;i++){
+      if(c[i]===0)continue;
+      if(c[i]===2)pairCnt++;
+      else if(c[i]!==3){ok=false;break;}
+    }
+    if(ok&&pairCnt===1) fans.push(['碰碰胡',2]);
+  }
+  // 花色
+  const suits=new Set(); let hasHonor=false;
+  const allKinds=[];
+  for(let i=0;i<25;i++) if(c[i]>0)allKinds.push(i);
+  for(const m of pl.melds)allKinds.push(m.kind);
+  for(const k of allKinds){ if(k>=18)hasHonor=true; else suits.add(k<9?0:1); }
+  if(suits.size===0&&hasHonor) fans.push(['字一色',5]);
+  else if(suits.size===1&&!hasHonor) fans.push(['清一色',3]);
+  else if(suits.size===1&&hasHonor) fans.push(['混一色',2]);
+  // 役牌：中发白刻子
+  for(let d=22;d<=24;d++){
+    let n=c[d];
+    for(const m of pl.melds) if(m.kind===d) n+=(m.type==='peng'?3:4);
+    if(n>=3) fans.push(['役牌·'+HONORS[d-18],1]);
+  }
+  // 杠
+  const gangN=pl.melds.filter(m=>m.type!=='peng').length;
+  if(gangN>0) fans.push(['杠 ×'+gangN,gangN]);
+  const total=fans.reduce((s,f)=>s+f[1],0);
+  return {fans,total};
+}
+
+/* ================= 引擎：AI ================= */
+function aiChooseDiscard(p){
+  const pl=G.players[p];
+  const tiles=pl.hand.slice(); if(pl.drawn!=null)tiles.push(pl.drawn);
+  const uniq=[...new Set(tiles)];
+  let best=[],bestSt=99;
+  for(const k of uniq){
+    const rest=tiles.slice(); rest.splice(rest.indexOf(k),1);
+    const st=calcShanten(rest,pl.melds.length);
+    if(st<bestSt){bestSt=st;best=[k];}
+    else if(st===bestSt)best.push(k);
+  }
+  // 同向听时打"最孤立"的牌
+  const c=countsOf(tiles);
+  let pick=best[0],low=1e9;
+  for(const k of best){
+    const v=isoValue(k,c);
+    if(v<low){low=v;pick=k;}
+  }
+  return pick;
+}
+function isoValue(k,c){
+  let v=c[k]*30;
+  if(k<18){
+    const n=k%9;
+    if(n>0&&Math.floor((k-1)/9)===Math.floor(k/9)&&c[k-1]>0)v+=14;
+    if(n>1&&c[k-2]>0)v+=7;
+    if(n<8&&c[k+1]>0)v+=14;
+    if(n<7&&c[k+2]>0)v+=7;
+    v+=4-Math.abs(n-4); // 中间牌稍微保留
+  }else{
+    if(k>=22)v+=3; // 三元牌略保留
+  }
+  return v;
+}
+function aiWantsPeng(q,k){
+  const pl=G.players[q];
+  const cur=calcShanten(pl.hand,pl.melds.length);
+  const rest=pl.hand.slice();
+  rest.splice(rest.indexOf(k),1); rest.splice(rest.indexOf(k),1);
+  // 碰后需打一张：找碰后最优向听
+  let best=99;
+  const uniq=[...new Set(rest)];
+  for(const t of uniq){
+    const r2=rest.slice(); r2.splice(r2.indexOf(t),1);
+    const st=calcShanten(r2,pl.melds.length+1);
+    if(st<best)best=st;
+  }
+  if(best<cur)return true;
+  if(best===cur&&k>=22)return true; // 三元牌碰了有番
+  return false;
+}
+function aiWantsGang(q,k){
+  const pl=G.players[q];
+  const cur=calcShanten(pl.hand,pl.melds.length);
+  const rest=pl.hand.filter(x=>x!==k).concat(pl.hand.filter(x=>x===k).slice(3)); // 移走3张
+  const st=calcShanten(rest,pl.melds.length+1);
+  return st<=cur;
+}
+
+/* ================= 对局状态与流程 ================= */
+let G=null;
+const $=id=>document.getElementById(id);
+function showScreen(n){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $('scr-'+n).classList.add('active');
+}
+function newPlayer(name,isAI){return{name,isAI,hand:[],melds:[],discards:[],score:1000,drawn:null};}
+
+function startMatch(mode,coach){
+  G={mode,coach:!!coach,players:[],dealer:0,round:1,wall:[],turn:0,phase:'',
+     lastDiscard:null,viewing:0,pendingClaim:null,selfOpts:null,hint:''};
+  if(mode==='ai'){
+    G.players=[newPlayer('你',false),newPlayer('电脑·小南',true),newPlayer('电脑·小西',true)];
+  }else{
+    G.players=[newPlayer('玩家1',false),newPlayer('玩家2',false),newPlayer('玩家3',false)];
+  }
+  showScreen('game');
+  startRound();
+}
+function startRound(){
+  G.wall=[];
+  for(let k=0;k<25;k++)for(let i=0;i<4;i++)G.wall.push(k);
+  for(let i=G.wall.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[G.wall[i],G.wall[j]]=[G.wall[j],G.wall[i]];}
+  for(const pl of G.players){pl.hand=[];pl.melds=[];pl.discards=[];pl.drawn=null;}
+  for(let i=0;i<13;i++)for(const pl of G.players)pl.hand.push(G.wall.pop());
+  for(const pl of G.players)pl.hand.sort((a,b)=>a-b);
+  G.lastDiscard=null;G.pendingClaim=null;G.hint='';
+  G.viewing=G.mode==='ai'?0:G.dealer;
+  $('ov-result').classList.remove('show');
+  beginTurn(G.dealer);
+}
+function beginTurn(p){
+  if(!G||G.phase==='over')return;
+  G.turn=p;G.phase='draw';G.hint='';
+  const pl=G.players[p];
+  if(pl.isAI){ renderGame(); setTimeout(()=>proceedDraw(p),750); }
+  else if(G.mode==='hotseat'){
+    renderGame();
+    showHandoff(p,'轮到你摸牌了',()=>{G.viewing=p;proceedDraw(p);});
+  }
+  else proceedDraw(p);
+}
+function proceedDraw(p){
+  if(!G.wall.length){ endRoundDraw(); return; }
+  const pl=G.players[p];
+  pl.drawn=G.wall.pop();
+  afterDrawFlow(p);
+}
+function afterDrawFlow(p){
+  const pl=G.players[p];
+  if(pl.isAI){ renderGame(); setTimeout(()=>aiAfterDraw(p),750); return; }
+  computeSelfOpts(p);
+  G.phase='discard';
+  renderGame();
+  if(G.coach)coachTurnHint(p);
+}
+function computeSelfOpts(p){
+  const pl=G.players[p];
+  const tiles=pl.hand.slice(); if(pl.drawn!=null)tiles.push(pl.drawn);
+  const c=countsOf(tiles);
+  const angangs=[]; for(let k=0;k<25;k++)if(c[k]===4)angangs.push(k);
+  const jiagangs=[];
+  for(const m of pl.melds)if(m.type==='peng'&&c[m.kind]>=1)jiagangs.push(m.kind);
+  const hu=pl.drawn!=null&&canWinHand(pl.hand,pl.melds.length,pl.drawn);
+  G.selfOpts={hu,angangs,jiagangs};
+}
+function aiAfterDraw(p){
+  if(!G||G.phase==='over')return;
+  const pl=G.players[p];
+  if(canWinHand(pl.hand,pl.melds.length,pl.drawn)){ endRoundWin(p,null,pl.drawn,true); return; }
+  // 暗杠
+  const tiles=pl.hand.slice(); tiles.push(pl.drawn);
+  const c=countsOf(tiles);
+  for(let k=0;k<25;k++){
+    if(c[k]===4){
+      const rest=tiles.filter(x=>x!==k);
+      if(calcShanten(rest,pl.melds.length+1)<=calcShanten(tiles.slice(0,13),pl.melds.length)){
+        execAnkan(p,k); return;
+      }
+    }
+  }
+  // 加杠
+  for(const m of pl.melds){
+    if(m.type==='peng'&&c[m.kind]>=1){ execJiagang(p,m.kind); return; }
+  }
+  doDiscard(p,aiChooseDiscard(p));
+}
+function removeTiles(pl,k,n){
+  for(let i=0;i<n;i++){
+    if(pl.drawn===k){pl.drawn=null;continue;}
+    const idx=pl.hand.indexOf(k);
+    if(idx>=0)pl.hand.splice(idx,1);
+  }
+}
+function mergeDrawn(pl){
+  if(pl.drawn!=null){pl.hand.push(pl.drawn);pl.drawn=null;pl.hand.sort((a,b)=>a-b);}
+}
+function doDiscard(p,k){
+  if(!G||G.phase==='over')return;
+  const pl=G.players[p];
+  if(pl.drawn===k)pl.drawn=null;
+  else{
+    const idx=pl.hand.indexOf(k);
+    if(idx<0)return;
+    pl.hand.splice(idx,1);
+  }
+  mergeDrawn(pl);
+  pl.discards.push(k);
+  G.lastDiscard={k,p};
+  G.phase='claim';G.selfOpts=null;G.hint='';
+  renderGame();
+  resolveClaims(p,k);
+}
+function resolveClaims(p,k){
+  const queue=[];
+  for(const off of [1,2]){
+    const q=(p+off)%3, pl=G.players[q];
+    const cnt=pl.hand.filter(x=>x===k).length;
+    const hu=canWinHand(pl.hand,pl.melds.length,k);
+    const peng=cnt>=2, gang=cnt>=3&&G.wall.length>0;
+    if(hu||peng||gang)queue.push({q,hu,peng,gang});
+  }
+  queue.sort((a,b)=>(b.hu?1:0)-(a.hu?1:0));
+  processQueue(queue,0,p,k);
+}
+function processQueue(queue,i,p,k){
+  if(!G||G.phase==='over')return;
+  if(i>=queue.length){ setTimeout(()=>beginTurn((p+1)%3),G.players[p].isAI?250:450); return; }
+  const c=queue[i], pl=G.players[c.q];
+  if(pl.isAI){
+    setTimeout(()=>{
+      if(!G||G.phase==='over')return;
+      if(c.hu){ endRoundWin(c.q,p,k,false); return; }
+      if(c.gang&&aiWantsGang(c.q,k)){ execMingGang(c.q,p,k); return; }
+      if(c.peng&&aiWantsPeng(c.q,k)){ execPeng(c.q,p,k); return; }
+      processQueue(queue,i+1,p,k);
+    },650);
+    return;
+  }
+  const show=()=>{
+    if(G.mode==='hotseat')G.viewing=c.q;
+    G.pendingClaim={q:c.q,k,p,queue,i,hu:c.hu,peng:c.peng,gang:c.gang};
+    G.phase='claimwait';
+    renderGame();
+    if(G.coach)coachClaimHint(c.q,k,c);
+  };
+  if(G.mode==='hotseat')showHandoff(c.q,'有人打出了「'+tileLabel(k)+'」，你可以选择操作',show);
+  else show();
+}
+function claimAction(act){
+  const pc=G.pendingClaim; if(!pc)return;
+  G.pendingClaim=null;
+  if(act==='hu'){ endRoundWin(pc.q,pc.p,pc.k,false); return; }
+  if(act==='gang'){ execMingGang(pc.q,pc.p,pc.k); return; }
+  if(act==='peng'){ execPeng(pc.q,pc.p,pc.k); return; }
+  processQueue(pc.queue,pc.i+1,pc.p,pc.k);
+}
+function execPeng(q,p,k){
+  const pl=G.players[q];
+  removeTiles(pl,k,2);
+  pl.melds.push({type:'peng',kind:k,from:p});
+  G.players[p].discards.pop();
+  G.lastDiscard=null;
+  G.turn=q;G.phase='discard';pl.drawn=null;
+  if(pl.isAI){ renderGame(); setTimeout(()=>doDiscard(q,aiChooseDiscard(q)),750); }
+  else{
+    computeSelfOpts(q);G.selfOpts.hu=false;
+    renderGame();
+    if(G.coach){ G.hint='你碰出了「'+tileLabel(k)+'」刻子！碰之后不用摸牌，直接打出一张牌。'; renderGame(); }
+  }
+}
+function execMingGang(q,p,k){
+  const pl=G.players[q];
+  removeTiles(pl,k,3);
+  pl.melds.push({type:'gang',kind:k,from:p});
+  G.players[p].discards.pop();
+  G.lastDiscard=null;
+  G.turn=q;
+  if(G.coach&&!pl.isAI){G.hint='明杠成功！杠之后要从牌墙再补摸一张牌。';}
+  proceedDraw(q);
+}
+function execAnkan(p,k){
+  const pl=G.players[p];
+  mergeDrawn(pl);
+  removeTiles(pl,k,4);
+  pl.melds.push({type:'angang',kind:k,from:p});
+  if(G.coach&&!pl.isAI){G.hint='暗杠成功！四张相同的牌组成暗杠，别人看不到内容，且额外有番。杠后补摸一张。';}
+  proceedDraw(p);
+}
+function execJiagang(p,k){
+  const pl=G.players[p];
+  removeTiles(pl,k,1);
+  mergeDrawn(pl);
+  const m=pl.melds.find(m=>m.type==='peng'&&m.kind===k);
+  if(m)m.type='gang';
+  if(G.coach&&!pl.isAI){G.hint='加杠成功！把碰过的刻子升级成杠，杠后补摸一张。';}
+  proceedDraw(p);
+}
+function nextDealerAndShow(){ /* 由结算调用 */ }
+
+/* ================= 结算 ================= */
+function endRoundWin(w,fromP,winTile,selfDraw){
+  G.phase='over';
+  const pl=G.players[w];
+  const {fans,total}=calcFans(pl,winTile,selfDraw);
+  const F=total*10;
+  const deltas=[0,0,0];
+  if(selfDraw){
+    for(let i=0;i<3;i++)if(i!==w){deltas[i]=-F;deltas[w]+=F;}
+  }else{
+    deltas[fromP]=-2*F;deltas[w]=2*F;
+  }
+  for(let i=0;i<3;i++)G.players[i].score+=deltas[i];
+  let html='<h2>🎉 '+esc(pl.name)+' 胡牌！</h2>';
+  html+='<p style="font-size:14px;margin:4px 0">'+(selfDraw?'自摸':'点炮：'+esc(G.players[fromP].name))+' · 胡「'+tileLabel(winTile)+'」</p>';
+  for(const f of fans)html+='<div class="fanline"><span>'+esc(f[0])+'</span><span>'+f[1]+' 番</span></div>';
+  html+='<div class="fanline" style="background:rgba(251,191,36,.18)"><b>合计</b><b>'+total+' 番 = '+F+' 分</b></div>';
+  html+=scoreLines(deltas);
+  html+=revealAll(w,winTile,selfDraw);
+  html+='<button class="bigbtn" style="margin:14px auto 6px" onclick="nextRound('+w+')">下一局</button>';
+  html+='<button class="backbtn" onclick="exitToHome()">返回主页</button>';
+  $('res-card').innerHTML=html;
+  $('ov-result').classList.add('show');
+}
+function endRoundDraw(){
+  G.phase='over';
+  let html='<h2>🌊 流局</h2><p style="font-size:14px">牌墙摸完，无人胡牌。本局平局，分数不变。</p>';
+  html+=revealAll(-1,null,false);
+  html+='<button class="bigbtn" style="margin:14px auto 6px" onclick="nextRound(-1)">下一局</button>';
+  html+='<button class="backbtn" onclick="exitToHome()">返回主页</button>';
+  $('res-card').innerHTML=html;
+  $('ov-result').classList.add('show');
+}
+function scoreLines(deltas){
+  let s='<div style="margin:10px 0 4px;text-align:left">';
+  for(let i=0;i<3;i++){
+    const d=deltas[i];
+    s+='<div class="scline">'+esc(G.players[i].name)+'：'+G.players[i].score+' 分 '
+      +(d>0?'<span class="plus">(+'+d+')</span>':d<0?'<span class="minus">('+d+')</span>':'')+'</div>';
+  }
+  return s+'</div>';
+}
+function revealAll(w,winTile,selfDraw){
+  let s='<div style="margin-top:8px">';
+  for(let i=0;i<3;i++){
+    const pl=G.players[i];
+    s+='<div class="revhand"><div class="lab">'+esc(pl.name)+(i===w?'（胡）':'')+'</div><div class="tl">';
+    for(const m of pl.melds)s+=meldHTML(m,true);
+    const h=pl.hand.slice(); if(pl.drawn!=null&&!(i===w&&selfDraw&&pl.drawn===winTile))h.push(pl.drawn);
+    h.sort((a,b)=>a-b);
+    for(const k of h)s+=tileHTML(k,'small');
+    if(i===w&&winTile!=null)s+=tileHTML(winTile,'small winT');
+    s+='</div></div>';
+  }
+  return s+'</div>';
+}
+function nextRound(w){
+  if(w>=0)G.dealer=w;
+  G.round++;
+  startRound();
+}
+function exitToHome(){ G=null; $('ov-result').classList.remove('show'); showScreen('home'); }
+function confirmExit(){ if(confirm('确定退出本局？分数将不会保存。'))exitToHome(); }
+
+/* ================= 渲染 ================= */
+function esc(s){return String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
+function meldHTML(m,small){
+  const cls=small?'small':'small';
+  let s='<span style="margin-right:6px;display:inline-flex">';
+  const n=m.type==='peng'?3:4;
+  for(let i=0;i<n;i++){
+    if(m.type==='angang'&&(i===0||i===3))s+=backHTML(cls);
+    else s+=tileHTML(m.kind,cls);
+  }
+  return s+'</span>';
+}
+function renderGame(){
+  if(!G)return;
+  const v=G.viewing;
+  $('roundinfo').textContent='第 '+G.round+' 局 · 余牌 '+G.wall.length+' 张 · 庄家：'+G.players[G.dealer].name;
+  // 对手
+  let oh='';
+  for(const off of [1,2]){
+    const i=(v+off)%3, pl=G.players[i];
+    oh+='<div class="opp'+(G.turn===i&&G.phase!=='over'?' cur':'')+'">';
+    oh+='<div class="nm"><span>'+esc(pl.name)+(i===G.dealer?' 庄':'')+'</span><span class="sc">'+pl.score+'</span></div>';
+    oh+='<div class="tiles">';
+    const n=pl.hand.length+(pl.drawn!=null?1:0);
+    for(let t=0;t<n;t++)oh+='<div class="tile back"></div>';
+    oh+='</div><div class="melds">';
+    for(const m of pl.melds)oh+=meldHTML(m,true);
+    oh+='</div></div>';
+  }
+  $('opps').innerHTML=oh;
+  // 弃牌河
+  let rh='';
+  for(const off of [1,2,0]){
+    const i=(v+off)%3, pl=G.players[i];
+    rh+='<div class="river"><div class="lab">'+esc(pl.name)+' 的弃牌</div><div class="tl">';
+    pl.discards.forEach((k,idx)=>{
+      const last=G.lastDiscard&&G.lastDiscard.p===i&&idx===pl.discards.length-1;
+      rh+=tileHTML(k,last?'lastd':'');
+    });
+    rh+='</div></div>';
+  }
+  $('rivers').innerHTML=rh;
+  // 自己
+  const me=G.players[v];
+  let tenpai='';
+  if(!me.isAI&&me.hand.length%3===1&&calcShanten(me.hand,me.melds.length)===0)tenpai='<span class="tag">听牌</span>';
+  $('selfinfo').innerHTML='<span class="nm">'+esc(me.name)+(v===G.dealer?' 庄':'')+'</span><span class="sc">'+me.score+' 分</span>'+tenpai
+    +(G.turn===v&&G.phase!=='over'?'<span style="opacity:.8;font-size:12px">← 你的回合</span>':'');
+  let mh='';
+  for(const m of me.melds)mh+=meldHTML(m,true);
+  $('selfmelds').innerHTML=mh;
+  let hh='';
+  for(const k of me.hand)hh+=tileHTML(k,(G.sel===k&&G.selIsDrawn===false?'sel ':'')+(G.suggestK===k?'suggest':''));
+  if(me.drawn!=null)hh+=tileHTML(me.drawn,'drawn '+(G.sel===me.drawn&&G.selIsDrawn?'sel ':'')+(G.suggestK===me.drawn?'suggest':''));
+  $('myhand').innerHTML=hh;
+  // 提示框
+  if(G.hint){$('hintbox').innerHTML='<span class="ttl">💡 助手</span>'+G.hint;$('hintbox').classList.add('show');}
+  else $('hintbox').classList.remove('show');
+  // 操作区
+  renderActions();
+}
+function renderActions(){
+  const v=G.viewing;
+  let ah='<span id="turnmsg">';
+  if(G.phase==='over')ah+='本局结束';
+  else if(G.turn!==v&&!G.pendingClaim)ah+=esc(G.players[G.turn].name)+' 思考中…';
+  else if(G.phase==='discard'&&G.turn===v)ah+='点击选牌，再点一次打出';
+  ah+='</span>';
+  if(G.pendingClaim&&G.pendingClaim.q===v){
+    const pc=G.pendingClaim;
+    if(pc.hu)ah+='<button class="abtn hu" onclick="claimAction(\'hu\')">胡</button>';
+    if(pc.gang)ah+='<button class="abtn gang" onclick="claimAction(\'gang\')">杠</button>';
+    if(pc.peng)ah+='<button class="abtn peng" onclick="claimAction(\'peng\')">碰</button>';
+    ah+='<button class="abtn pass" onclick="claimAction(\'pass\')">过</button>';
+  }else if(G.phase==='discard'&&G.turn===v&&G.selfOpts){
+    if(G.selfOpts.hu)ah+='<button class="abtn hu" onclick="selfHu()">自摸胡</button>';
+    if(G.selfOpts.angangs.length||G.selfOpts.jiagangs.length)
+      ah+='<button class="abtn gang" onclick="selfGang()">杠</button>';
+    if(G.mode==='ai')ah+='<button class="abtn hint" onclick="showHintNow()">💡 提示</button>';
+  }
+  $('actions').innerHTML=ah;
+}
+
+/* ================= 玩家交互 ================= */
+$('myhand').addEventListener('click',e=>{
+  const t=e.target.closest('.tile'); if(!t||!G)return;
+  const v=G.viewing;
+  if(G.phase!=='discard'||G.turn!==v||G.players[v].isAI)return;
+  const k=parseInt(t.dataset.k,10);
+  const isDrawn=t.classList.contains('drawn');
+  if(G.sel===k&&G.selIsDrawn===isDrawn){
+    G.sel=null;G.suggestK=null;
+    doDiscard(v,k);
+  }else{
+    G.sel=k;G.selIsDrawn=isDrawn;
+    renderGame();
+  }
+});
+function selfHu(){
+  const v=G.viewing,pl=G.players[v];
+  if(G.selfOpts&&G.selfOpts.hu)endRoundWin(v,null,pl.drawn,true);
+}
+function selfGang(){
+  const v=G.viewing,o=G.selfOpts;
+  if(!o)return;
+  if(o.angangs.length){execAnkan(v,o.angangs[0]);return;}
+  if(o.jiagangs.length){execJiagang(v,o.jiagangs[0]);}
+}
+
+/* ================= 换人遮罩（真人模式） ================= */
+function showHandoff(p,msg,cb){
+  $('ho-title').textContent='请将设备交给 '+G.players[p].name;
+  $('ho-msg').textContent=msg||'';
+  $('ov-handoff').classList.add('show');
+  $('ho-btn').onclick=()=>{ $('ov-handoff').classList.remove('show'); cb(); };
+}
+
+/* ================= 教学提示 ================= */
+function analyzeBest(p){
+  const pl=G.players[p];
+  const tiles=pl.hand.slice(); if(pl.drawn!=null)tiles.push(pl.drawn);
+  const best=aiChooseDiscard(p);
+  const rest=tiles.slice(); rest.splice(rest.indexOf(best),1);
+  const st=calcShanten(rest,pl.melds.length);
+  let waits=[];
+  if(st===0){
+    const used=countsOf(rest);
+    for(const m of pl.melds)used[m.kind]+=(m.type==='peng'?3:4);
+    waits=winningTiles(rest,pl.melds.length,used);
+  }
+  return {best,st,waits};
+}
+function coachTurnHint(p){
+  const pl=G.players[p];
+  const {best,st,waits}=analyzeBest(p);
+  let msg='';
+  if(G.selfOpts&&G.selfOpts.hu){
+    msg='<b style="color:#fca5a5">你可以自摸胡牌了！</b>点击「自摸胡」按钮赢下本局。';
+  }else if(st===0){
+    msg='建议打出「<b>'+tileLabel(best)+'</b>」。打出后你就<b style="color:#fbbf24">听牌</b>了！胡牌张：'
+      +waits.map(tileLabel).join('、')+'。摸到或别人打出这些牌就能胡。';
+  }else{
+    msg='建议打出「<b>'+tileLabel(best)+'</b>」'+reasonFor(p,best)
+      +'。打出后距离听牌还差 <b>'+st+'</b> 步（向听数 '+st+'）。';
+  }
+  G.hint=msg;G.suggestK=best;
+  renderGame();
+}
+function reasonFor(p,k){
+  const pl=G.players[p];
+  const tiles=pl.hand.slice(); if(pl.drawn!=null)tiles.push(pl.drawn);
+  const c=countsOf(tiles);
+  if(k>=18&&c[k]===1)return'（孤张字牌，凑成刻子的机会很小）';
+  if(k<18){
+    const n=k%9;
+    const lone=(n===0||c[k-1]===0&&(n<2||c[k-2]===0))&&(n===8||c[k+1]===0&&(n>6||c[k+2]===0));
+    if(c[k]===1&&lone)return'（孤张数牌，和其他牌连不起来）';
+    if(n===0||n===8)return'（边张 1/9 比较难组成顺子）';
+  }
+  return'（它对组成面子帮助最小）';
+}
+function coachClaimHint(q,k,c){
+  let msg='';
+  if(c.hu)msg='<b style="color:#fca5a5">这张「'+tileLabel(k)+'」正好让你胡牌！</b>点「胡」即可获胜（这叫"点炮胡"）。';
+  else if(c.gang)msg='你手里有三张「'+tileLabel(k)+'」，可以<b>杠</b>（明杠）：四张组成杠，再补摸一张，还有额外番数。不需要也可以点「过」。';
+  else if(c.peng)msg='你手里有两张「'+tileLabel(k)+'」，可以<b>碰</b>：拿走这张组成刻子（三张相同）。碰会亮出牌并轮到你打牌。如果它正在组顺子，可以点「过」放弃。';
+  G.hint=msg;
+  renderGame();
+}
+function showHintNow(){
+  const v=G.viewing;
+  if(G.phase!=='discard'||G.turn!==v)return;
+  coachTurnHint(v);
+}
+
+/* ================= 教学课程内容 ================= */
+function exTiles(arr){return '<div class="ex">'+arr.map(k=>tileHTML(k,'small')).join('')+'</div>';}
+const LESSONS=[
+ {t:'第 1 课 · 认识麻将牌',b:function(){return ''
+   +'<p>三人麻将共 <b>100 张牌</b>（去掉了"万字牌"），分三类：</p>'
+   +'<p><b>筒子（饼）</b>：1筒～9筒，每种 4 张：</p>'+exTiles([0,1,2,3,4,5,6,7,8])
+   +'<p><b>条子（索）</b>：1条～9条，每种 4 张：</p>'+exTiles([9,10,11,12,13,14,15,16,17])
+   +'<p><b>字牌</b>：东南西北 + 中发白，每种 4 张：</p>'+exTiles([18,19,20,21,22,23,24])
+   +'<p>筒子和条子是"数牌"，可以连成顺子；字牌只能凑相同的三张。</p>';}},
+ {t:'第 2 课 · 怎样才算胡牌',b:function(){return ''
+   +'<p>胡牌 = 手里 14 张牌凑成 <b>4 组面子 + 1 对将牌</b>。</p>'
+   +'<p><b>顺子</b>：同花色连续三张，例如：</p>'+exTiles([2,3,4])
+   +'<p><b>刻子</b>：相同的三张，例如：</p>'+exTiles([14,14,14])
+   +'<p><b>将牌（对子）</b>：相同的两张，例如：</p>'+exTiles([22,22])
+   +'<p>完整胡牌示例（3组顺子 + 1组刻子 + 1对将）：</p>'
+   +exTiles([0,1,2,4,5,6,11,12,13,20,20,20,24,24])
+   +'<p>特殊牌型 <b>七对</b>：7 个对子也能胡，且番数更高：</p>'
+   +exTiles([1,1,4,4,9,9,13,13,17,17,22,22,24,24]);}},
+ {t:'第 3 课 · 游戏流程',b:function(){return ''
+   +'<p>1️⃣ 开局每人 13 张牌，庄家先行动。</p>'
+   +'<p>2️⃣ 轮到你时：<b>摸 1 张 → 打出 1 张</b>，保持手里 13 张。</p>'
+   +'<p>3️⃣ 三个人按逆时针轮流，直到有人胡牌或者牌墙摸完（流局）。</p>'
+   +'<p>4️⃣ 胡牌方式有两种：<b>自摸</b>（自己摸到要的牌）和 <b>点炮胡</b>（别人打出你要的牌）。</p>'
+   +'<p>⚠️ 注意：三人麻将<b>不能"吃"牌</b>（不能拿别人打出的牌凑顺子），顺子只能靠自己摸。</p>';}},
+ {t:'第 4 课 · 碰和杠',b:function(){return ''
+   +'<p><b>碰</b>：你手里有 2 张相同的牌，别人打出第 3 张时，可以喊"碰"拿走，亮出刻子，然后直接打一张牌（不摸牌）。</p>'
+   +exTiles([5,5])+'<p style="margin:0">+ 别人打出</p>'+exTiles([5])
+   +'<p><b>明杠</b>：手里有 3 张相同，别人打出第 4 张，可以杠。</p>'
+   +'<p><b>暗杠</b>：自己摸齐 4 张相同的牌，可以暗杠（不亮给别人看牌面）。</p>'
+   +'<p><b>加杠</b>：碰过之后又摸到第 4 张，可以升级成杠。</p>'
+   +'<p>杠完都要<b>补摸一张牌</b>，而且每个杠在胡牌时 +1 番。</p>';}},
+ {t:'第 5 课 · 听牌与策略',b:function(){return ''
+   +'<p><b>听牌</b>：只差最后 1 张就能胡，叫"听牌"。游戏里听牌时会显示红色「听牌」标志。</p>'
+   +'<p>新手实用技巧：</p>'
+   +'<p>① <b>先打孤张字牌</b>：单张的东南西北最难成型，开局先打。</p>'
+   +'<p>② <b>留中间的数牌</b>：4、5、6 最容易连成顺子，1 和 9 最难。</p>'
+   +'<p>③ <b>不要乱碰</b>：碰会拆掉你正在连的顺子，碰之前想一想这两张是不是顺子的一部分。</p>'
+   +'<p>④ <b>看别人弃牌</b>：别人打过的牌种类，他大概率不要；后期少打生张（没人打过的牌），小心点炮。</p>'
+   +'<p>在"人机对战"中随时可以点 💡提示 按钮，助手会告诉你打哪张最好。</p>';}},
+ {t:'第 6 课 · 番数与算分',b:function(){return ''
+   +'<table><tr><th>番种</th><th>番数</th><th>说明</th></tr>'
+   +'<tr><td>底番</td><td>1</td><td>胡牌就有</td></tr>'
+   +'<tr><td>自摸</td><td>+1</td><td>自己摸到胡牌张</td></tr>'
+   +'<tr><td>门前清</td><td>+1</td><td>没碰没杠（暗杠除外）</td></tr>'
+   +'<tr><td>碰碰胡</td><td>+2</td><td>全是刻子，没有顺子</td></tr>'
+   +'<tr><td>混一色</td><td>+2</td><td>一种花色 + 字牌</td></tr>'
+   +'<tr><td>清一色</td><td>+3</td><td>只有一种花色</td></tr>'
+   +'<tr><td>七对</td><td>+3</td><td>七个对子</td></tr>'
+   +'<tr><td>字一色</td><td>+5</td><td>全是字牌</td></tr>'
+   +'<tr><td>役牌</td><td>+1</td><td>中/发/白的刻子，每组+1</td></tr>'
+   +'<tr><td>杠</td><td>+1</td><td>每个杠+1</td></tr></table>'
+   +'<p>得分 = 总番数 × 10。自摸时另外两家各付一份；点炮时由放炮的人付双倍。</p>';}},
+];
+function openTutorial(){
+  const box=$('lessons');
+  if(!box.dataset.built){
+    let h='';
+    LESSONS.forEach((L,i)=>{
+      h+='<div class="lesson" id="ls'+i+'"><button onclick="toggleLesson('+i+')"><span>'+esc(L.t)+'</span><span>▾</span></button>'
+        +'<div class="body">'+L.b()+'</div></div>';
+    });
+    box.innerHTML=h;box.dataset.built='1';
+  }
+  showScreen('tut');
+}
+function toggleLesson(i){ $('ls'+i).classList.toggle('open'); }
+</script>
+</body>
+</html>
