@@ -10,6 +10,7 @@ Logic mirrors the local PowerShell updater:
 """
 from __future__ import annotations
 
+import concurrent.futures as cf
 import json
 import sys
 import urllib.error
@@ -54,7 +55,7 @@ def fetch_price(ticker: str) -> float | None:
         meta = data['chart']['result'][0]['meta']
         price = meta.get('regularMarketPrice')
         return round(float(price), 2) if price else None
-    except (urllib.error.URLError, KeyError, ValueError, TypeError) as e:
+    except (urllib.error.URLError, KeyError, IndexError, ValueError, TypeError) as e:
         print(f'  {ticker:5s} FETCH FAILED: {e}', file=sys.stderr)
         return None
 
@@ -313,11 +314,11 @@ def main() -> int:
 
     print(f'[{now_bjt:%Y-%m-%d %H:%M} BJT] Fetching prices… mode={mode_tag}')
     prices: dict[str, float] = {}
-    for t in TICKERS:
-        p = fetch_price(t)
-        if p is not None:
-            prices[t] = p
-            print(f'  {t:5s} = {p}')
+    with cf.ThreadPoolExecutor(max_workers=len(TICKERS)) as ex:
+        for t, p in zip(TICKERS, ex.map(fetch_price, TICKERS)):
+            if p is not None:
+                prices[t] = p
+                print(f'  {t:5s} = {p}')
 
     if not prices:
         print('No prices fetched. Aborting (spcx.html unchanged).', file=sys.stderr)
