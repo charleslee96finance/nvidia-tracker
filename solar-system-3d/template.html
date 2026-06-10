@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Solar System 3D — Real-Time Simulation</title>
+<style>
+  html, body { margin: 0; padding: 0; overflow: hidden; background: #04040f;
+               font-family: Arial, Helvetica, sans-serif; height: 100%; }
+  canvas { display: block; cursor: grab; }
+  .panel { position: fixed; color: #e8eaf6; background: rgba(10, 12, 32, 0.72);
+           border: 1px solid rgba(140, 150, 220, 0.35); border-radius: 12px;
+           padding: 12px 16px; backdrop-filter: blur(6px); z-index: 10; }
+  #hud { top: 14px; left: 14px; max-width: 290px; }
+  #hud h1 { margin: 0 0 4px; font-size: 20px; }
+  #hud p { margin: 0; font-size: 12px; color: #9aa0c0; line-height: 1.5; }
+  #controls { top: 14px; right: 14px; display: flex; align-items: center;
+              gap: 12px; font-size: 13px; flex-wrap: wrap; }
+  #controls button { background: rgba(90, 100, 190, 0.35); color: #e8eaf6;
+                     border: 1px solid rgba(140, 150, 220, 0.5); border-radius: 8px;
+                     padding: 6px 12px; font-size: 13px; cursor: pointer; }
+  #controls button:hover { background: rgba(110, 120, 210, 0.55); }
+  #controls input[type="range"] { width: 110px; vertical-align: middle; }
+  #speedVal { display: inline-block; min-width: 38px; }
+  #info { bottom: 18px; left: 50%; transform: translateX(-50%);
+          max-width: 540px; min-width: 280px; text-align: center;
+          transition: opacity 0.25s; }
+  #info.hidden { opacity: 0; pointer-events: none; }
+  #info h2 { margin: 0 0 6px; font-size: 18px; color: #ffd97a; }
+  #info p { margin: 3px 0; font-size: 13px; line-height: 1.5; }
+  #infoFun { color: #9aa0c0; font-style: italic; }
+  @media (max-width: 700px) {
+    #hud { max-width: 200px; } #hud p { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="hud" class="panel">
+  <h1>Solar System 3D</h1>
+  <p>Drag to rotate · Scroll / pinch to zoom<br>
+     Click a planet to follow it · Click empty space to release<br>
+     Sizes &amp; distances not to scale</p>
+</div>
+<div id="controls" class="panel">
+  <button id="pauseBtn">❚❚ Pause</button>
+  <label>Speed <input type="range" id="speed" min="0" max="10" step="0.1" value="1"></label>
+  <span id="speedVal">1.0×</span>
+  <button id="resetBtn">Reset view</button>
+</div>
+<div id="info" class="panel hidden">
+  <h2 id="infoName"></h2>
+  <p id="infoFacts"></p>
+  <p id="infoFun"></p>
+</div>
+<!--THREE_JS-->
+<!--APP_JS-->
+</body>
+</html>
