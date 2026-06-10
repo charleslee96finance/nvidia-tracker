@@ -10,6 +10,7 @@ Logic mirrors the local PowerShell updater:
 """
 from __future__ import annotations
 
+import concurrent.futures as cf
 import json
 import sys
 import urllib.error
@@ -412,13 +413,13 @@ def main() -> int:
     print(f'[{now_bjt:%Y-%m-%d %H:%M} BJT] Fetching prices… mode={mode_tag}')
     prices: dict[str, float] = {}
     rvols: dict[str, float] = {}
-    for t in TICKERS:
-        p, rv = fetch_quote(t)
-        if p is not None:
-            prices[t] = p
-            if rv is not None:
-                rvols[t] = rv
-            print(f'  {t:5s} = {p:<9} RVOL={rv if rv is not None else "n/a"}')
+    with cf.ThreadPoolExecutor(max_workers=len(TICKERS)) as ex:
+        for t, (p, rv) in zip(TICKERS, ex.map(fetch_quote, TICKERS)):
+            if p is not None:
+                prices[t] = p
+                if rv is not None:
+                    rvols[t] = rv
+                print(f'  {t:5s} = {p:<9} RVOL={rv if rv is not None else "n/a"}')
 
     if not prices:
         print('No prices fetched. Aborting (spcx.html unchanged).', file=sys.stderr)
