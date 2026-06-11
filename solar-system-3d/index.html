@@ -52,6 +52,15 @@
                          border: 1px solid rgba(140, 150, 220, 0.5);
                          border-radius: 8px; padding: 7px 14px; font-size: 13px;
                          cursor: pointer; }
+  #navPanel { position: fixed; left: 12px; top: 50%; transform: translateY(-50%);
+              display: flex; flex-direction: column; gap: 7px; z-index: 10; }
+  #navPanel.hidden { display: none; }
+  .nav-dot { width: 32px; height: 32px; border-radius: 50%; border: 1px solid
+             rgba(255, 255, 255, 0.4); color: #fff; font-size: 13px; cursor: pointer;
+             display: flex; align-items: center; justify-content: center;
+             text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); padding: 0;
+             box-shadow: 0 0 8px rgba(0, 0, 0, 0.5); }
+  .nav-dot:hover { transform: scale(1.18); border-color: #fff; }
   @media (max-width: 760px) {
     #hud { max-width: 170px; padding: 8px 12px; }
     #hud h1 { font-size: 15px; }
@@ -65,6 +74,8 @@
     #info { bottom: 80px; max-width: 92vw; min-width: 0; }
     #surfacePanel { bottom: 80px; max-width: 92vw; flex-wrap: wrap;
                     justify-content: center; gap: 6px; }
+    #navPanel { left: 6px; gap: 5px; }
+    .nav-dot { width: 26px; height: 26px; font-size: 11px; }
   }
 </style>
 </head>
@@ -83,8 +94,10 @@
     <input type="range" id="speed" min="0" max="10" step="0.1" value="1"></label>
   <span id="speedVal">1.0×</span>
   <button id="resetBtn">重置视角</button>
+  <button id="tourBtn">🎬 自动导览</button>
   <button id="langBtn">EN</button>
 </div>
+<div id="navPanel"></div>
 <div id="sky"></div>
 <div id="info" class="panel hidden">
   <h2 id="infoName"></h2>
@@ -111,8 +124,9 @@ var TEXTURES = {"mercury": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2
 <script>
 /* Solar System 3D — real-time interactive simulation (three.js r128).
    NASA-derived textures, asteroid belt, comets, simulated date, bilingual UI,
-   flowing starfield (drifting star layers, Milky Way band, nebulae, meteors),
-   and an Earth-surface sunrise/sunset mode with a dynamic atmosphere sky.
+   flowing starfield (drifting layers, Milky Way, nebulae, meteors),
+   surface views (Earth / Mars / Moon) with per-body skies, an auto tour mode,
+   and a quick-jump navigation rail.
    Distances and sizes are compressed; orbital speeds follow Kepler's law. */
 (function () {
   'use strict';
@@ -124,21 +138,19 @@ var TEXTURES = {"mercury": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2
   var UI = {
     zh: {
       title: '太阳系 3D 实时模拟',
-      hints: '拖动旋转 · 滚轮/双指缩放<br>点击行星或彗星可跟随 · 点击空白处取消<br>大小与距离未按真实比例',
+      hints: '拖动旋转 · 滚轮/双指缩放<br>点击行星或彗星可跟随 · 点击空白处取消<br>左侧圆点可快速跳转 · 大小与距离未按真实比例',
       pause: '❚❚ 暂停', play: '▶ 播放', speed: '速度', reset: '重置视角',
       lang: 'EN', date: '模拟日期', years: '年后',
-      surface: '🌅 站上地表看日出日落',
-      exitSurface: '🚀 离开地球表面',
-      surfaceHint: '拖动环顾四周 · 太阳从东方升起'
+      tour: '🎬 自动导览', tourStop: '⏹ 停止导览',
+      exitSurface: '🚀 返回太空'
     },
     en: {
       title: 'Solar System 3D',
-      hints: 'Drag to rotate · Scroll / pinch to zoom<br>Click a planet or comet to follow · Click empty space to release<br>Sizes &amp; distances not to scale',
+      hints: 'Drag to rotate · Scroll / pinch to zoom<br>Click a planet or comet to follow · Click empty space to release<br>Use the dots on the left to jump · Sizes &amp; distances not to scale',
       pause: '❚❚ Pause', play: '▶ Play', speed: 'Speed', reset: 'Reset view',
       lang: '中文', date: 'Sim date', years: 'yr later',
-      surface: '🌅 Watch sunrise & sunset from the surface',
-      exitSurface: '🚀 Leave Earth\'s surface',
-      surfaceHint: 'Drag to look around · The Sun rises in the east'
+      tour: '🎬 Auto tour', tourStop: '⏹ Stop tour',
+      exitSurface: '🚀 Back to space'
     }
   };
 
@@ -149,50 +161,57 @@ var TEXTURES = {"mercury": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2
           fun: 'The Sun holds 99.86% of all the mass in the solar system.' }
   };
 
+  var MOON_INFO = {
+    zh: { name: '月球 Moon', facts: '直径 3,474 km · 距地球约38万 km · 被潮汐锁定',
+          fun: '月球永远以同一面朝向地球。' },
+    en: { name: 'The Moon', facts: 'Diameter 3,474 km · ~384,000 km from Earth · Tidally locked',
+          fun: 'The Moon always shows the same face to Earth.' }
+  };
+
   var PLANETS = [
-    { name: 'Mercury', zh: '水星', dist: 14, size: 0.9, tilt: 0.03, spin: 0.5, inc: 7,
+    { name: 'Mercury', zh: '水星', short: '水', shortEn: 'Me', dist: 14, size: 0.9, tilt: 0.03, spin: 0.5, inc: 7,
       texKey: 'mercury', type: 'rocky', colors: ['#9c9890', '#b1adad', '#7d7873', '#c4c0b8'],
       factsEn: 'Diameter 4,879 km · Day: 59 Earth days · Year: 88 Earth days',
       funEn: 'Smallest planet — scorching by day, freezing by night.',
       factsZh: '直径 4,879 km · 一天 = 59 个地球日 · 一年 = 88 个地球日',
       funZh: '最小的行星——白天灼热，夜晚冰冻。' },
-    { name: 'Venus', zh: '金星', dist: 19, size: 1.6, tilt: 177, spin: -0.25, inc: 3.4,
+    { name: 'Venus', zh: '金星', short: '金', shortEn: 'Ve', dist: 19, size: 1.6, tilt: 177, spin: -0.25, inc: 3.4,
       texKey: 'venus', type: 'rocky', colors: ['#e0c075', '#e6c87d', '#cfae62', '#efd89a'],
       factsEn: 'Diameter 12,104 km · Day: 243 Earth days · Year: 225 Earth days',
       funEn: 'Hottest planet: a runaway greenhouse near 460°C, spinning backwards.',
       factsZh: '直径 12,104 km · 一天 = 243 个地球日 · 一年 = 225 个地球日',
       funZh: '最热的行星：约 460°C 的失控温室效应，而且逆向自转。' },
-    { name: 'Earth', zh: '地球', dist: 25, size: 1.7, tilt: 23.4, spin: 1.2, inc: 0,
+    { name: 'Earth', zh: '地球', short: '地', shortEn: 'Ea', dist: 25, size: 1.7, tilt: 23.4, spin: 1.2, inc: 0,
       texKey: 'earth', type: 'earth', colors: ['#2a66c8'],
       factsEn: 'Diameter 12,742 km · Day: 24 hours · Year: 365.25 days',
       funEn: 'The only world known to harbor life. Hello from here!',
       factsZh: '直径 12,742 km · 一天 = 24 小时 · 一年 = 365.25 天',
       funZh: '已知唯一存在生命的星球。我们的家园！' },
-    { name: 'Mars', zh: '火星', dist: 31, size: 1.25, tilt: 25.2, spin: 1.1, inc: 1.9,
+    { name: 'Mars', zh: '火星', short: '火', shortEn: 'Ma', dist: 31, size: 1.25, tilt: 25.2, spin: 1.1, inc: 1.9,
       texKey: 'mars', type: 'rocky', colors: ['#c1542f', '#d1603d', '#a84a2a', '#e07b50'],
       factsEn: 'Diameter 6,779 km · Day: 24.6 hours · Year: 687 Earth days',
       funEn: 'Home to Olympus Mons, the tallest volcano in the solar system.',
       factsZh: '直径 6,779 km · 一天 = 24.6 小时 · 一年 = 687 个地球日',
       funZh: '拥有太阳系最高的火山——奥林帕斯山。' },
-    { name: 'Jupiter', zh: '木星', dist: 42, size: 4.2, tilt: 3.1, spin: 2.2, inc: 1.3,
+    { name: 'Jupiter', zh: '木星', short: '木', shortEn: 'Ju', dist: 42, size: 4.2, tilt: 3.1, spin: 2.2, inc: 1.3,
       texKey: 'jupiter', type: 'banded', colors: ['#d8a05c', '#c9905a', '#e8c596', '#b07a4a', '#e3b67e'],
       factsEn: 'Diameter 139,820 km · Day: 9.9 hours · Year: 11.9 Earth years',
       funEn: 'Over 1,300 Earths could fit inside the largest planet.',
       factsZh: '直径 139,820 km · 一天 = 9.9 小时 · 一年 = 11.9 个地球年',
       funZh: '最大的行星，能装下 1,300 多个地球。' },
-    { name: 'Saturn', zh: '土星', dist: 53, size: 3.6, tilt: 26.7, spin: 2.0, inc: 2.5,
+    { name: 'Saturn', zh: '土星', short: '土', shortEn: 'Sa', dist: 53, size: 3.6, tilt: 26.7, spin: 2.0, inc: 2.5,
       texKey: 'saturn', type: 'banded', colors: ['#e3cf9e', '#d9c28a', '#efe0b6', '#c9b078'],
       factsEn: 'Diameter 116,460 km · Day: 10.7 hours · Year: 29.5 Earth years',
       funEn: 'Its rings are mostly water ice — and the planet is less dense than water.',
       factsZh: '直径 116,460 km · 一天 = 10.7 小时 · 一年 = 29.5 个地球年',
       funZh: '光环主要由水冰构成；土星本身密度比水还低。' },
-    { name: 'Uranus', zh: '天王星', dist: 63, size: 2.6, tilt: 97.8, spin: 1.4, inc: 0.8,
+    { name: 'Uranus', zh: '天王星', short: '天', shortEn: 'Ur', dist: 63, size: 2.6, tilt: 97.8, spin: 1.4, inc: 0.8,
       texKey: 'uranus', type: 'banded', colors: ['#9bd4d4', '#8ccaca', '#b3e0e0', '#7fbfc4'],
       factsEn: 'Diameter 50,724 km · Day: 17.2 hours · Year: 84 Earth years',
       funEn: 'An ice giant tipped on its side — it rolls around the Sun.',
       factsZh: '直径 50,724 km · 一天 = 17.2 小时 · 一年 = 84 个地球年',
       funZh: '“躺着”公转的冰巨星，自转轴倾斜约 98°。' },
-    { name: 'Neptune', zh: '海王星', dist: 71, size: 2.5, tilt: 28.3, spin: 1.5, inc: 1.8,
+    { name: 'Neptune', zh: '海王星', short: '海', shortEn: 'Ne', dist: 71, size: 2.5, tilt: 28.3, spin: 1.5, inc: 1.8,
       texKey: 'neptune', type: 'banded', colors: ['#4969e1', '#3d59c4', '#5d7df0', '#3450b4'],
       factsEn: 'Diameter 49,244 km · Day: 16.1 hours · Year: 165 Earth years',
       funEn: 'The windiest world: gusts can top 2,000 km/h.',
@@ -512,10 +531,12 @@ var TEXTURES = {"mercury": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2
     };
     mesh.userData.followTarget = posGroup;
     mesh.userData.viewRadius = Math.max(p.size * 7, 14);
+    if (p.name === 'Earth') mesh.userData.surfaceKey = 'Earth';
+    if (p.name === 'Mars') mesh.userData.surfaceKey = 'Mars';
     tiltGroup.add(mesh);
     clickable.push(mesh);
 
-    var clouds = null, moonPivot = null;
+    var clouds = null, moonPivot = null, moonMesh = null;
     if (p.name === 'Earth' && TEX.earthclouds) {
       clouds = new THREE.Mesh(
         new THREE.SphereGeometry(p.size * 1.03, 48, 32),
@@ -529,14 +550,19 @@ var TEXTURES = {"mercury": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2
     if (p.name === 'Earth') {
       moonPivot = new THREE.Group();
       posGroup.add(moonPivot);
-      var moon = new THREE.Mesh(
+      moonMesh = new THREE.Mesh(
         new THREE.SphereGeometry(0.45, 24, 16),
         new THREE.MeshStandardMaterial(
           TEX.moon ? { map: tex('moon'), roughness: 1 } : { color: 0xbbbbbb, roughness: 1 }
         )
       );
-      moon.position.set(3.1, 0, 0);
-      moonPivot.add(moon);
+      moonMesh.position.set(3.1, 0, 0);
+      moonMesh.userData.info = MOON_INFO;
+      moonMesh.userData.followTarget = moonMesh;
+      moonMesh.userData.viewRadius = 6;
+      moonMesh.userData.surfaceKey = 'Moon';
+      moonPivot.add(moonMesh);
+      clickable.push(moonMesh);
     }
     var ringMat = null, baseRingOp = 1;
     if (p.name === 'Saturn') {
@@ -563,14 +589,14 @@ var TEXTURES = {"mercury": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2
 
     return {
       p: p, posGroup: posGroup, tiltGroup: tiltGroup, mesh: mesh, label: label,
-      clouds: clouds, moonPivot: moonPivot,
-      moonMesh: moonPivot ? moonPivot.children[0] : null,
+      clouds: clouds, moonPivot: moonPivot, moonMesh: moonMesh,
       ringMat: ringMat, baseRingOp: baseRingOp,
       angle0: Math.random() * Math.PI * 2,
       omega: KEPLER_K / Math.pow(p.dist, 1.5)
     };
   });
   var earthObj = planetObjs[2];
+  var marsObj = planetObjs[3];
 
   // ---------- asteroid belt ----------
   var beltRings = [];
@@ -668,13 +694,14 @@ var TEXTURES = {"mercury": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2
   });
 
   // ---------- camera controls ----------
-  var theta = 1.25, phi = 1.05, radius = 130;
+  var theta = 1.25, phi = 1.05, radius = 130, targetRadius = 130;
   var camTarget = new THREE.Vector3();
   var followObj = null;
   var tmpV = new THREE.Vector3();
   var zeroV = new THREE.Vector3(0, 0, 0);
 
-  function updateCamera() {
+  function updateCamera(dt) {
+    radius += (targetRadius - radius) * Math.min(1, dt * 4);
     if (followObj) {
       followObj.getWorldPosition(tmpV);
       camTarget.lerp(tmpV, 0.12);
@@ -689,23 +716,48 @@ var TEXTURES = {"mercury": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2
     camera.lookAt(camTarget);
   }
 
-  // ---------- Earth-surface sunrise/sunset mode ----------
+  // ---------- surface views: Earth / Mars / Moon ----------
   var surfaceMode = false;
   var lookYaw = 0, lookPitch = 0.12;
   var prevSpeed = 1;
+  var activeSurface = null;
   var surfaceAnchor = new THREE.Object3D();
-  surfaceAnchor.position.set(earthObj.p.size * 1.005, 0, 0);
-  earthObj.mesh.add(surfaceAnchor);
+
+  var SURFACE_CONFIGS = {
+    Earth: {
+      mesh: earthObj.mesh, center: earthObj.posGroup, radius: 1.7, height: 0.12,
+      anchor: [1.7085, 0, 0], skyType: 'earth', face: 'sun',
+      followAfterExit: earthObj.posGroup, exitRadius: earthObj.mesh.userData.viewRadius,
+      btnZh: '🌅 站上地表看日出日落', btnEn: '🌅 Watch sunrise & sunset from the surface',
+      hintZh: '拖动环顾四周 · 太阳从东方升起', hintEn: 'Drag to look around · The Sun rises in the east'
+    },
+    Mars: {
+      mesh: marsObj.mesh, center: marsObj.posGroup, radius: 1.25, height: 0.12,
+      anchor: [1.2563, 0, 0], skyType: 'mars', face: 'sun',
+      followAfterExit: marsObj.posGroup, exitRadius: marsObj.mesh.userData.viewRadius,
+      btnZh: '🔴 站上火星地表', btnEn: '🔴 Stand on the Martian surface',
+      hintZh: '拖动环顾四周 · 火星的日落是蓝色的', hintEn: 'Drag to look around · Martian sunsets are blue'
+    },
+    Moon: {
+      mesh: earthObj.moonMesh, center: earthObj.moonMesh, radius: 0.45, height: 0.09,
+      anchor: [-0.3198, 0, 0.3198], skyType: 'none', face: 'earth',
+      followAfterExit: earthObj.moonMesh, exitRadius: 6,
+      btnZh: '🌍 站上月面回望地球', btnEn: '🌍 Stand on the Moon & see Earth',
+      hintZh: '拖动环顾四周 · 月球没有大气，白天也能看到星星',
+      hintEn: 'Drag to look around · No atmosphere: stars shine even in daytime'
+    }
+  };
 
   var aPos = new THREE.Vector3(), ePos = new THREE.Vector3();
   var upV = new THREE.Vector3(), eastV = new THREE.Vector3();
   var axisV = new THREE.Vector3(), lookV = new THREE.Vector3();
-  var sunFlat = new THREE.Vector3(), crossT = new THREE.Vector3();
+  var faceFlat = new THREE.Vector3(), crossT = new THREE.Vector3();
   var qTmp = new THREE.Quaternion();
 
   var skyEl = document.getElementById('sky');
   var surfacePanel = document.getElementById('surfacePanel');
   var surfaceBtn = document.getElementById('surfaceBtn');
+  var navPanel = document.getElementById('navPanel');
 
   function mix(a, b, t) {
     return [Math.round(a[0] + (b[0] - a[0]) * t),
@@ -716,86 +768,123 @@ var TEXTURES = {"mercury": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2
 
   var dayFade = 0; // 0 = night sky fully visible, 1 = daylight washes it out
 
-  function updateSky(sunElev) {
+  function updateSky(sunElev, skyType) {
+    if (skyType === 'none') {
+      dayFade = 0;
+      skyEl.style.opacity = '0';
+      return;
+    }
     var day = Math.min(1, Math.max(0, (sunElev - 0.04) / 0.30));
-    dayFade = day;
     var glow = Math.exp(-Math.pow((sunElev - 0.02) / 0.11, 2));
-    var zen = mix([4, 6, 18], [18, 32, 80], glow * 0.6);
-    zen = mix(zen, [62, 130, 215], day);
-    var hor = mix([8, 10, 26], [255, 122, 40], glow);
-    hor = mix(hor, [168, 216, 252], day * 0.88);
-    var op = Math.max(day * 0.72, glow * 0.62);
+    var zen, hor, op;
+    if (skyType === 'mars') {
+      zen = mix([6, 5, 10], [42, 32, 40], glow * 0.5);
+      zen = mix(zen, [196, 148, 110], day);
+      hor = mix([12, 9, 14], [120, 160, 235], glow); // Martian sunsets glow blue
+      hor = mix(hor, [226, 176, 138], day * 0.9);
+      op = Math.max(day * 0.62, glow * 0.5);
+    } else {
+      zen = mix([4, 6, 18], [18, 32, 80], glow * 0.6);
+      zen = mix(zen, [62, 130, 215], day);
+      hor = mix([8, 10, 26], [255, 122, 40], glow);
+      hor = mix(hor, [168, 216, 252], day * 0.88);
+      op = Math.max(day * 0.72, glow * 0.62);
+    }
+    dayFade = day;
     skyEl.style.opacity = op.toFixed(3);
     skyEl.style.background = 'linear-gradient(to top, ' + rgb(hor) + ' 0%, ' + rgb(zen) + ' 65%)';
   }
 
   function updateSurfaceCamera() {
+    var cfg = activeSurface;
     surfaceAnchor.getWorldPosition(aPos);
-    earthObj.posGroup.getWorldPosition(ePos);
+    cfg.center.getWorldPosition(ePos);
     upV.copy(aPos).sub(ePos).normalize();
-    earthObj.mesh.getWorldQuaternion(qTmp);
+    cfg.mesh.getWorldQuaternion(qTmp);
     axisV.set(0, 1, 0).applyQuaternion(qTmp).normalize();
     eastV.crossVectors(axisV, upV).normalize();
 
     lookV.copy(eastV).applyAxisAngle(upV, lookYaw);
     lookV.multiplyScalar(Math.cos(lookPitch)).addScaledVector(upV, Math.sin(lookPitch)).normalize();
 
-    camera.position.copy(aPos).addScaledVector(upV, 0.12);
+    camera.position.copy(aPos).addScaledVector(upV, cfg.height);
     camera.up.copy(upV);
     tmpV.copy(camera.position).addScaledVector(lookV, 10);
     camera.lookAt(tmpV);
 
     // sun elevation above the local horizon (sun is at the origin)
     var sunElev = upV.dot(tmpV.copy(aPos).negate().normalize());
-    updateSky(sunElev);
+    updateSky(sunElev, cfg.skyType);
   }
 
-  function enterSurfaceMode() {
+  function enterSurfaceMode(key) {
+    var cfg = SURFACE_CONFIGS[key];
+    if (!cfg || !cfg.mesh) return;
+    stopTour();
     surfaceMode = true;
+    activeSurface = cfg;
     followObj = null;
     infoEl.classList.add('hidden');
     currentInfo = null;
     surfacePanel.classList.remove('hidden');
+    navPanel.classList.add('hidden');
+    document.getElementById('surfaceHint').textContent = LANG === 'zh' ? cfg.hintZh : cfg.hintEn;
     hideOnSurface.forEach(function (o) { o.visible = false; });
+    cfg.mesh.add(surfaceAnchor);
+    surfaceAnchor.position.set(cfg.anchor[0], cfg.anchor[1], cfg.anchor[2]);
     // tame the compressed scale: shrink sun/moon/planets to believable sky sizes
     sunMesh.scale.setScalar(0.3);
     sunGlow.scale.set(11, 11, 1);
-    if (earthObj.clouds) earthObj.clouds.visible = false;
-    if (earthObj.moonMesh) earthObj.moonMesh.scale.setScalar(0.38);
+    if (key === 'Earth' && earthObj.clouds) earthObj.clouds.visible = false;
+    if (key === 'Moon' && earthObj.clouds) earthObj.clouds.material.opacity = 0.45;
+    if (earthObj.moonMesh) earthObj.moonMesh.scale.setScalar(key === 'Earth' ? 0.38 : 1);
     planetObjs.forEach(function (o) {
-      if (o !== earthObj) o.tiltGroup.scale.setScalar(0.45);
+      if (o.mesh !== cfg.mesh) o.tiltGroup.scale.setScalar(0.45);
     });
     prevSpeed = speed;
     setSpeed(0.25);
-    // start facing the sun's azimuth so the sunrise is in view
+    // start facing the sun (or Earth, from the Moon)
     surfaceAnchor.getWorldPosition(aPos);
-    earthObj.posGroup.getWorldPosition(ePos);
+    cfg.center.getWorldPosition(ePos);
     upV.copy(aPos).sub(ePos).normalize();
-    earthObj.mesh.getWorldQuaternion(qTmp);
+    cfg.mesh.getWorldQuaternion(qTmp);
     axisV.set(0, 1, 0).applyQuaternion(qTmp).normalize();
     eastV.crossVectors(axisV, upV).normalize();
-    sunFlat.copy(aPos).negate();
-    sunFlat.addScaledVector(upV, -sunFlat.dot(upV)).normalize();
-    crossT.crossVectors(eastV, sunFlat);
-    lookYaw = Math.atan2(crossT.dot(upV), eastV.dot(sunFlat));
-    lookPitch = 0.12;
+    if (cfg.face === 'earth') {
+      earthObj.posGroup.getWorldPosition(faceFlat);
+      faceFlat.sub(aPos);
+    } else {
+      faceFlat.copy(aPos).negate();
+    }
+    var elev = Math.asin(Math.max(-1, Math.min(1, faceFlat.clone().normalize().dot(upV))));
+    faceFlat.addScaledVector(upV, -faceFlat.dot(upV)).normalize();
+    crossT.crossVectors(eastV, faceFlat);
+    lookYaw = Math.atan2(crossT.dot(upV), eastV.dot(faceFlat));
+    lookPitch = Math.max(-0.3, Math.min(1.2, cfg.face === 'earth' ? elev : 0.12));
   }
 
   function exitSurfaceMode() {
+    if (!surfaceMode) return;
+    var cfg = activeSurface;
     surfaceMode = false;
+    activeSurface = null;
     surfacePanel.classList.add('hidden');
+    navPanel.classList.remove('hidden');
     hideOnSurface.forEach(function (o) { o.visible = true; });
     sunMesh.scale.setScalar(1);
     sunGlow.scale.set(42, 42, 1);
-    if (earthObj.clouds) earthObj.clouds.visible = true;
+    if (earthObj.clouds) {
+      earthObj.clouds.visible = true;
+      earthObj.clouds.material.opacity = 0.9;
+    }
     if (earthObj.moonMesh) earthObj.moonMesh.scale.setScalar(1);
     planetObjs.forEach(function (o) { o.tiltGroup.scale.setScalar(1); });
     dayFade = 0;
     skyEl.style.opacity = '0';
     camera.up.set(0, 1, 0);
     setSpeed(prevSpeed);
-    followObj = earthObj.posGroup;
-    radius = earthObj.mesh.userData.viewRadius;
+    followObj = cfg.followAfterExit;
+    targetRadius = cfg.exitRadius;
     camTarget.copy(aPos);
   }
 
@@ -830,7 +919,7 @@ var TEXTURES = {"mercury": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2
   canvas.addEventListener('wheel', function (e) {
     e.preventDefault();
     if (surfaceMode) return;
-    radius = Math.min(700, Math.max(10, radius * (1 + e.deltaY * 0.001)));
+    targetRadius = Math.min(700, Math.max(10, targetRadius * (1 + e.deltaY * 0.001)));
   }, { passive: false });
 
   var touchDist = 0;
@@ -853,7 +942,9 @@ var TEXTURES = {"mercury": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2
     } else if (e.touches.length === 2 && !surfaceMode) {
       var d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
                          e.touches[0].clientY - e.touches[1].clientY);
-      if (touchDist > 0) radius = Math.min(700, Math.max(10, radius * touchDist / d));
+      if (touchDist > 0) {
+        targetRadius = Math.min(700, Math.max(10, targetRadius * touchDist / d));
+      }
       touchDist = d;
     }
     e.preventDefault();
@@ -881,34 +972,48 @@ var TEXTURES = {"mercury": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2
   var infoFacts = document.getElementById('infoFacts');
   var infoFun = document.getElementById('infoFun');
   var currentInfo = null;
+  var currentSurfaceKey = null;
 
-  function showCard(info) {
+  function showCard(info, surfaceKey) {
     currentInfo = info;
+    currentSurfaceKey = surfaceKey || null;
     var d = info[LANG];
     infoName.textContent = d.name;
     infoFacts.textContent = d.facts;
     infoFun.textContent = d.fun;
-    surfaceBtn.style.display = (info === earthObj.mesh.userData.info) ? 'inline-block' : 'none';
+    if (currentSurfaceKey) {
+      var cfg = SURFACE_CONFIGS[currentSurfaceKey];
+      surfaceBtn.textContent = LANG === 'zh' ? cfg.btnZh : cfg.btnEn;
+      surfaceBtn.style.display = 'inline-block';
+    } else {
+      surfaceBtn.style.display = 'none';
+    }
     infoEl.classList.remove('hidden');
+  }
+
+  function focusObject(hit) {
+    showCard(hit.userData.info, hit.userData.surfaceKey);
+    if (hit === sunMesh) {
+      followObj = null;
+      targetRadius = Math.max(targetRadius, 40);
+    } else {
+      followObj = hit.userData.followTarget;
+      targetRadius = hit.userData.viewRadius;
+    }
   }
 
   function handleClick(x, y) {
     if (surfaceMode) return;
+    stopTour();
     var hit = pick(x, y);
     if (!hit) {
       followObj = null;
       currentInfo = null;
+      currentSurfaceKey = null;
       infoEl.classList.add('hidden');
       return;
     }
-    showCard(hit.userData.info);
-    if (hit === sunMesh) {
-      followObj = null;
-      radius = Math.max(radius, 40);
-    } else {
-      followObj = hit.userData.followTarget;
-      radius = hit.userData.viewRadius;
-    }
+    focusObject(hit);
   }
 
   window.addEventListener('mousemove', function (e) {
@@ -916,6 +1021,69 @@ var TEXTURES = {"mercury": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2
       canvas.style.cursor = pick(e.clientX, e.clientY) ? 'pointer' : 'grab';
     }
   });
+
+  // ---------- auto tour ----------
+  var tourMode = false, tourIdx = -1, tourTimer = 0;
+  var tourBtn = document.getElementById('tourBtn');
+
+  function startTour() {
+    if (surfaceMode) exitSurfaceMode();
+    tourMode = true;
+    tourIdx = -1;
+    tourTimer = 0;
+    tourBtn.textContent = UI[LANG].tourStop;
+  }
+
+  function stopTour() {
+    if (!tourMode) return;
+    tourMode = false;
+    tourBtn.textContent = UI[LANG].tour;
+  }
+
+  function updateTour(dt) {
+    theta += 0.12 * dt; // slow cinematic pan while holding on each planet
+    tourTimer -= dt;
+    if (tourTimer > 0) return;
+    tourIdx++;
+    if (tourIdx >= planetObjs.length) {
+      stopTour();
+      followObj = null;
+      currentInfo = null;
+      currentSurfaceKey = null;
+      infoEl.classList.add('hidden');
+      targetRadius = 130;
+      return;
+    }
+    focusObject(planetObjs[tourIdx].mesh);
+    tourTimer = 7;
+  }
+
+  // ---------- quick-jump navigation rail ----------
+  var navEntries = [];
+  (function () {
+    var items = [{ zh: '日', en: 'Su', color: '#e8b84a', titleZh: '太阳', titleEn: 'Sun',
+                   target: sunMesh }];
+    planetObjs.forEach(function (o) {
+      items.push({ zh: o.p.short, en: o.p.shortEn, color: o.p.colors[0],
+                   titleZh: o.p.zh, titleEn: o.p.name, target: o.mesh });
+    });
+    items.push({ zh: '月', en: 'Mo', color: '#9a9a9a', titleZh: '月球', titleEn: 'Moon',
+                 target: earthObj.moonMesh });
+    items.forEach(function (it) {
+      var btn = document.createElement('button');
+      btn.className = 'nav-dot';
+      btn.style.background = it.color;
+      btn.textContent = it.zh;
+      btn.title = it.titleZh;
+      btn.addEventListener('click', function () {
+        if (surfaceMode) exitSurfaceMode();
+        stopTour();
+        focusObject(it.target);
+      });
+      navPanel.appendChild(btn);
+      navEntries.push({ btn: btn, it: it });
+    });
+  })();
 
   // ---------- UI ----------
   var paused = false, speed = 1;
@@ -940,11 +1108,17 @@ var TEXTURES = {"mercury": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2
     document.getElementById('resetBtn').textContent = u.reset;
     document.getElementById('langBtn').textContent = u.lang;
     document.getElementById('dateLabel').textContent = u.date;
-    document.getElementById('surfaceHint').textContent = u.surfaceHint;
     document.getElementById('exitSurfaceBtn').textContent = u.exitSurface;
-    surfaceBtn.textContent = u.surface;
+    document.getElementById('surfaceHint').textContent = activeSurface
+      ? (l === 'zh' ? activeSurface.hintZh : activeSurface.hintEn)
+      : '';
+    tourBtn.textContent = tourMode ? u.tourStop : u.tour;
     pauseBtn.textContent = paused ? u.play : u.pause;
-    if (currentInfo) showCard(currentInfo);
+    navEntries.forEach(function (en) {
+      en.btn.textContent = l === 'zh' ? en.it.zh : en.it.en;
+      en.btn.title = l === 'zh' ? en.it.titleZh : en.it.titleEn;
+    });
+    if (currentInfo) showCard(currentInfo, currentSurfaceKey);
   }
 
   pauseBtn.addEventListener('click', function () {
@@ -957,16 +1131,27 @@ var TEXTURES = {"mercury": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2
   });
   document.getElementById('resetBtn').addEventListener('click', function () {
     if (surfaceMode) exitSurfaceMode();
+    stopTour();
     followObj = null;
     currentInfo = null;
+    currentSurfaceKey = null;
     infoEl.classList.add('hidden');
-    theta = 1.25; phi = 1.05; radius = 130;
+    theta = 1.25; phi = 1.05; targetRadius = 130;
   });
   document.getElementById('langBtn').addEventListener('click', function () {
     setLang(LANG === 'zh' ? 'en' : 'zh');
   });
-  surfaceBtn.addEventListener('click', enterSurfaceMode);
+  surfaceBtn.addEventListener('click', function () {
+    if (currentSurfaceKey) enterSurfaceMode(currentSurfaceKey);
+  });
   document.getElementById('exitSurfaceBtn').addEventListener('click', exitSurfaceMode);
+  tourBtn.addEventListener('click', function () {
+    if (tourMode) {
+      stopTour();
+    } else {
+      startTour();
+    }
+  });
   setLang('zh');
 
   window.addEventListener('resize', function () {
@@ -979,7 +1164,7 @@ var TEXTURES = {"mercury": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2
 
   // test hooks (used by automated verification; harmless in production)
   window.__sim = { enterSurfaceMode: enterSurfaceMode, exitSurfaceMode: exitSurfaceMode,
-                   setSpeed: setSpeed };
+                   setSpeed: setSpeed, startTour: startTour, stopTour: stopTour };
 
   // ---------- main loop ----------
   var clock = new THREE.Clock();
@@ -1062,7 +1247,7 @@ var TEXTURES = {"mercury": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2
     }
     for (i = 0; i < planetObjs.length; i++) {
       var po = planetObjs[i];
-      po.mesh.material.opacity = (po === earthObj) ? 1 : pf;
+      po.mesh.material.opacity = (activeSurface && po.mesh === activeSurface.mesh) ? 1 : pf;
       if (po.ringMat) po.ringMat.opacity = po.baseRingOp * pf;
     }
 
@@ -1072,10 +1257,12 @@ var TEXTURES = {"mercury": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2
     var yrs = simTime * DAYS_PER_SIM_SECOND / 365.25;
     dateElapsed.textContent = '(+' + yrs.toFixed(1) + ' ' + UI[LANG].years + ')';
 
+    if (tourMode) updateTour(dt);
+
     if (surfaceMode) {
       updateSurfaceCamera();
     } else {
-      updateCamera();
+      updateCamera(dt);
     }
     renderer.render(scene, camera);
   }

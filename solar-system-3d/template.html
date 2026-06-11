@@ -52,6 +52,15 @@
                          border: 1px solid rgba(140, 150, 220, 0.5);
                          border-radius: 8px; padding: 7px 14px; font-size: 13px;
                          cursor: pointer; }
+  #navPanel { position: fixed; left: 12px; top: 50%; transform: translateY(-50%);
+              display: flex; flex-direction: column; gap: 7px; z-index: 10; }
+  #navPanel.hidden { display: none; }
+  .nav-dot { width: 32px; height: 32px; border-radius: 50%; border: 1px solid
+             rgba(255, 255, 255, 0.4); color: #fff; font-size: 13px; cursor: pointer;
+             display: flex; align-items: center; justify-content: center;
+             text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); padding: 0;
+             box-shadow: 0 0 8px rgba(0, 0, 0, 0.5); }
+  .nav-dot:hover { transform: scale(1.18); border-color: #fff; }
   @media (max-width: 760px) {
     #hud { max-width: 170px; padding: 8px 12px; }
     #hud h1 { font-size: 15px; }
@@ -65,6 +74,8 @@
     #info { bottom: 80px; max-width: 92vw; min-width: 0; }
     #surfacePanel { bottom: 80px; max-width: 92vw; flex-wrap: wrap;
                     justify-content: center; gap: 6px; }
+    #navPanel { left: 6px; gap: 5px; }
+    .nav-dot { width: 26px; height: 26px; font-size: 11px; }
   }
 </style>
 </head>
@@ -83,8 +94,10 @@
     <input type="range" id="speed" min="0" max="10" step="0.1" value="1"></label>
   <span id="speedVal">1.0×</span>
   <button id="resetBtn">重置视角</button>
+  <button id="tourBtn">🎬 自动导览</button>
   <button id="langBtn">EN</button>
 </div>
+<div id="navPanel"></div>
 <div id="sky"></div>
 <div id="info" class="panel hidden">
   <h2 id="infoName"></h2>
