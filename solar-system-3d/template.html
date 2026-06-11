@@ -36,6 +36,22 @@
   #info h2 { margin: 0 0 6px; font-size: 18px; color: #ffd97a; }
   #info p { margin: 3px 0; font-size: 13px; line-height: 1.5; }
   #infoFun { color: #9aa0c0; font-style: italic; }
+  #surfaceBtn { margin-top: 8px; background: rgba(255, 160, 60, 0.25);
+                color: #ffd97a; border: 1px solid rgba(255, 180, 90, 0.55);
+                border-radius: 8px; padding: 7px 14px; font-size: 13px;
+                cursor: pointer; display: none; }
+  #surfaceBtn:hover { background: rgba(255, 160, 60, 0.4); }
+  #sky { position: fixed; inset: 0; pointer-events: none; z-index: 5;
+         opacity: 0; transition: opacity 0.3s; }
+  #surfacePanel { bottom: 18px; left: 50%; transform: translateX(-50%);
+                  text-align: center; display: flex; align-items: center;
+                  gap: 12px; white-space: nowrap; }
+  #surfacePanel.hidden { display: none; }
+  #surfacePanel span { font-size: 13px; color: #cdd4f0; }
+  #surfacePanel button { background: rgba(90, 100, 190, 0.35); color: #e8eaf6;
+                         border: 1px solid rgba(140, 150, 220, 0.5);
+                         border-radius: 8px; padding: 7px 14px; font-size: 13px;
+                         cursor: pointer; }
   @media (max-width: 760px) {
     #hud { max-width: 170px; padding: 8px 12px; }
     #hud h1 { font-size: 15px; }
@@ -47,6 +63,8 @@
                 max-width: 230px; gap: 7px; padding: 8px 10px; }
     #controls input[type="range"] { width: 70px; }
     #info { bottom: 80px; max-width: 92vw; min-width: 0; }
+    #surfacePanel { bottom: 80px; max-width: 92vw; flex-wrap: wrap;
+                    justify-content: center; gap: 6px; }
   }
 </style>
 </head>
@@ -67,10 +85,16 @@
   <button id="resetBtn">重置视角</button>
   <button id="langBtn">EN</button>
 </div>
+<div id="sky"></div>
 <div id="info" class="panel hidden">
   <h2 id="infoName"></h2>
   <p id="infoFacts"></p>
   <p id="infoFun"></p>
+  <button id="surfaceBtn">🌅 站上地表看日出日落</button>
+</div>
+<div id="surfacePanel" class="panel hidden">
+  <span id="surfaceHint">拖动环顾四周 · 太阳从东方升起</span>
+  <button id="exitSurfaceBtn">🚀 离开地球表面</button>
 </div>
 <!--TEXTURES-->
 <!--THREE_JS-->
