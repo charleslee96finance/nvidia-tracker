@@ -161,6 +161,68 @@ function partLabel(textZh, textEn, accentCss) {
   return sp;
 }
 
+/* 超椭圆截面放样曲面：F1 流线车身的核心（鼻锥/座舱/侧箱/引擎盖） */
+function superPt(t, e) {
+  var c = Math.cos(t), s = Math.sin(t);
+  return [Math.sign(c) * Math.pow(Math.abs(c), e), Math.sign(s) * Math.pow(Math.abs(s), e)];
+}
+function loft(secs, segs, flip) {
+  segs = segs || 28;
+  var pos = [], idx = [], i, j;
+  for (i = 0; i < secs.length; i++) {
+    var s = secs[i], e = s.e || 1;
+    for (j = 0; j < segs; j++) {
+      var p = superPt(j / segs * Math.PI * 2, e);
+      pos.push((s.cx || 0) + p[0] * s.rx, s.cy + p[1] * s.ry, s.z);
+    }
+  }
+  for (i = 0; i < secs.length - 1; i++) {
+    for (j = 0; j < segs; j++) {
+      var a = i * segs + j, b = i * segs + (j + 1) % segs,
+          c2 = (i + 1) * segs + j, d = (i + 1) * segs + (j + 1) % segs;
+      if (flip) idx.push(a, c2, b, b, c2, d);
+      else idx.push(a, b, c2, b, d, c2);
+    }
+  }
+  var g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+/* 弧形翼片：沿展向弯曲 + 弦长/迎角渐变（照片中前翼的连续曲面） */
+function wingEl3D(halfSpan, chord, thick, zC, yBase, aoa, dip, tipRise, mat) {
+  var nx = 13, nt = 18;
+  var pos = [], idx = [], ix, it;
+  for (ix = 0; ix <= nx; ix++) {
+    var u = ix / nx * 2 - 1;
+    var x = u * halfSpan;
+    var yC = yBase - dip + (dip + tipRise) * u * u;
+    var ch = chord * (1 - 0.18 * u * u) / 2;
+    var th = thick / 2;
+    var a = aoa * (1 - 0.25 * u * u);
+    for (it = 0; it < nt; it++) {
+      var t = it / nt * Math.PI * 2;
+      var dzp = Math.cos(t) * ch, dyp = Math.sin(t) * th;
+      var dy = dyp * Math.cos(a) + dzp * Math.sin(a);
+      var dz = -dyp * Math.sin(a) + dzp * Math.cos(a);
+      pos.push(x, yC + dy, zC + dz);
+    }
+  }
+  for (ix = 0; ix < nx; ix++) {
+    for (it = 0; it < nt; it++) {
+      var p0 = ix * nt + it, p1 = ix * nt + (it + 1) % nt,
+          p2 = (ix + 1) * nt + it, p3 = (ix + 1) * nt + (it + 1) % nt;
+      idx.push(p0, p2, p1, p1, p2, p3);
+    }
+  }
+  var g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return mesh(g, mat);
+}
+
 /* ------------------------------------------- 暗夜车库（参考实拍搭建） ---- */
 /* 深色高反水泥地：斑驳 + 裂纹 */
 var floorTex = canvasTex(1024, 1024, function (x, w, h) {
@@ -402,18 +464,21 @@ function buildF1Car(spec) {
   var tyreBandMat = stdMat(spec.tyreBand, 0.85, 0.05);
 
   /* ---- 底板 / 扩散器（常驻） ---- */
-  var floor = box(1.40, 0.035, 2.65, M.carbonM, 0, 0.075, -0.35);
-  var floorFront = box(0.95, 0.03, 0.62, M.carbonM, 0, 0.075, 1.26);
-  var diff = box(0.98, 0.03, 0.58, M.carbon, 0, 0.155, -1.93);
+  var floor = box(1.58, 0.035, 2.65, M.carbonM, 0, 0.075, -0.35);
+  var floorFront = box(1.00, 0.03, 0.62, M.carbonM, 0, 0.075, 1.26);
+  var diff = box(1.06, 0.03, 0.58, M.carbon, 0, 0.155, -1.93);
   diff.rotation.x = 0.24;
-  var edgeL = box(0.05, 0.018, 1.5, paint2, -0.715, 0.105, 0.05);
-  var edgeR = box(0.05, 0.018, 1.5, paint2, 0.715, 0.105, 0.05);
+  var edgeL = box(0.05, 0.018, 1.5, paint2, -0.805, 0.105, 0.05);
+  var edgeR = box(0.05, 0.018, 1.5, paint2, 0.805, 0.105, 0.05);
   chassis.add(floor, floorFront, diff, edgeL, edgeR);
 
   /* ---- 座舱单体壳 + 上盖板（带真实开口） ---- */
-  var tub = mesh(new THREE.CylinderGeometry(0.5, 0.5, 1, 24, 1, false), paint, 0, 0.33, 0.66);
-  tub.geometry.rotateX(Math.PI / 2);
-  tub.scale.set(0.62, 0.50, 1.42);    // 收窄座舱单体壳，贴近实车修身比例
+  var tub = mesh(loft([
+    { z: -0.06, cy: 0.32, rx: 0.295, ry: 0.255, e: 0.62 },
+    { z: 0.45,  cy: 0.325, rx: 0.305, ry: 0.265, e: 0.62 },
+    { z: 0.95,  cy: 0.33, rx: 0.295, ry: 0.255, e: 0.66 },
+    { z: 1.36,  cy: 0.345, rx: 0.245, ry: 0.205, e: 0.72 }
+  ]), paint);
   chassis.add(tub);
 
   var deckShape = new THREE.Shape();
@@ -494,28 +559,28 @@ function buildF1Car(spec) {
   }
   mirror(1); mirror(-1);
 
-  /* T 型摄像机座 */
-  var tcam = box(0.13, 0.035, 0.045, stdMat(0x111111, 0.6, 0.2), 0, 1.005, 0.10);
-  chassis.add(tcam);
   /* 鼻梁天线 */
   chassis.add(rod(0, 0.60, 1.30, 0, 0.72, 1.26, 0.004, M.carbonM));
   chassis.add(rod(-0.06, 0.60, 1.42, -0.06, 0.70, 1.40, 0.004, M.carbonM));
 
   /* ---- 鼻锥 + 前翼（noseG，可整体前移演示拆装） ---- */
-  var nose = mesh(new THREE.CylinderGeometry(0.075, 0.23, 1.45, 20), paint, 0, 0.385, 2.075);
-  nose.geometry.rotateX(Math.PI / 2);
-  nose.scale.set(1, 0.62, 1);
-  nose.rotation.x = 0.103;
+  var nrx = spec.noseRx || 1;       // 鼻锥宽窄系数（法拉利圆润 / 红牛纤细）
+  var nose = mesh(loft([
+    { z: 1.34, cy: 0.345, rx: 0.245 * nrx, ry: 0.205, e: 0.72 },
+    { z: 1.90, cy: 0.350, rx: 0.165 * nrx, ry: 0.125, e: 0.82 },
+    { z: 2.35, cy: 0.340, rx: 0.114 * nrx, ry: 0.085, e: 0.92 },
+    { z: 2.70, cy: 0.326, rx: 0.072 * nrx, ry: 0.052, e: 1 },
+    { z: 2.92, cy: 0.318, rx: 0.013, ry: 0.011, e: 1 }
+  ]), paint);
   noseG.add(nose);
-  var noseTip = mesh(new THREE.SphereGeometry(0.075, 14, 10), spec.noseTipMat, 0, 0.312, 2.795);
-  noseTip.scale.set(1, 0.6, 1.3);
+  var noseTip = mesh(new THREE.SphereGeometry(0.052, 14, 10), spec.noseTipMat, 0, 0.319, 2.86);
+  noseTip.scale.set(1.05 * nrx, 0.78, 1.7);
   noseG.add(noseTip);
   /* 鼻锥号码色带（红牛：红底白字，参考实拍） */
   if (spec.noseBand) {
-    var nb = mesh(new THREE.CylinderGeometry(0.150, 0.176, 0.30, 20), stdMat(spec.noseBand, 0.45, 0.3), 0, 0.398, 1.95);
+    var nb = mesh(new THREE.CylinderGeometry(0.146, 0.165, 0.30, 20), stdMat(spec.noseBand, 0.45, 0.3), 0, 0.352, 1.95);
     nb.geometry.rotateX(Math.PI / 2);
-    nb.scale.set(1.03, 0.64, 1);
-    nb.rotation.x = 0.103;
+    nb.scale.set(1.02 * nrx, 0.82, 1);
     noseG.add(nb);
   }
   var noseNum = decal(spec.number, 0.28, 0.28, { italic: true, cw: 256, ch: 256, size: spec.numSize || 168, color: spec.numColor, stroke: spec.numStroke });
@@ -523,17 +588,14 @@ function buildF1Car(spec) {
   noseNum.position.set(spec.numPos[0], spec.numPos[1], spec.numPos[2]);
   noseG.add(noseNum);
 
-  /* 前翼：四层翼片 + 端板 */
-  var wingEl = [
-    { y: 0.095, z: 2.82, r: -0.05, c: M.carbon, ch: 0.17 },
-    { y: 0.130, z: 2.73, r: -0.17, c: M.carbon, ch: 0.16 },
-    { y: 0.163, z: 2.645, r: -0.30, c: spec.wing3Mat, ch: 0.15 },
-    { y: 0.196, z: 2.565, r: -0.44, c: spec.wing4Mat, ch: 0.14 }
-  ];
-  wingEl.forEach(function (e) {
-    var w = box(1.82, 0.013, e.ch, e.c, 0, e.y, e.z);
-    w.rotation.x = e.r;
-    noseG.add(w);
+  /* 前翼：四层弧形翼片（中段下沉、翼尖上扬，照片同款连续曲面）+ 端板 */
+  [
+    { y: 0.092, z: 2.82, a: 0.05, c: M.carbon, ch: 0.18 },
+    { y: 0.128, z: 2.73, a: 0.17, c: M.carbon, ch: 0.165 },
+    { y: 0.162, z: 2.645, a: 0.30, c: spec.wing3Mat, ch: 0.15 },
+    { y: 0.196, z: 2.565, a: 0.44, c: spec.wing4Mat, ch: 0.14 }
+  ].forEach(function (e) {
+    noseG.add(wingEl3D(0.91, e.ch, 0.013, e.z, e.y, e.a, 0.018, 0.05, e.c));
   });
   [-1, 1].forEach(function (sx) {
     var ep = box(0.013, 0.17, 0.36, spec.endplateMat, sx * 0.915, 0.165, 2.68);
@@ -554,32 +616,42 @@ function buildF1Car(spec) {
 
   /* ---- 侧箱（podL / podR，可侧滑拆开） ---- */
   function buildPod(sx, podGroup) {
-    /* 压低拉长的侧箱，更贴近实车下压式造型 */
-    var body = mesh(new THREE.SphereGeometry(1, 22, 16), paint, sx * 0.40, 0.315, -0.05);
-    body.scale.set(0.26, 0.16, 0.72);
-    var ramp = box(0.42, 0.12, 0.78, paint2, sx * 0.40, 0.185, -0.60);
-    ramp.rotation.x = 0.16;
-    var inlet = box(0.24, 0.12, 0.05, M.innerDark, sx * 0.405, 0.45, 0.625);
-    var lip = box(0.28, 0.02, 0.06, paint, sx * 0.405, 0.52, 0.625);
-    /* 平整侧板：承载车队字样，避免贴花悬空 */
-    var sidePanel = box(0.014, 0.15, 0.85, paint, sx * 0.664, 0.315, -0.06);
+    /* 宽体贴地侧箱：照片比例的放样曲面（车身最宽 ≈ ±0.79m） */
+    var secs = spec.podSecs.map(function (s) {
+      return { z: s.z, cx: sx * s.cx, cy: s.cy, rx: s.rx, ry: s.ry, e: s.e };
+    });
+    var body = mesh(loft(secs), paint);
+    /* 进气口：开放截面内衬深色椭圆 */
+    var s0 = spec.podSecs[0];
+    var inlet = mesh(new THREE.CircleGeometry(1, 22), M.innerDark, sx * s0.cx, s0.cy, s0.z - 0.03);
+    inlet.scale.set(s0.rx * 0.92, s0.ry * 0.92, 1);
+    inlet.castShadow = false;
     var teamTxt = decal(spec.podText, 0.55, 0.085, { cw: 1024, ch: 160, size: 88, weight: 900, italic: spec.podItalic, color: spec.podTextColor });
     teamTxt.rotation.y = sx * Math.PI / 2;
-    teamTxt.position.set(sx * 0.6725, 0.33, -0.06);
-    podGroup.add(body, ramp, inlet, lip, sidePanel, teamTxt);
+    teamTxt.position.set(sx * (spec.podMaxX + 0.006), 0.31, -0.05);
+    podGroup.add(body, inlet, teamTxt);
     if (spec.podFlash) {
-      var flash = box(0.015, 0.045, 0.82, stdMat(spec.podFlash, 0.45, 0.4), sx * 0.665, 0.248, -0.06);
+      var flash = box(0.015, 0.04, 0.80, stdMat(spec.podFlash, 0.45, 0.4), sx * (spec.podMaxX - 0.015), 0.245, -0.06);
       podGroup.add(flash);
     }
   }
   buildPod(-1, podL); buildPod(1, podR);
 
   /* ---- 引擎罩（cover，可上掀） ---- */
-  var spine = mesh(new THREE.CylinderGeometry(0.165, 0.045, 2.05, 18), paint, 0, 0.615, -0.875);
-  spine.geometry.rotateX(Math.PI / 2);
-  spine.scale.set(0.78, 1.15, 1);    // 引擎盖脊背收瘦
-  spine.rotation.x = -0.045;
+  var spine = mesh(loft([
+    { z: 0.10,  cy: 0.795, rx: 0.100, ry: 0.112, e: 0.80 },   // 进气箱口（开放）
+    { z: -0.20, cy: 0.725, rx: 0.120, ry: 0.150, e: 0.85 },
+    { z: -0.70, cy: 0.635, rx: 0.115, ry: 0.150, e: 0.90 },
+    { z: -1.20, cy: 0.545, rx: 0.085, ry: 0.120, e: 1 },
+    { z: -1.60, cy: 0.480, rx: 0.050, ry: 0.075, e: 1 },
+    { z: -1.95, cy: 0.435, rx: 0.012, ry: 0.020, e: 1 }
+  ]), paint);
   cover.add(spine);
+  /* 进气口内衬 */
+  var airIn = mesh(new THREE.CircleGeometry(1, 20), M.innerDark, 0, 0.795, 0.085);
+  airIn.scale.set(0.092, 0.104, 1);
+  airIn.castShadow = false;
+  cover.add(airIn);
   /* 蒙扎风格黄色斜纹（法拉利，参考实拍引擎盖肩部） */
   if (spec.hatchColor) {
     var hatchTex = canvasTex(256, 128, function (x, w, h) {
@@ -599,18 +671,17 @@ function buildF1Car(spec) {
       hp.userData.isDecal = true;
       hp.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1),
         new THREE.Vector3(sx * 0.84, 0.54, 0).normalize());   // 贴合盖肩外法线（外倾上仰）
-      hp.position.set(sx * 0.085, 0.745, -0.18);
+      hp.position.set(sx * 0.094, 0.768, -0.18);
       cover.add(hp);
     });
   }
-  /* 进气箱口（车手头顶，参考实拍为黄色点缀） */
-  var airboxRing = mesh(new THREE.TorusGeometry(0.085, 0.028, 10, 24), spec.airboxMat || paint, 0, 0.895, 0.235);
-  airboxRing.scale.set(1.25, 0.85, 1);
-  var airDuct = mesh(new THREE.CylinderGeometry(0.085, 0.13, 0.45, 16), paint, 0, 0.825, 0.01);
-  airDuct.geometry.rotateX(Math.PI / 2);
-  airDuct.scale.set(1.25, 0.85, 1);
-  airDuct.rotation.x = 0.32;
-  cover.add(airboxRing, airDuct);
+  /* 进气箱口缘（车手头顶，参考实拍为黄色点缀） */
+  var airboxRing = mesh(new THREE.TorusGeometry(0.085, 0.020, 10, 24), spec.airboxMat || paint, 0, 0.795, 0.10);
+  airboxRing.scale.set(1.18, 1.32, 1);
+  cover.add(airboxRing);
+  /* 车顶摄像 T 杆（随盖整体拆装） */
+  var tcamPod = box(0.13, 0.035, 0.045, stdMat(0x111111, 0.6, 0.2), 0, 0.928, 0.10);
+  cover.add(tcamPod);
   /* 鲨鱼鳍 + 车号 */
   var fin = box(0.012, 0.26, 0.85, spec.finMat, 0, 0.595, -1.32);
   fin.rotation.x = -0.10;
@@ -621,8 +692,8 @@ function buildF1Car(spec) {
   var finNumR = finNumL.clone(); finNumR.position.x = -0.011;
   cover.add(finNumL, finNumR);
   /* 散热鳃缝 */
-  var gillL = box(0.02, 0.05, 0.55, M.innerDark, -0.095, 0.70, -0.62); gillL.rotation.z = 0.5;
-  var gillR = box(0.02, 0.05, 0.55, M.innerDark, 0.095, 0.70, -0.62); gillR.rotation.z = -0.5;
+  var gillL = box(0.02, 0.05, 0.55, M.innerDark, -0.098, 0.645, -0.62); gillL.rotation.z = 0.5;
+  var gillR = box(0.02, 0.05, 0.55, M.innerDark, 0.098, 0.645, -0.62); gillR.rotation.z = -0.5;
   cover.add(gillL, gillR);
 
   /* ---- 尾部常驻：变速箱 / 防撞结构 / 尾灯 / 扩散器小翼 ---- */
@@ -651,11 +722,16 @@ function buildF1Car(spec) {
     rwTxt.position.set(0, 0.980, -2.393);
     chassis.add(rwTxt);
   }
-  chassis.add(rod(-0.045, 0.46, -1.62, -0.045, 0.875, -2.24, 0.016, M.carbon));
-  chassis.add(rod(0.045, 0.46, -1.62, 0.045, 0.875, -2.24, 0.016, M.carbon));
+  chassis.add(rod(0, 0.46, -1.60, 0, 0.875, -2.26, 0.024, M.carbon, true));   // 单中央天鹅颈支柱
   [-1, 1].forEach(function (sx) {
-    var ep = box(0.014, 0.43, 0.55, spec.rwEndMat, sx * 0.505, 0.80, -2.32);
+    var ep = box(0.014, 0.40, 0.55, spec.rwEndMat, sx * 0.505, 0.78, -2.32);
     chassis.add(ep);
+    /* 2022 规则卷边：主翼端与端板顶的圆弧过渡 */
+    var rollGeo = new THREE.TorusGeometry(0.048, 0.009, 8, 12, Math.PI / 2);
+    if (sx < 0) rollGeo.rotateZ(Math.PI / 2);
+    var roll = mesh(rollGeo, spec.rwMainMat, sx * 0.457, 0.928, -2.30);
+    roll.scale.z = 13;
+    chassis.add(roll);
     if (spec.rwEndStripe) {
       var st = box(0.015, 0.085, 0.55, stdMat(spec.rwEndStripe, 0.4, 0.3), sx * 0.5055, 0.70, -2.32);
       chassis.add(st);
@@ -717,8 +793,8 @@ function buildF1Car(spec) {
   /* 车手名牌（贴在座舱侧壁） */
   var nameTag = decal(spec.driverTag, 0.42, 0.05, { cw: 768, ch: 96, size: 56, weight: 700, color: '#ffffff' });
   nameTag.rotation.y = Math.PI / 2;
-  nameTag.position.set(0.306, 0.40, 0.62);
-  var nameTag2 = nameTag.clone(); nameTag2.position.x = -0.306; nameTag2.rotation.y = -Math.PI / 2;
+  nameTag.position.set(0.300, 0.38, 0.62);
+  var nameTag2 = nameTag.clone(); nameTag2.position.x = -0.300; nameTag2.rotation.y = -Math.PI / 2;
   chassis.add(nameTag, nameTag2);
 
   /* ================= 引擎舱内部（internals） ================= */
@@ -856,6 +932,24 @@ var rbRed = stdMat(0xd6273a, 0.42, 0.35);
 var rbYellowGloss = phyMat(0xffcd0a, 0.4, 0.2, 0.8, 0.12);
 var ferrariYellow = stdMat(0xf2cc0d, 0.45, 0.3);
 
+/* 侧箱放样截面（cx 由 buildPod 按左右镜像） */
+var PODS_FERRARI = [
+  { z: 0.58,  cx: 0.500, cy: 0.405, rx: 0.125, ry: 0.115, e: 0.65 },  // F1-75 高位方口进气
+  { z: 0.30,  cx: 0.555, cy: 0.345, rx: 0.195, ry: 0.150, e: 0.80 },
+  { z: 0.00,  cx: 0.565, cy: 0.305, rx: 0.220, ry: 0.135, e: 0.90 },
+  { z: -0.50, cx: 0.525, cy: 0.265, rx: 0.185, ry: 0.105, e: 1 },
+  { z: -1.00, cx: 0.430, cy: 0.215, rx: 0.125, ry: 0.070, e: 1 },
+  { z: -1.35, cx: 0.300, cy: 0.120, rx: 0.020, ry: 0.012, e: 1 }
+];
+var PODS_RB = [
+  { z: 0.58,  cx: 0.520, cy: 0.375, rx: 0.115, ry: 0.095, e: 0.70 }, // RB 低位扁口进气
+  { z: 0.30,  cx: 0.565, cy: 0.330, rx: 0.190, ry: 0.135, e: 0.85 },
+  { z: 0.00,  cx: 0.575, cy: 0.295, rx: 0.210, ry: 0.125, e: 0.95 },
+  { z: -0.55, cx: 0.530, cy: 0.250, rx: 0.175, ry: 0.090, e: 1 },
+  { z: -1.05, cx: 0.420, cy: 0.200, rx: 0.110, ry: 0.055, e: 1 },
+  { z: -1.38, cx: 0.290, cy: 0.115, rx: 0.018, ry: 0.010, e: 1 }
+];
+
 var SPEC_FERRARI = {
   id: 'ferrari', cnName: '法拉利 F1-75',
   paintMat: ferrariPaint, paint2Mat: ferrariDark,
@@ -863,7 +957,8 @@ var SPEC_FERRARI = {
   haloColor: 0xa60d15,
   beltColor: 0xc41420,
   number: '16', numColor: '#ffffff', numStroke: 'rgba(20,20,20,0.55)',
-  numPos: [0, 0.538, 1.78],
+  numPos: [0, 0.502, 1.78],
+  noseRx: 1.08, podSecs: PODS_FERRARI, podMaxX: 0.785,
   noseTipMat: blackGloss,                                  // 实拍：黑色鼻尖
   wing3Mat: phyMat(0x16181d, 0.42, 0.42, 0.6, 0.22),       // 实拍：黑色前翼
   wing4Mat: phyMat(0x16181d, 0.42, 0.42, 0.6, 0.22),
@@ -906,7 +1001,8 @@ var SPEC_REDBULL = {
   haloColor: 0x0e1736,
   beltColor: 0x20356e,
   number: '30', numColor: '#ffffff', numStroke: null, numSize: 138,
-  numPos: [0, 0.514, 1.95],
+  numPos: [0, 0.492, 1.95],
+  noseRx: 0.93, podSecs: PODS_RB, podMaxX: 0.785,
   noseBand: 0xd0202e,                                      // 实拍：鼻锥红色号码带
   noseTipMat: rbYellowGloss,                               // 实拍：黄色鼻尖
   wing3Mat: rbDark, wing4Mat: rbDark, endplateMat: rbPaint,
@@ -1328,8 +1424,8 @@ function animate() {
     car.cover.position.y = car.coverBase.y + 0.92 * e;
     car.cover.position.z = car.coverBase.z - 0.28 * e;
     car.cover.rotation.x = -0.13 * e;
-    car.podL.position.x = car.podLBase.x - 0.62 * e;
-    car.podR.position.x = car.podRBase.x + 0.62 * e;
+    car.podL.position.x = car.podLBase.x - 0.85 * e;
+    car.podR.position.x = car.podRBase.x + 0.85 * e;
     car.podL.position.y = car.podLBase.y + 0.10 * e;
     car.podR.position.y = car.podRBase.y + 0.10 * e;
     car.noseG.position.z = car.noseBase.z + 0.55 * e;
