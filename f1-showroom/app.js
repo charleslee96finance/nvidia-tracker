@@ -52,8 +52,8 @@ camera.position.set(16, 8.5, 21);
 })();
 
 /* 灯光：冷白主灯（投影）+ 蓝色轮廓光 + 微弱环境光，按实拍影调 */
-scene.add(new THREE.HemisphereLight(0xaabdda, 0x0c0a08, 0.22));
-var key = new THREE.DirectionalLight(0xeef1f6, 1.05);
+scene.add(new THREE.HemisphereLight(0xaabdda, 0x0c0a08, 0.17));
+var key = new THREE.DirectionalLight(0xeef1f6, 0.9);
 key.position.set(4.5, 7.5, 8.5);
 key.castShadow = true;
 key.shadow.mapSize.set(2048, 2048);
@@ -177,7 +177,7 @@ var floorTex = canvasTex(1024, 1024, function (x, w, h) {
 });
 floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping;
 floorTex.repeat.set(3, 3);
-var floorMat = phyMat(0x393c42, 0.5, 0.08, 0.18, 0.55, { envMapIntensity: 0.26 });
+var floorMat = phyMat(0x2b2d33, 0.5, 0.08, 0.18, 0.55, { envMapIntensity: 0.22 });
 floorMat.map = floorTex;
 var ground = mesh(new THREE.PlaneGeometry(34, 28), floorMat, 0, 0, 0);
 ground.rotation.x = -Math.PI / 2;
@@ -240,7 +240,39 @@ function addGlow(x, z, s, op) {
   g.castShadow = false; g.receiveShadow = false;
   scene.add(g);
 }
-addGlow(-1.8, 0, 8, 0.06); addGlow(1.8, 0, 8, 0.06); addGlow(0, -1, 18, 0.035);
+/* 灯组正下方的地面光池（照片中地面亮斑跟随吊灯） */
+addGlow(-3.4, 1.2, 6, 0.09); addGlow(0.3, -0.8, 5, 0.07); addGlow(3.2, 1.0, 6, 0.09);
+addGlow(-1.8, 0, 8, 0.04); addGlow(1.8, 0, 8, 0.04); addGlow(0, -1, 18, 0.025);
+
+/* 门洞体积光：渐隐光锥 + 地面光带 + 低强度聚光 */
+var shaftTex = canvasTex(64, 256, function (x, w, h) {
+  var g = x.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, 'rgba(150,168,192,0)');      // 屋内端隐没
+  g.addColorStop(0.45, 'rgba(150,168,192,0.16)');
+  g.addColorStop(1, 'rgba(150,168,192,0.55)');   // 门口端最亮
+  x.fillStyle = g; x.fillRect(0, 0, w, h);
+});
+var shaftMat = new THREE.MeshBasicMaterial({
+  map: shaftTex, transparent: true, opacity: 0.4,
+  blending: THREE.AdditiveBlending, depthWrite: false,
+  side: THREE.DoubleSide, fog: false, toneMapped: false });
+var shaft = new THREE.Mesh(new THREE.CylinderGeometry(1.55, 1.05, 5.6, 14, 1, true), shaftMat);
+shaft.quaternion.setFromUnitVectors(V_Y, new THREE.Vector3(0.25, -1.9, 4.9).normalize());
+shaft.position.set(6.95, 1.3, -8.5);
+shaft.castShadow = false; shaft.receiveShadow = false;
+shaft.userData.noRay = true;
+scene.add(shaft);
+var spill = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 6.8),
+  new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, opacity: 0.12,
+    blending: THREE.AdditiveBlending, depthWrite: false }));
+spill.rotation.x = -Math.PI / 2;
+spill.position.set(7.0, 0.015, -8.0);
+spill.castShadow = false; spill.receiveShadow = false;
+scene.add(spill);
+var doorSpot = new THREE.SpotLight(0x9fb2c8, 0.5, 22, 0.5, 0.65);
+doorSpot.position.set(6.8, 2.8, -10.8);
+doorSpot.target.position.set(7.4, 0, -5.0);
+scene.add(doorSpot); scene.add(doorSpot.target);
 
 /* 链条吊挂的灯管组（照片同款）+ 对应聚光灯 */
 var tubeOnMat = new THREE.MeshBasicMaterial({ color: 0xe6edf8 });
@@ -276,7 +308,7 @@ function lightCluster(cx, cy, cz, tubes, aimX) {
   });
   g.position.set(cx, cy, cz);
   scene.add(g);
-  var spot = new THREE.SpotLight(0xdfe8f5, 0.6, 0, 0.85, 0.7);
+  var spot = new THREE.SpotLight(0xdfe8f5, 1.0, 0, 0.52, 0.55);
   spot.position.set(cx, cy, cz);
   spot.target.position.set(aimX, 0, 0);
   scene.add(spot); scene.add(spot.target);
@@ -480,7 +512,7 @@ function buildF1Car(spec) {
     nb.rotation.x = 0.103;
     noseG.add(nb);
   }
-  var noseNum = decal(spec.number, 0.28, 0.28, { italic: true, cw: 256, ch: 256, size: 168, color: spec.numColor, stroke: spec.numStroke });
+  var noseNum = decal(spec.number, 0.28, 0.28, { italic: true, cw: 256, ch: 256, size: spec.numSize || 168, color: spec.numColor, stroke: spec.numStroke });
   noseNum.rotation.x = -1.42;
   noseNum.position.set(spec.numPos[0], spec.numPos[1], spec.numPos[2]);
   noseG.add(noseNum);
@@ -834,7 +866,7 @@ var SPEC_REDBULL = {
   accent: 0xffcd0a,
   haloColor: 0x0e1736,
   beltColor: 0x20356e,
-  number: '1', numColor: '#ffffff', numStroke: null,
+  number: '30', numColor: '#ffffff', numStroke: null, numSize: 138,
   numPos: [0, 0.514, 1.95],
   noseBand: 0xd0202e,                                      // 实拍：鼻锥红色号码带
   noseTipMat: rbYellowGloss,                               // 实拍：黄色鼻尖
@@ -849,7 +881,7 @@ var SPEC_REDBULL = {
   camCoverMat: stdMat(0x33363e, 0.6, 0.6),
   rimRingMat: rbRed,
   podText: 'RED BULL', podTextColor: '#e8eaf0', podItalic: true, podFlash: 0xd6273a,
-  driverTag: 'M. VERSTAPPEN  ·  1',
+  driverTag: 'L. LAWSON  ·  30',
   labelAccent: 'rgba(120,160,255,0.95)',
   dashAccent: '#5e8cff', dashTag: 'RB21',
   plaque1: 'Oracle Red Bull Racing RB21', plaqueAccent: '#5e8cff',
@@ -1150,6 +1182,17 @@ window.addEventListener('resize', function () {
 var clock = new THREE.Clock();
 var elapsed = 0;
 var qTmp = new THREE.Quaternion();
+
+/* 可分享的固定机位：index.html#th=-0.55&phi=1.35&r=9 */
+(function () {
+  var m = location.hash.match(/th=(-?[\d.]+).*?phi=([\d.]+).*?r=([\d.]+)/);
+  if (m) {
+    ctrl.sphGoal.theta = parseFloat(m[1]);
+    ctrl.sphGoal.phi = parseFloat(m[2]);
+    ctrl.sphGoal.radius = parseFloat(m[3]);
+    setAuto(false);
+  }
+})();
 
 /* 开场镜头 */
 flyTo(orbitPose(), 40, 2.0, 'orbit');
