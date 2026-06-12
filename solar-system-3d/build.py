@@ -22,10 +22,11 @@ TEXTURE_FILES = {
     "neptune": "neptunemap.jpg",
     "moon": "moonmap1k.jpg",
     "sun": "sunmap.jpg",
+    "pluto": "plutomap1k.jpg",
 }
 
 
-def jpeg_uri(im, quality=78):
+def jpeg_uri(im, quality=88):
     buf = io.BytesIO()
     im.convert("RGB").save(buf, "JPEG", quality=quality)
     return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
