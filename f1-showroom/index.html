@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>F1 暗夜车库实景 3D · 法拉利 F1-75 vs 红牛 RB21</title>
+<style>
+  html, body { margin: 0; padding: 0; overflow: hidden; height: 100%;
+               background: #0a0d13; -webkit-tap-highlight-color: transparent;
+               font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif; }
+  canvas#stage { display: block; width: 100%; height: 100%;
+                 cursor: grab; touch-action: none; user-select: none; }
+  canvas#stage:active { cursor: grabbing; }
+
+  #vignette { position: fixed; inset: 0; pointer-events: none; z-index: 5;
+              background: radial-gradient(ellipse at 50% 42%,
+                          rgba(0,0,0,0) 52%, rgba(0,0,0,0.42) 100%); }
+
+  .panel { position: fixed; z-index: 10; color: #e9ecf4;
+           background: rgba(11, 14, 24, 0.74);
+           border: 1px solid rgba(150, 160, 200, 0.28); border-radius: 14px;
+           backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+
+  #title { position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+           z-index: 10; text-align: center; pointer-events: none; color: #f2f4fa; }
+  #title h1 { margin: 0; font-size: 21px; letter-spacing: 1px; font-weight: 700;
+              text-shadow: 0 2px 10px rgba(0,0,0,0.7); }
+  #title h1 .scale { display: inline-block; margin-left: 8px; padding: 1px 9px;
+                     font-size: 13px; font-weight: 800; color: #11131a;
+                     background: linear-gradient(135deg, #ffd76a, #f0a93a);
+                     border-radius: 999px; vertical-align: 3px; }
+  #title p { margin: 4px 0 0; font-size: 12px; color: #aab2c8;
+             text-shadow: 0 1px 6px rgba(0,0,0,0.8); }
+
+  #panel { top: 70px; left: 14px; padding: 12px 14px; width: 188px; }
+  #panel .grp { margin-bottom: 10px; }
+  #panel .grp:last-of-type { margin-bottom: 6px; }
+  #panel label { display: block; font-size: 11px; color: #8d96b2;
+                 margin: 0 0 5px 2px; letter-spacing: 2px; }
+  button.seg { display: block; width: 100%; box-sizing: border-box; margin: 4px 0;
+               background: rgba(96, 106, 160, 0.20); color: #e9ecf4;
+               border: 1px solid rgba(150, 160, 200, 0.30); border-radius: 9px;
+               padding: 7px 10px; font-size: 13px; cursor: pointer; text-align: left;
+               transition: background .15s, border-color .15s; }
+  button.seg:hover { background: rgba(120, 132, 190, 0.32); }
+  button.seg.active { background: rgba(214, 38, 46, 0.32);
+                      border-color: rgba(255, 110, 110, 0.75); font-weight: 600; }
+  body[data-focus="redbull"] button.seg.active {
+                      background: rgba(46, 84, 214, 0.34);
+                      border-color: rgba(110, 150, 255, 0.8); }
+  #hint { margin: 8px 2px 0; font-size: 11px; line-height: 1.65; color: #8d96b2; }
+
+  #spec { right: 14px; bottom: 14px; padding: 12px 16px; max-width: 295px;
+          font-size: 12px; line-height: 1.7; }
+  #spec h3 { margin: 0 0 6px; font-size: 15px; color: #fff; }
+  #spec h3 span { display: block; font-size: 11px; font-weight: 400; color: #94a; color: #97a0bd; }
+  #spec .row { display: flex; gap: 10px; border-top: 1px dashed rgba(150,160,200,0.18); padding: 3px 0; }
+  #spec .row b { flex: 0 0 62px; color: #97a0bd; font-weight: 500; }
+
+  #cockpitTip { bottom: 18px; left: 50%; transform: translateX(-50%);
+                padding: 8px 18px; font-size: 12px; color: #cdd4e8; white-space: nowrap; }
+  .hidden { display: none !important; }
+
+  @media (max-width: 720px) {
+    #title h1 { font-size: 16px; } #title p { display: none; }
+    #panel { top: auto; bottom: 12px; left: 10px; width: 152px; padding: 9px 10px; }
+    button.seg { padding: 6px 8px; font-size: 12px; }
+    #hint { display: none; }
+    #spec { display: none; }
+    #cockpitTip { bottom: auto; top: 58px; font-size: 11px; }
+  }
+</style>
+</head>
+<body data-focus="ferrari">
+<canvas id="stage"></canvas>
+<div id="vignette"></div>
+
+<header id="title">
+  <h1>F1 暗夜车库 3D 实景<span class="scale">实拍还原</span></h1>
+  <p>法拉利 F1-75 × 红牛 RB21 — 360° 自由旋转 · 驾驶舱第一视角 · 分层拆解引擎</p>
+</header>
+
+<div id="panel" class="panel">
+  <div class="grp"><label>车 辆</label>
+    <button class="seg active" data-car="ferrari">🟥 法拉利 F1-75</button>
+    <button class="seg" data-car="redbull">🟦 红牛 RB21</button>
+  </div>
+  <div class="grp"><label>视 角</label>
+    <button class="seg active" data-view="orbit">360° 环绕展示</button>
+    <button class="seg" data-view="cockpit">驾驶舱第一视角</button>
+  </div>
+  <div class="grp"><label>结构层</label>
+    <button class="seg active" data-layer="full">完整车身</button>
+    <button class="seg" data-layer="xray">透视外壳（X 光）</button>
+    <button class="seg" data-layer="open">拆解 · 引擎细节</button>
+  </div>
+  <div class="grp">
+    <button class="seg active" id="btnSpin">⟳ 自动旋转：开</button>
+  </div>
+  <p id="hint">拖动旋转 · 滚轮 / 双指缩放<br>右键拖动平移 · 点击赛车聚焦</p>
+</div>
+
+<div id="spec" class="panel"></div>
+<div id="cockpitTip" class="panel hidden">拖动环顾四周 · 方向盘中央即仪表屏（转速灯 / 档位 / 车速 / ERS）· 滚轮调整视野</div>
+
+<script src="three.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
