@@ -27,6 +27,20 @@
                      border: 1px solid rgba(140, 150, 220, 0.5); border-radius: 8px;
                      padding: 6px 12px; font-size: 13px; cursor: pointer; }
   #controls button:hover { background: rgba(110, 120, 210, 0.55); }
+  #controls button.active { background: rgba(255, 170, 60, 0.4);
+                            border-color: rgba(255, 190, 100, 0.8); }
+  #datePanel { cursor: pointer; }
+  #datePicker { position: absolute; opacity: 0; width: 1px; height: 1px;
+                border: 0; padding: 0; }
+  #sandboxPanel { bottom: 18px; left: 50%; transform: translateX(-50%);
+                  display: flex; align-items: center; gap: 12px;
+                  white-space: nowrap; }
+  #sandboxPanel.hidden { display: none; }
+  #sandboxPanel span { font-size: 13px; color: #ffd97a; }
+  #sandboxPanel button { background: rgba(90, 100, 190, 0.35); color: #e8eaf6;
+                         border: 1px solid rgba(140, 150, 220, 0.5);
+                         border-radius: 8px; padding: 6px 12px; font-size: 13px;
+                         cursor: pointer; }
   #controls input[type="range"] { width: 100px; vertical-align: middle; }
   #speedVal { display: inline-block; min-width: 38px; }
   #info { bottom: 18px; left: 50%; transform: translateX(-50%);
@@ -84,9 +98,10 @@
   <h1 id="hudTitle">太阳系 3D 实时模拟</h1>
   <p id="hudHints"></p>
 </div>
-<div id="datePanel" class="panel">
+<div id="datePanel" class="panel" title="点击跳转日期 · Click to jump to a date">
   <span id="dateLabel">模拟日期</span> <b id="dateValue">—</b>
-  <span id="dateElapsed"></span>
+  <span id="dateElapsed"></span> 📅
+  <input type="date" id="datePicker" min="1900-01-01" max="2200-12-31">
 </div>
 <div id="controls" class="panel">
   <button id="pauseBtn">❚❚ 暂停</button>
@@ -95,9 +110,16 @@
   <span id="speedVal">1.0×</span>
   <button id="resetBtn">重置视角</button>
   <button id="tourBtn">🎬 自动导览</button>
+  <button id="constBtn">⭐ 星座</button>
+  <button id="sandboxBtn">🎮 引力沙盒</button>
+  <button id="soundBtn">🔊 音效</button>
   <button id="langBtn">EN</button>
 </div>
 <div id="navPanel"></div>
+<div id="sandboxPanel" class="panel hidden">
+  <span id="sandboxHintText">拖动并松手发射新天体 · 试试让它绕太阳转！</span>
+  <button id="clearBtn">🧹 清空</button>
+</div>
 <div id="sky"></div>
 <div id="info" class="panel hidden">
   <h2 id="infoName"></h2>
