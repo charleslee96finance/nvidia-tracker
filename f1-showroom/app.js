@@ -132,9 +132,9 @@ function decal(text, wWorld, hWorld, opt) {
   m.userData.isDecal = true;
   return m;
 }
-/* 部件标注（始终面向相机的悬浮标签） */
-function partLabel(text, accentCss) {
-  var tex = canvasTex(384, 96, function (x, w, h) {
+/* 部件标注贴图（中英双语切换共用） */
+function labelTex(text, accentCss) {
+  return canvasTex(384, 96, function (x, w, h) {
     function rr(a, b, ww, hh, r) {
       x.beginPath();
       x.moveTo(a + r, b); x.arcTo(a + ww, b, a + ww, b + hh, r); x.arcTo(a + ww, b + hh, a, b + hh, r);
@@ -143,13 +143,19 @@ function partLabel(text, accentCss) {
     rr(4, 10, w - 8, h - 20, 18);
     x.fillStyle = 'rgba(8,10,18,0.85)'; x.fill();
     x.lineWidth = 3; x.strokeStyle = accentCss || 'rgba(255,255,255,0.45)'; x.stroke();
-    x.font = '600 36px "PingFang SC", "Microsoft YaHei", sans-serif';
+    var size = text.length > 16 ? 30 : 36;
+    x.font = '600 ' + size + 'px "PingFang SC", "Microsoft YaHei", sans-serif';
     x.textAlign = 'center'; x.textBaseline = 'middle';
     x.fillStyle = '#f5f7ff'; x.fillText(text, w / 2, h / 2 + 1);
   });
+}
+/* 始终面向相机的悬浮标签（内置中英两套贴图） */
+function partLabel(textZh, textEn, accentCss) {
   var sp = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: tex, transparent: true, depthTest: false, toneMapped: false }));
-  sp.scale.set(0.95, 0.2375, 1);   // 父级整体缩 1/16，故此处用"真实尺度"标定
+    map: labelTex(textZh, accentCss), transparent: true, depthTest: false, toneMapped: false }));
+  sp.userData.texZh = sp.material.map;
+  sp.userData.texEn = labelTex(textEn, accentCss);
+  sp.scale.set(0.95, 0.2375, 1);
   sp.renderOrder = 999;
   sp.userData.noRay = true;
   return sp;
@@ -407,7 +413,7 @@ function buildF1Car(spec) {
   /* ---- 座舱单体壳 + 上盖板（带真实开口） ---- */
   var tub = mesh(new THREE.CylinderGeometry(0.5, 0.5, 1, 24, 1, false), paint, 0, 0.33, 0.66);
   tub.geometry.rotateX(Math.PI / 2);
-  tub.scale.set(0.72, 0.56, 1.42);
+  tub.scale.set(0.62, 0.50, 1.42);    // 收窄座舱单体壳，贴近实车修身比例
   chassis.add(tub);
 
   var deckShape = new THREE.Shape();
@@ -468,12 +474,12 @@ function buildF1Car(spec) {
 
   /* ---- HALO 保护圈（座舱视角抬头即见） ---- */
   var haloMat = phyMat(spec.haloColor, 0.45, 0.4, 0.6, 0.2);
-  var haloRing = mesh(new THREE.TorusGeometry(0.31, 0.030, 10, 36), haloMat, 0, 0.925, 0.52);
+  var haloRing = mesh(new THREE.TorusGeometry(0.29, 0.024, 10, 36), haloMat, 0, 0.91, 0.52);
   haloRing.geometry.rotateX(Math.PI / 2);
-  haloRing.scale.set(1, 1, 1.38);
-  var haloPost = rod(0, 0.60, 0.93, 0, 0.925, 0.945, 0.024, haloMat);
-  var haloL = rod(-0.30, 0.60, 0.12, -0.295, 0.918, 0.30, 0.024, haloMat);
-  var haloR = rod(0.30, 0.60, 0.12, 0.295, 0.918, 0.30, 0.024, haloMat);
+  haloRing.scale.set(1, 1, 1.45);     // 更纤细贴身的 halo
+  var haloPost = rod(0, 0.60, 0.92, 0, 0.91, 0.94, 0.020, haloMat);
+  var haloL = rod(-0.285, 0.60, 0.12, -0.278, 0.902, 0.30, 0.020, haloMat);
+  var haloR = rod(0.285, 0.60, 0.12, 0.278, 0.902, 0.30, 0.020, haloMat);
   chassis.add(haloRing, haloPost, haloL, haloR);
 
   /* 后视镜（座舱视角左右可见） */
@@ -532,7 +538,7 @@ function buildF1Car(spec) {
   [-1, 1].forEach(function (sx) {
     var ep = box(0.013, 0.17, 0.36, spec.endplateMat, sx * 0.915, 0.165, 2.68);
     ep.rotation.y = sx * 0.10;
-    var tip = box(0.013, 0.045, 0.30, paint, sx * 0.945, 0.262, 2.66);
+    var tip = box(0.013, 0.045, 0.30, spec.epTipMat || paint, sx * 0.945, 0.262, 2.66);
     tip.rotation.z = sx * 0.7; tip.rotation.y = sx * 0.10;
     noseG.add(ep, tip);
   });
@@ -548,20 +554,21 @@ function buildF1Car(spec) {
 
   /* ---- 侧箱（podL / podR，可侧滑拆开） ---- */
   function buildPod(sx, podGroup) {
-    var body = mesh(new THREE.SphereGeometry(1, 22, 16), paint, sx * 0.40, 0.335, 0.0);
-    body.scale.set(0.27, 0.185, 0.62);
-    var ramp = box(0.42, 0.13, 0.75, paint2, sx * 0.40, 0.20, -0.55);
-    ramp.rotation.x = 0.18;
-    var inlet = box(0.26, 0.135, 0.05, M.innerDark, sx * 0.405, 0.475, 0.575);
-    var lip = box(0.30, 0.022, 0.06, paint, sx * 0.405, 0.553, 0.575);
+    /* 压低拉长的侧箱，更贴近实车下压式造型 */
+    var body = mesh(new THREE.SphereGeometry(1, 22, 16), paint, sx * 0.40, 0.315, -0.05);
+    body.scale.set(0.26, 0.16, 0.72);
+    var ramp = box(0.42, 0.12, 0.78, paint2, sx * 0.40, 0.185, -0.60);
+    ramp.rotation.x = 0.16;
+    var inlet = box(0.24, 0.12, 0.05, M.innerDark, sx * 0.405, 0.45, 0.625);
+    var lip = box(0.28, 0.02, 0.06, paint, sx * 0.405, 0.52, 0.625);
     /* 平整侧板：承载车队字样，避免贴花悬空 */
-    var sidePanel = box(0.014, 0.17, 0.80, paint, sx * 0.664, 0.33, -0.06);
+    var sidePanel = box(0.014, 0.15, 0.85, paint, sx * 0.664, 0.315, -0.06);
     var teamTxt = decal(spec.podText, 0.55, 0.085, { cw: 1024, ch: 160, size: 88, weight: 900, italic: spec.podItalic, color: spec.podTextColor });
     teamTxt.rotation.y = sx * Math.PI / 2;
-    teamTxt.position.set(sx * 0.6725, 0.345, -0.06);
+    teamTxt.position.set(sx * 0.6725, 0.33, -0.06);
     podGroup.add(body, ramp, inlet, lip, sidePanel, teamTxt);
     if (spec.podFlash) {
-      var flash = box(0.015, 0.045, 0.78, stdMat(spec.podFlash, 0.45, 0.4), sx * 0.665, 0.262, -0.06);
+      var flash = box(0.015, 0.045, 0.82, stdMat(spec.podFlash, 0.45, 0.4), sx * 0.665, 0.248, -0.06);
       podGroup.add(flash);
     }
   }
@@ -570,9 +577,32 @@ function buildF1Car(spec) {
   /* ---- 引擎罩（cover，可上掀） ---- */
   var spine = mesh(new THREE.CylinderGeometry(0.165, 0.045, 2.05, 18), paint, 0, 0.615, -0.875);
   spine.geometry.rotateX(Math.PI / 2);
-  spine.scale.set(0.85, 1.22, 1);
+  spine.scale.set(0.78, 1.15, 1);    // 引擎盖脊背收瘦
   spine.rotation.x = -0.045;
   cover.add(spine);
+  /* 蒙扎风格黄色斜纹（法拉利，参考实拍引擎盖肩部） */
+  if (spec.hatchColor) {
+    var hatchTex = canvasTex(256, 128, function (x, w, h) {
+      x.fillStyle = spec.hatchColor;
+      for (var i = 0; i < 8; i++) {
+        x.save();
+        x.transform(1, 0, -0.5, 1, i * 36 + 26, 0);
+        x.fillRect(0, 0, 13, h);
+        x.restore();
+      }
+    });
+    [-1, 1].forEach(function (sx) {
+      var hp = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.13),
+        new THREE.MeshBasicMaterial({ map: hatchTex, transparent: true, side: THREE.DoubleSide,
+          polygonOffset: true, polygonOffsetFactor: -2, toneMapped: false, depthWrite: false }));
+      hp.castShadow = false; hp.receiveShadow = false;
+      hp.userData.isDecal = true;
+      hp.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1),
+        new THREE.Vector3(sx * 0.84, 0.54, 0).normalize());   // 贴合盖肩外法线（外倾上仰）
+      hp.position.set(sx * 0.085, 0.745, -0.18);
+      cover.add(hp);
+    });
+  }
   /* 进气箱口（车手头顶，参考实拍为黄色点缀） */
   var airboxRing = mesh(new THREE.TorusGeometry(0.085, 0.028, 10, 24), spec.airboxMat || paint, 0, 0.895, 0.235);
   airboxRing.scale.set(1.25, 0.85, 1);
@@ -591,8 +621,8 @@ function buildF1Car(spec) {
   var finNumR = finNumL.clone(); finNumR.position.x = -0.011;
   cover.add(finNumL, finNumR);
   /* 散热鳃缝 */
-  var gillL = box(0.02, 0.05, 0.55, M.innerDark, -0.125, 0.70, -0.62); gillL.rotation.z = 0.5;
-  var gillR = box(0.02, 0.05, 0.55, M.innerDark, 0.125, 0.70, -0.62); gillR.rotation.z = -0.5;
+  var gillL = box(0.02, 0.05, 0.55, M.innerDark, -0.095, 0.70, -0.62); gillL.rotation.z = 0.5;
+  var gillR = box(0.02, 0.05, 0.55, M.innerDark, 0.095, 0.70, -0.62); gillR.rotation.z = -0.5;
   cover.add(gillL, gillR);
 
   /* ---- 尾部常驻：变速箱 / 防撞结构 / 尾灯 / 扩散器小翼 ---- */
@@ -687,8 +717,8 @@ function buildF1Car(spec) {
   /* 车手名牌（贴在座舱侧壁） */
   var nameTag = decal(spec.driverTag, 0.42, 0.05, { cw: 768, ch: 96, size: 56, weight: 700, color: '#ffffff' });
   nameTag.rotation.y = Math.PI / 2;
-  nameTag.position.set(0.352, 0.40, 0.62);
-  var nameTag2 = nameTag.clone(); nameTag2.position.x = -0.352; nameTag2.rotation.y = -Math.PI / 2;
+  nameTag.position.set(0.306, 0.40, 0.62);
+  var nameTag2 = nameTag.clone(); nameTag2.position.x = -0.306; nameTag2.rotation.y = -Math.PI / 2;
   chassis.add(nameTag, nameTag2);
 
   /* ================= 引擎舱内部（internals） ================= */
@@ -756,20 +786,20 @@ function buildF1Car(spec) {
   var oil = mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.18, 12), M.gold, 0.16, 0.32, -0.16);
   internals.add(oil);
 
-  /* ---- 部件标注 ---- */
+  /* ---- 部件标注（中英双语） ---- */
   var lbAccent = spec.labelAccent;
-  function lab(text, x, y, z) {
-    var s = partLabel(text, lbAccent);
+  function lab(zh, en, x, y, z) {
+    var s = partLabel(zh, en, lbAccent);
     s.position.set(x, y, z);
     labels.add(s);
   }
-  lab('1.6L V6 涡轮混动引擎', 0, 1.10, -0.50);
-  lab('涡轮增压器', 0.42, 0.78, -1.00);
-  lab('8速序列式变速箱', 0, 0.88, -1.50);
-  lab('排气系统（隔热包覆）', -0.45, 0.55, -1.35);
-  lab('散热器 / 中冷器', -0.72, 0.78, 0.10);
-  lab('ERS 混动电池组', 0.55, 0.28, -0.12);
-  lab('MGU-K 动能回收电机', -0.62, 0.14, -0.58);
+  lab('1.6L V6 涡轮混动引擎', '1.6L V6 Turbo-Hybrid Engine', 0, 1.10, -0.50);
+  lab('涡轮增压器', 'Turbocharger', 0.42, 0.78, -1.00);
+  lab('8速序列式变速箱', '8-Speed Sequential Gearbox', 0, 0.88, -1.50);
+  lab('排气系统（隔热包覆）', 'Exhaust · Heat-Wrapped', -0.45, 0.55, -1.35);
+  lab('散热器 / 中冷器', 'Radiators / Intercooler', -0.72, 0.78, 0.10);
+  lab('ERS 混动电池组', 'ERS Battery Pack', 0.55, 0.28, -0.12);
+  lab('MGU-K 动能回收电机', 'MGU-K Recovery Motor', -0.62, 0.14, -0.58);
 
   /* ---- 可拆部件基准位 & 幽灵（X 光）材质 ---- */
   car.group = root;
@@ -838,6 +868,8 @@ var SPEC_FERRARI = {
   wing3Mat: phyMat(0x16181d, 0.42, 0.42, 0.6, 0.22),       // 实拍：黑色前翼
   wing4Mat: phyMat(0x16181d, 0.42, 0.42, 0.6, 0.22),
   endplateMat: phyMat(0x16181d, 0.42, 0.42, 0.6, 0.22),
+  epTipMat: blackGloss,                                    // 实拍：端板翼尖同为黑色
+  hatchColor: '#f2cc0d',                                   // 实拍：引擎盖肩部蒙扎黄斜纹
   finMat: ferrariPaint,
   rwMainMat: ferrariYellowGloss,                           // 实拍：蒙扎黄尾翼
   flapMat: ferrariYellowGloss,
@@ -858,7 +890,14 @@ var SPEC_FERRARI = {
     '<div class="row"><b>综合功率</b><i>≈ 1,000 hp（内燃机 + ERS）</i></div>' +
     '<div class="row"><b>变速箱</b><i>8 速序列式半自动</i></div>' +
     '<div class="row"><b>车手</b><i>#16 勒克莱尔 · #55 塞恩斯</i></div>' +
-    '<div class="row"><b>整车尺寸</b><i>长 ≈ 5.6 m · 轴距 3.6 m</i></div>'
+    '<div class="row"><b>整车尺寸</b><i>长 ≈ 5.6 m · 轴距 3.6 m</i></div>',
+  specHTMLen:
+    '<h3>Ferrari F1-75<span>Scuderia Ferrari · Monza special livery</span></h3>' +
+    '<div class="row"><b>Power unit</b><i>Ferrari 066/7 · 1.6L V6 turbo-hybrid</i></div>' +
+    '<div class="row"><b>Output</b><i>≈ 1,000 hp (ICE + ERS)</i></div>' +
+    '<div class="row"><b>Gearbox</b><i>8-speed sequential</i></div>' +
+    '<div class="row"><b>Drivers</b><i>#16 Leclerc · #55 Sainz</i></div>' +
+    '<div class="row"><b>Dimensions</b><i>length ≈ 5.6 m · wheelbase 3.6 m</i></div>'
 };
 var SPEC_REDBULL = {
   id: 'redbull', cnName: '红牛 RB21',
@@ -871,6 +910,7 @@ var SPEC_REDBULL = {
   noseBand: 0xd0202e,                                      // 实拍：鼻锥红色号码带
   noseTipMat: rbYellowGloss,                               // 实拍：黄色鼻尖
   wing3Mat: rbDark, wing4Mat: rbDark, endplateMat: rbPaint,
+  epTipMat: rbYellowGloss,                                 // 实拍：前翼端板黄色翼尖
   wingScript: 'Red Bull', wingScriptColor: '#d0202e',      // 实拍：前翼红色大字
   finMat: rbPaint,
   rwMainMat: rbPaint, flapMat: rbPaint,
@@ -891,7 +931,14 @@ var SPEC_REDBULL = {
     '<div class="row"><b>综合功率</b><i>≈ 1,000 hp（内燃机 + ERS）</i></div>' +
     '<div class="row"><b>变速箱</b><i>8 速序列式半自动</i></div>' +
     '<div class="row"><b>车手</b><i>#1 维斯塔潘 · #30 劳森</i></div>' +
-    '<div class="row"><b>整车尺寸</b><i>长 ≈ 5.6 m · 轴距 3.6 m</i></div>'
+    '<div class="row"><b>整车尺寸</b><i>长 ≈ 5.6 m · 轴距 3.6 m</i></div>',
+  specHTMLen:
+    '<h3>Red Bull RB21<span>Oracle Red Bull Racing</span></h3>' +
+    '<div class="row"><b>Power unit</b><i>Honda RBPT · 1.6L V6 turbo-hybrid</i></div>' +
+    '<div class="row"><b>Output</b><i>≈ 1,000 hp (ICE + ERS)</i></div>' +
+    '<div class="row"><b>Gearbox</b><i>8-speed sequential</i></div>' +
+    '<div class="row"><b>Drivers</b><i>#1 Verstappen · #30 Lawson</i></div>' +
+    '<div class="row"><b>Dimensions</b><i>length ≈ 5.6 m · wheelbase 3.6 m</i></div>'
 };
 
 /* ------------------------------------------------------ 组装到展台 ---- */
@@ -983,6 +1030,40 @@ function drawDash(car, sim) {
   car.dash.tex.needsUpdate = true;
 }
 
+/* ---------------------------------------------------- 中 / 英 语言包 ---- */
+var I18N = {
+  zh: {
+    docTitle: 'F1 暗夜车库实景 3D · 法拉利 F1-75 vs 红牛 RB21',
+    title: 'F1 暗夜车库 3D 实景', badge: '实拍还原',
+    sub: '法拉利 F1-75 × 红牛 RB21 — 360° 自由旋转 · 驾驶舱第一视角 · 分层拆解引擎',
+    lblCar: '车 辆', lblView: '视 角', lblLayer: '结构层',
+    carF: '🟥 法拉利 F1-75', carR: '🟦 红牛 RB21',
+    viewOrbit: '360° 环绕展示', viewCockpit: '驾驶舱第一视角',
+    layerFull: '完整车身', layerXray: '透视外壳（X 光）', layerOpen: '拆解 · 引擎细节',
+    spinOn: '⟳ 自动旋转：开', spinOff: '⟳ 自动旋转：关',
+    langBtn: '🌐 English',
+    hint: '拖动旋转 · 滚轮 / 双指缩放<br>右键拖动平移 · 点击赛车聚焦',
+    tip: '拖动环顾四周 · 方向盘中央即仪表屏（转速灯 / 档位 / 车速 / ERS）· 滚轮调整视野'
+  },
+  en: {
+    docTitle: 'F1 Night Garage 3D · Ferrari F1-75 vs Red Bull RB21',
+    title: 'F1 Night Garage in 3D', badge: 'PHOTO-MATCHED',
+    sub: 'Ferrari F1-75 × Red Bull RB21 — free 360° orbit · cockpit POV · layered engine teardown',
+    lblCar: 'CAR', lblView: 'VIEW', lblLayer: 'LAYERS',
+    carF: '🟥 Ferrari F1-75', carR: '🟦 Red Bull RB21',
+    viewOrbit: '360° Orbit', viewCockpit: 'Cockpit POV',
+    layerFull: 'Full Body', layerXray: 'X-Ray Shell', layerOpen: 'Teardown · Engine',
+    spinOn: '⟳ Auto-rotate: ON', spinOff: '⟳ Auto-rotate: OFF',
+    langBtn: '🌐 中文',
+    hint: 'Drag to orbit · scroll / pinch to zoom<br>right-drag to pan · click a car to focus',
+    tip: 'Drag to look around · the wheel screen is your dash (RPM LEDs / gear / speed / ERS) · scroll adjusts FOV'
+  }
+};
+var lang = 'zh';
+function specHTMLFor(car) {
+  return lang === 'zh' ? car.spec.specHTML : car.spec.specHTMLen;
+}
+
 /* ------------------------------------------------------ 相机控制 ---- */
 var ctrl = {
   mode: 'orbit',                       // orbit | cockpit | anim
@@ -1026,7 +1107,7 @@ var pinchD0 = 0, pinchR0 = 0, movedPx = 0, downTime = 0;
 var spinBtn = document.getElementById('btnSpin');
 function setAuto(v) {
   ctrl.auto = v;
-  spinBtn.textContent = v ? '⟳ 自动旋转：开' : '⟳ 自动旋转：关';
+  spinBtn.textContent = v ? I18N[lang].spinOn : I18N[lang].spinOff;
   spinBtn.classList.toggle('active', v);
 }
 canvas.addEventListener('pointerdown', function (e) {
@@ -1144,7 +1225,7 @@ function setFocus(car, fromClick) {
   if (focusCar === car && fromClick) return;
   focusCar = car;
   document.body.setAttribute('data-focus', car.spec.id);
-  document.getElementById('spec').innerHTML = car.spec.specHTML;
+  document.getElementById('spec').innerHTML = specHTMLFor(car);
   document.querySelectorAll('[data-car]').forEach(function (b) {
     b.classList.toggle('active', b.getAttribute('data-car') === car.spec.id);
   });
@@ -1170,7 +1251,45 @@ document.querySelectorAll('[data-layer]').forEach(function (b) {
   b.addEventListener('click', function () { setLayer(b.getAttribute('data-layer')); });
 });
 spinBtn.addEventListener('click', function () { setAuto(!ctrl.auto); });
-document.getElementById('spec').innerHTML = SPEC_FERRARI.specHTML;
+
+/* 语言切换：界面 / 参数卡 / 部件标注同步翻译 */
+function applyLang(l) {
+  lang = l;
+  try { localStorage.setItem('f1lang', l); } catch (e) {}
+  var t = I18N[l];
+  document.documentElement.lang = (l === 'zh') ? 'zh-CN' : 'en';
+  document.title = t.docTitle;
+  document.getElementById('tTitle').textContent = t.title;
+  document.getElementById('tBadge').textContent = t.badge;
+  document.getElementById('tSub').textContent = t.sub;
+  document.getElementById('lblCar').textContent = t.lblCar;
+  document.getElementById('lblView').textContent = t.lblView;
+  document.getElementById('lblLayer').textContent = t.lblLayer;
+  document.querySelector('[data-car="ferrari"]').textContent = t.carF;
+  document.querySelector('[data-car="redbull"]').textContent = t.carR;
+  document.querySelector('[data-view="orbit"]').textContent = t.viewOrbit;
+  document.querySelector('[data-view="cockpit"]').textContent = t.viewCockpit;
+  document.querySelector('[data-layer="full"]').textContent = t.layerFull;
+  document.querySelector('[data-layer="xray"]').textContent = t.layerXray;
+  document.querySelector('[data-layer="open"]').textContent = t.layerOpen;
+  document.getElementById('btnLang').textContent = t.langBtn;
+  document.getElementById('hint').innerHTML = t.hint;
+  document.getElementById('cockpitTip').textContent = t.tip;
+  setAuto(ctrl.auto);
+  document.getElementById('spec').innerHTML = specHTMLFor(focusCar);
+  cars.forEach(function (car) {
+    car.labels.children.forEach(function (s) {
+      s.material.map = (l === 'zh') ? s.userData.texZh : s.userData.texEn;
+    });
+  });
+}
+document.getElementById('btnLang').addEventListener('click', function () {
+  applyLang(lang === 'zh' ? 'en' : 'zh');
+});
+var savedLang = 'zh';
+try { savedLang = localStorage.getItem('f1lang') || 'zh'; } catch (e) {}
+if (/[#&?]lang=en/.test(location.href)) savedLang = 'en';
+applyLang(savedLang);
 
 window.addEventListener('resize', function () {
   camera.aspect = window.innerWidth / window.innerHeight;
