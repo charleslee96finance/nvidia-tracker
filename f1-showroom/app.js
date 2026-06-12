@@ -26,10 +26,13 @@ scene.fog = new THREE.Fog(0x07080c, 15, 46);
 var camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.02, 120);
 camera.position.set(16, 8.5, 21);
 
-/* 暗夜车库环境反射（PMREM：黑场 + 头顶灯管条，参考实拍） */
-(function buildEnvMap() {
-  var env = new THREE.Scene();
-  env.add(new THREE.Mesh(
+/* 环境反射贴图 ×2（PMREM）：暗夜车库灯管条 / 摩洛哥晴空沙漠 */
+var envGarage, envTrack;
+(function buildEnvMaps() {
+  var pm = new THREE.PMREMGenerator(renderer);
+  /* 车库：黑场 + 头顶灯管条 */
+  var g = new THREE.Scene();
+  g.add(new THREE.Mesh(
     new THREE.SphereGeometry(12, 16, 12),
     new THREE.MeshBasicMaterial({ color: 0x030405, side: THREE.BackSide })));
   function strip(x, y, z, ry) {
@@ -37,7 +40,7 @@ camera.position.set(16, 8.5, 21);
       new THREE.BoxGeometry(3.6, 0.14, 0.5),
       new THREE.MeshBasicMaterial({ color: 0xc9d4e4 }));
     m.position.set(x, y, z); m.rotation.y = ry;
-    env.add(m);
+    g.add(m);
   }
   strip(-3.5, 5.0, 1.5, 0.4); strip(0.5, 5.6, -1.0, -0.2);
   strip(3.4, 5.2, 1.2, 0.7);  strip(-1.0, 4.6, -3.0, 1.2);
@@ -45,14 +48,29 @@ camera.position.set(16, 8.5, 21);
   var bounce = new THREE.Mesh(new THREE.PlaneGeometry(16, 16),
     new THREE.MeshBasicMaterial({ color: 0x16140f }));
   bounce.rotation.x = Math.PI / 2; bounce.position.y = -0.01;
-  env.add(bounce);
-  var pm = new THREE.PMREMGenerator(renderer);
-  scene.environment = pm.fromScene(env, 0.035).texture;
+  g.add(bounce);
+  envGarage = pm.fromScene(g, 0.035).texture;
+  /* 赛道：蓝天穹顶 + 暖阳 + 沙漠地面反弹 */
+  var t = new THREE.Scene();
+  t.add(new THREE.Mesh(
+    new THREE.SphereGeometry(12, 16, 12),
+    new THREE.MeshBasicMaterial({ color: 0x86add4, side: THREE.BackSide })));
+  var sunBall = new THREE.Mesh(new THREE.SphereGeometry(1.4, 12, 10),
+    new THREE.MeshBasicMaterial({ color: 0xfff2cf }));
+  sunBall.position.set(6, 8, -3);
+  t.add(sunBall);
+  var sand = new THREE.Mesh(new THREE.PlaneGeometry(24, 24),
+    new THREE.MeshBasicMaterial({ color: 0x8a6e46 }));
+  sand.rotation.x = -Math.PI / 2; sand.position.y = -0.5;
+  t.add(sand);
+  envTrack = pm.fromScene(t, 0.045).texture;
   pm.dispose();
 })();
+scene.environment = envTrack;
 
-/* 灯光：冷白主灯（投影）+ 蓝色轮廓光 + 微弱环境光，按实拍影调 */
-scene.add(new THREE.HemisphereLight(0xaabdda, 0x0c0a08, 0.17));
+/* 灯光（参数随场景切换）：主灯（投影）+ 轮廓光 + 补光 + 半球光 */
+var hemi = new THREE.HemisphereLight(0xaabdda, 0x0c0a08, 0.17);
+scene.add(hemi);
 var key = new THREE.DirectionalLight(0xeef1f6, 0.9);
 key.position.set(4.5, 7.5, 8.5);
 key.castShadow = true;
@@ -224,6 +242,8 @@ function wingEl3D(halfSpan, chord, thick, zC, yBase, aoa, dip, tipRise, mat) {
 }
 
 /* ------------------------------------------- 暗夜车库（参考实拍搭建） ---- */
+var garageG = new THREE.Group();
+scene.add(garageG);
 /* 深色高反水泥地：斑驳 + 裂纹 */
 var floorTex = canvasTex(1024, 1024, function (x, w, h) {
   x.fillStyle = '#131418'; x.fillRect(0, 0, w, h);
@@ -250,7 +270,7 @@ floorMat.map = floorTex;
 var ground = mesh(new THREE.PlaneGeometry(34, 28), floorMat, 0, 0, 0);
 ground.rotation.x = -Math.PI / 2;
 ground.castShadow = false;
-scene.add(ground);
+garageG.add(ground);
 
 /* 斑驳水泥墙 + 黑顶 */
 var wallTex = canvasTex(1024, 512, function (x, w, h) {
@@ -273,7 +293,7 @@ function wall(w, h, x, y, z, ry) {
   var m = mesh(new THREE.PlaneGeometry(w, h), wallMat, x, y, z);
   m.rotation.y = ry;
   m.castShadow = false;
-  scene.add(m);
+  garageG.add(m);
 }
 wall(26, 7, 0, 3.5, -11, 0);
 wall(26, 7, 0, 3.5, 12.5, Math.PI);
@@ -282,16 +302,16 @@ wall(24, 7, 12.5, 3.5, 0, -Math.PI / 2);
 var ceil = mesh(new THREE.PlaneGeometry(26, 24), stdMat(0x0a0a0c, 1, 0), 0, 7, 0);
 ceil.rotation.x = Math.PI / 2;
 ceil.castShadow = false;
-scene.add(ceil);
+garageG.add(ceil);
 
 /* 远处亮门洞（照片右后方） */
 var doorway = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 4.4),
   new THREE.MeshBasicMaterial({ color: 0x8d97a4 }));
 doorway.position.set(6.8, 2.2, -10.96);
-scene.add(doorway);
+garageG.add(doorway);
 var doorFrame = box(2.7, 4.7, 0.08, stdMat(0x0c0d10, 0.9, 0), 6.8, 2.3, -10.99);
 doorFrame.castShadow = false;
-scene.add(doorFrame);
+garageG.add(doorFrame);
 
 /* 地面光晕 */
 var glowTex = canvasTex(256, 256, function (x, w, h) {
@@ -306,7 +326,7 @@ function addGlow(x, z, s, op) {
       blending: THREE.AdditiveBlending, depthWrite: false }));
   g.rotation.x = -Math.PI / 2; g.position.set(x, 0.012, z);
   g.castShadow = false; g.receiveShadow = false;
-  scene.add(g);
+  garageG.add(g);
 }
 /* 灯组正下方的地面光池（照片中地面亮斑跟随吊灯） */
 addGlow(-3.4, 1.2, 6, 0.09); addGlow(0.3, -0.8, 5, 0.07); addGlow(3.2, 1.0, 6, 0.09);
@@ -329,18 +349,18 @@ shaft.quaternion.setFromUnitVectors(V_Y, new THREE.Vector3(0.25, -1.9, 4.9).norm
 shaft.position.set(6.95, 1.3, -8.5);
 shaft.castShadow = false; shaft.receiveShadow = false;
 shaft.userData.noRay = true;
-scene.add(shaft);
+garageG.add(shaft);
 var spill = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 6.8),
   new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, opacity: 0.12,
     blending: THREE.AdditiveBlending, depthWrite: false }));
 spill.rotation.x = -Math.PI / 2;
 spill.position.set(7.0, 0.015, -8.0);
 spill.castShadow = false; spill.receiveShadow = false;
-scene.add(spill);
+garageG.add(spill);
 var doorSpot = new THREE.SpotLight(0x9fb2c8, 0.5, 22, 0.5, 0.65);
 doorSpot.position.set(6.8, 2.8, -10.8);
 doorSpot.target.position.set(7.4, 0, -5.0);
-scene.add(doorSpot); scene.add(doorSpot.target);
+garageG.add(doorSpot); garageG.add(doorSpot.target);
 
 /* 链条吊挂的灯管组（照片同款）+ 对应聚光灯 */
 var tubeOnMat = new THREE.MeshBasicMaterial({ color: 0xe6edf8 });
@@ -375,11 +395,11 @@ function lightCluster(cx, cy, cz, tubes, aimX) {
     g.add(tg);
   });
   g.position.set(cx, cy, cz);
-  scene.add(g);
+  garageG.add(g);
   var spot = new THREE.SpotLight(0xdfe8f5, 1.0, 0, 0.52, 0.55);
   spot.position.set(cx, cy, cz);
   spot.target.position.set(aimX, 0, 0);
-  scene.add(spot); scene.add(spot.target);
+  garageG.add(spot); garageG.add(spot.target);
 }
 lightCluster(-3.6, 3.5, 1.8, [
   [-0.6, 0.1, 0, 0, 0.3, 0.35], [0.4, -0.2, 0.3, 0, -0.2, -0.25], [1.1, 0.25, -0.2, 0, 0.5, 0.15]
@@ -410,6 +430,195 @@ function buildSign(x, line1, accent) {
   g.position.set(x, 0, 3.6);
   scene.add(g);
 }
+
+/* --------------------------------- 摩洛哥赛道（马拉喀什街道赛风格） ---- */
+var trackG = new THREE.Group();
+scene.add(trackG);
+(function buildTrack() {
+  function tAdd(m) { trackG.add(m); return m; }
+  /* 沙漠地面 */
+  var sandTex = canvasTex(512, 512, function (x, w, h) {
+    x.fillStyle = '#c49a5e'; x.fillRect(0, 0, w, h);
+    for (var i = 0; i < 900; i++) {
+      x.fillStyle = 'rgba(' + (Math.random() < 0.5 ? '170,128,72' : '224,186,128') + ',0.10)';
+      x.fillRect(Math.random() * w, Math.random() * h, 2 + Math.random() * 4, 2 + Math.random() * 3);
+    }
+  });
+  sandTex.wrapS = sandTex.wrapT = THREE.RepeatWrapping; sandTex.repeat.set(14, 14);
+  var sandMat = stdMat(0xffffff, 0.95, 0, { envMapIntensity: 0.25 });
+  sandMat.map = sandTex;
+  var sand = mesh(new THREE.PlaneGeometry(170, 170), sandMat, 0, -0.005, 0);
+  sand.rotation.x = -Math.PI / 2; sand.castShadow = false;
+  tAdd(sand);
+  /* 柏油赛道（含两道磨损带） */
+  var aspTex = canvasTex(512, 512, function (x, w, h) {
+    x.fillStyle = '#303136'; x.fillRect(0, 0, w, h);
+    for (var i = 0; i < 1600; i++) {
+      x.fillStyle = 'rgba(' + (Math.random() < 0.5 ? '18,18,22' : '70,72,78') + ',0.16)';
+      x.fillRect(Math.random() * w, Math.random() * h, 1.6, 1.6);
+    }
+    [0.36, 0.64].forEach(function (u) {
+      var g = x.createLinearGradient((u - 0.07) * w, 0, (u + 0.07) * w, 0);
+      g.addColorStop(0, 'rgba(12,12,15,0)');
+      g.addColorStop(0.5, 'rgba(12,12,15,0.35)');
+      g.addColorStop(1, 'rgba(12,12,15,0)');
+      x.fillStyle = g; x.fillRect((u - 0.07) * w, 0, 0.14 * w, h);
+    });
+  });
+  aspTex.wrapS = THREE.RepeatWrapping; aspTex.wrapT = THREE.RepeatWrapping; aspTex.repeat.set(1, 9);
+  var aspMat = phyMat(0xffffff, 0.62, 0.05, 0.12, 0.6, { envMapIntensity: 0.35 });
+  aspMat.map = aspTex;
+  var asphalt = mesh(new THREE.PlaneGeometry(12.4, 92), aspMat, 0, 0.004, 0);
+  asphalt.rotation.x = -Math.PI / 2; asphalt.castShadow = false;
+  tAdd(asphalt);
+  /* 边线 + 红白路肩 */
+  var kerbTex = canvasTex(64, 256, function (x, w, h) {
+    for (var i = 0; i < 8; i++) { x.fillStyle = i % 2 ? '#d8d8d4' : '#c33524'; x.fillRect(0, i * h / 8, w, h / 8); }
+  });
+  kerbTex.wrapS = THREE.RepeatWrapping; kerbTex.wrapT = THREE.RepeatWrapping; kerbTex.repeat.set(1, 26);
+  [-1, 1].forEach(function (sx) {
+    var line = box(0.14, 0.006, 92, stdMat(0xe8e8e2, 0.7, 0), sx * 5.85, 0.006, 0);
+    line.castShadow = false; tAdd(line);
+    var kerbMat = stdMat(0xffffff, 0.75, 0);
+    kerbMat.map = kerbTex;
+    var kerb = mesh(new THREE.PlaneGeometry(0.55, 92), kerbMat, sx * 6.25, 0.009, 0);
+    kerb.rotation.x = -Math.PI / 2; kerb.castShadow = false;
+    tAdd(kerb);
+  });
+  /* 起步线（黑白格）+ 两个发车格 */
+  var chkTex = canvasTex(256, 64, function (x, w, h) {
+    for (var i = 0; i < 8; i++) for (var j = 0; j < 2; j++) {
+      x.fillStyle = (i + j) % 2 ? '#0d0d0f' : '#e8e8e4';
+      x.fillRect(i * w / 8, j * h / 2, w / 8, h / 2);
+    }
+  });
+  var chk = mesh(new THREE.PlaneGeometry(11.6, 1.0), new THREE.MeshBasicMaterial({ map: chkTex }), 0, 0.007, 9.5);
+  chk.rotation.x = -Math.PI / 2; chk.castShadow = false;
+  tAdd(chk);
+  var gridMat = stdMat(0xd8d8d2, 0.7, 0);
+  [-1.85, 1.85].forEach(function (gx) {
+    [-1, 1].forEach(function (s) {
+      var l = box(0.08, 0.004, 4.4, gridMat, gx + s * 1.05, 0.0065, 0.2);
+      l.castShadow = false; tAdd(l);
+    });
+    var f = box(2.18, 0.004, 0.08, gridMat, gx, 0.0065, 2.4);
+    f.castShadow = false; tAdd(f);
+  });
+  /* 起步灯架 */
+  var pillarMat = stdMat(0x2a2d33, 0.5, 0.6);
+  tAdd(box(0.28, 4.4, 0.28, pillarMat, -6.9, 2.2, 13));
+  tAdd(box(0.28, 4.4, 0.28, pillarMat, 6.9, 2.2, 13));
+  tAdd(box(14.1, 0.34, 0.3, pillarMat, 0, 4.35, 13));
+  for (var li = 0; li < 5; li++) {
+    tAdd(box(0.34, 0.62, 0.18, stdMat(0x101114, 0.6, 0.3), -1.7 + li * 0.85, 3.85, 13));
+    for (var lj = 0; lj < 2; lj++) {
+      var lamp = mesh(new THREE.SphereGeometry(0.085, 10, 8),
+        stdMat(0x3a0d0d, 0.4, 0.2, { emissive: new THREE.Color(0x7a1212), emissiveIntensity: 0.7 }),
+        -1.7 + li * 0.85, 3.7 + lj * 0.3, 12.88);
+      lamp.castShadow = false; tAdd(lamp);
+    }
+  }
+  /* 赭红城墙（马拉喀什红墙 + 垛口 + 马蹄拱门） */
+  var wallTexM = canvasTex(512, 256, function (x, w, h) {
+    x.fillStyle = '#b06b40'; x.fillRect(0, 0, w, h);
+    for (var i = 0; i < 320; i++) {
+      x.fillStyle = 'rgba(' + (Math.random() < 0.5 ? '140,78,44' : '202,140,92') + ',0.10)';
+      var r = 6 + Math.random() * 40;
+      x.beginPath(); x.arc(Math.random() * w, Math.random() * h, r, 0, Math.PI * 2); x.fill();
+    }
+    x.fillStyle = 'rgba(70,38,22,0.85)';
+    [0.18, 0.5, 0.82].forEach(function (u) {
+      x.beginPath();
+      x.arc(u * w, h * 0.78, w * 0.055, Math.PI, 0);
+      x.rect(u * w - w * 0.055, h * 0.78, w * 0.11, h * 0.22);
+      x.fill();
+    });
+  });
+  wallTexM.wrapS = THREE.RepeatWrapping; wallTexM.repeat.set(7, 1);
+  var wallMatM = stdMat(0xffffff, 0.9, 0, { envMapIntensity: 0.25 });
+  wallMatM.map = wallTexM;
+  var toothMat = stdMat(0xa3603a, 0.9, 0);
+  [-1, 1].forEach(function (sx) {
+    tAdd(box(0.55, 2.0, 92, wallMatM, sx * 11.5, 1.0, 0));
+    for (var tz = -45; tz <= 45; tz += 1.6) {
+      var tooth = box(0.55, 0.30, 0.62, toothMat, sx * 11.5, 2.15, tz);
+      tooth.castShadow = false;
+      tAdd(tooth);
+    }
+  });
+  tAdd(box(23.5, 2.4, 0.55, wallMatM, 0, 1.2, -46));
+  /* 棕榈树 */
+  var trunkMat = stdMat(0x7a5a38, 0.9, 0);
+  var frondMat = stdMat(0x2f6e35, 0.85, 0, { side: THREE.DoubleSide });
+  var frondGeos = [0.5, 0.85, 1.2].map(function (droop) {
+    var g2 = new THREE.BoxGeometry(0.16, 0.02, 1.5);
+    g2.translate(0, 0, 0.72);
+    g2.rotateX(droop);
+    return g2;
+  });
+  function palm(x, z, h) {
+    var p = new THREE.Group();
+    for (var i2 = 0; i2 < 3; i2++) {
+      var segH = h / 3;
+      p.add(mesh(new THREE.CylinderGeometry(0.085 - i2 * 0.02, 0.105 - i2 * 0.02, segH + 0.06, 8),
+        trunkMat, 0, segH * (i2 + 0.5), 0));
+    }
+    for (var f2 = 0; f2 < 9; f2++) {
+      var fr = mesh(frondGeos[f2 % 3], frondMat, 0, h + 0.04, 0);
+      fr.rotation.y = f2 / 9 * Math.PI * 2 + (x + z) * 0.7;
+      p.add(fr);
+    }
+    p.add(mesh(new THREE.SphereGeometry(0.14, 8, 6), trunkMat, 0, h, 0));
+    p.position.set(x, 0, z);
+    p.rotation.z = Math.sin(x * 12.9898 + z) * 0.05;
+    tAdd(p);
+  }
+  palm(-8.9, -18, 4.2); palm(8.7, 6, 3.8); palm(-8.6, 24, 4.5); palm(9.0, -30, 4.0);
+  for (var pz = -40; pz <= 40; pz += 9) {
+    palm(-13.6, pz + 2, 3.6 + Math.abs(pz * 7 % 5) * 0.3);
+    palm(13.8, pz - 3, 3.4 + Math.abs(pz * 11 % 5) * 0.32);
+  }
+  /* 摩洛哥国旗 ×2 */
+  var flagTex = canvasTex(256, 168, function (x, w, h) {
+    x.fillStyle = '#c1272d'; x.fillRect(0, 0, w, h);
+    x.strokeStyle = '#006233'; x.lineWidth = 9; x.lineJoin = 'round';
+    var cx = w / 2, cy = h / 2, R = 52;
+    x.beginPath();
+    for (var i3 = 0; i3 < 5; i3++) {
+      var a2 = -Math.PI / 2 + i3 * 4 * Math.PI / 5;
+      var px2 = cx + R * Math.cos(a2), py2 = cy + R * Math.sin(a2);
+      if (i3 === 0) x.moveTo(px2, py2); else x.lineTo(px2, py2);
+    }
+    x.closePath(); x.stroke();
+  });
+  var poleMat = stdMat(0x787e88, 0.4, 0.9);
+  [[-8.6, -7], [8.6, 18]].forEach(function (fp) {
+    tAdd(mesh(new THREE.CylinderGeometry(0.035, 0.05, 5.2, 8), poleMat, fp[0], 2.6, fp[1]));
+    var fl = mesh(new THREE.PlaneGeometry(1.35, 0.9),
+      new THREE.MeshBasicMaterial({ map: flagTex, side: THREE.DoubleSide }), fp[0] + 0.71, 4.6, fp[1]);
+    fl.castShadow = false;
+    tAdd(fl);
+  });
+  /* 阿特拉斯山脉（雪顶）+ 太阳 */
+  var mtnMat = stdMat(0x9b8775, 1, 0, { envMapIntensity: 0.1 });
+  var snowMat = stdMat(0xe9ecef, 0.9, 0);
+  [[-52, -78, 30, 13], [-18, -85, 38, 17], [25, -80, 33, 14], [60, -70, 26, 10],
+   [-70, -40, 24, 9], [72, -30, 28, 11], [-75, 15, 22, 8], [78, 25, 24, 9]].forEach(function (mm) {
+    var mt = mesh(new THREE.ConeGeometry(mm[2], mm[3], 7), mtnMat, mm[0], mm[3] / 2 - 0.5, mm[1]);
+    mt.scale.z = 0.55; mt.castShadow = false; mt.receiveShadow = false;
+    tAdd(mt);
+    var sn = mesh(new THREE.ConeGeometry(mm[2] * 0.32, mm[3] * 0.30, 7), snowMat, mm[0], mm[3] * 0.85, mm[1]);
+    sn.scale.z = 0.55; sn.castShadow = false; sn.receiveShadow = false;
+    tAdd(sn);
+  });
+  var sun = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: glowTex, color: 0xfff0c8, transparent: true, opacity: 0.95,
+    blending: THREE.AdditiveBlending, depthWrite: false }));
+  sun.scale.set(26, 26, 1);
+  sun.position.set(52, 34, -26);
+  sun.userData.noRay = true;
+  tAdd(sun);
+})();
 
 /* ------------------------------------------------------ 共用材质 ---- */
 var M = {
@@ -1132,6 +1341,7 @@ var I18N = {
     docTitle: 'F1 暗夜车库实景 3D · 法拉利 F1-75 vs 红牛 RB21',
     title: 'F1 暗夜车库 3D 实景', badge: '实拍还原',
     sub: '法拉利 F1-75 × 红牛 RB21 — 360° 自由旋转 · 驾驶舱第一视角 · 分层拆解引擎',
+    lblScene: '场 景', sceneTrack: '🏜️ 摩洛哥赛道', sceneGarage: '🌃 暗夜车库',
     lblCar: '车 辆', lblView: '视 角', lblLayer: '结构层',
     carF: '🟥 法拉利 F1-75', carR: '🟦 红牛 RB21',
     viewOrbit: '360° 环绕展示', viewCockpit: '驾驶舱第一视角',
@@ -1145,6 +1355,7 @@ var I18N = {
     docTitle: 'F1 Night Garage 3D · Ferrari F1-75 vs Red Bull RB21',
     title: 'F1 Night Garage in 3D', badge: 'PHOTO-MATCHED',
     sub: 'Ferrari F1-75 × Red Bull RB21 — free 360° orbit · cockpit POV · layered engine teardown',
+    lblScene: 'SCENE', sceneTrack: '🏜️ Marrakesh Track', sceneGarage: '🌃 Night Garage',
     lblCar: 'CAR', lblView: 'VIEW', lblLayer: 'LAYERS',
     carF: '🟥 Ferrari F1-75', carR: '🟦 Red Bull RB21',
     viewOrbit: '360° Orbit', viewCockpit: 'Cockpit POV',
@@ -1333,8 +1544,41 @@ function setFocus(car, fromClick) {
     ctrl.sphGoal.radius = 7.2;
   }
 }
+/* 场景切换：摩洛哥赛道（正午烈日）/ 暗夜车库（聚光氛围） */
+var sceneMode = 'track';
+function applyScene(s) {
+  sceneMode = s;
+  try { localStorage.setItem('f1scene', s); } catch (e) {}
+  garageG.visible = (s === 'garage');
+  trackG.visible = (s === 'track');
+  if (s === 'garage') {
+    scene.background.set(0x07080c);
+    scene.fog.color.set(0x07080c); scene.fog.near = 15; scene.fog.far = 46;
+    scene.environment = envGarage;
+    hemi.color.set(0xaabdda); hemi.groundColor.set(0x0c0a08); hemi.intensity = 0.17;
+    key.color.set(0xeef1f6); key.intensity = 0.9; key.position.set(4.5, 7.5, 8.5);
+    rim.color.set(0x6f8cff); rim.intensity = 0.34;
+    fill.color.set(0xffd9b8); fill.intensity = 0.10;
+    renderer.toneMappingExposure = 1.0;
+  } else {
+    scene.background.set(0x8fb9de);
+    scene.fog.color.set(0xddc8a2); scene.fog.near = 34; scene.fog.far = 115;
+    scene.environment = envTrack;
+    hemi.color.set(0xbfd9f5); hemi.groundColor.set(0x9a7445); hemi.intensity = 0.44;
+    key.color.set(0xffe9c2); key.intensity = 1.32; key.position.set(9, 13, -4);
+    rim.color.set(0x9db8e0); rim.intensity = 0.18;
+    fill.color.set(0xffe2bb); fill.intensity = 0.24;
+    renderer.toneMappingExposure = 1.0;
+  }
+  document.querySelectorAll('[data-scene]').forEach(function (b) {
+    b.classList.toggle('active', b.getAttribute('data-scene') === s);
+  });
+}
 
 /* UI 事件 */
+document.querySelectorAll('[data-scene]').forEach(function (b) {
+  b.addEventListener('click', function () { applyScene(b.getAttribute('data-scene')); });
+});
 document.querySelectorAll('[data-car]').forEach(function (b) {
   b.addEventListener('click', function () {
     setFocus(b.getAttribute('data-car') === 'ferrari' ? ferrari : redbull, false);
@@ -1355,6 +1599,9 @@ function applyLang(l) {
   var t = I18N[l];
   document.documentElement.lang = (l === 'zh') ? 'zh-CN' : 'en';
   document.title = t.docTitle;
+  document.getElementById('lblScene').textContent = t.lblScene;
+  document.querySelector('[data-scene="track"]').textContent = t.sceneTrack;
+  document.querySelector('[data-scene="garage"]').textContent = t.sceneGarage;
   document.getElementById('tTitle').textContent = t.title;
   document.getElementById('tBadge').textContent = t.badge;
   document.getElementById('tSub').textContent = t.sub;
@@ -1386,6 +1633,11 @@ var savedLang = 'zh';
 try { savedLang = localStorage.getItem('f1lang') || 'zh'; } catch (e) {}
 if (/[#&?]lang=en/.test(location.href)) savedLang = 'en';
 applyLang(savedLang);
+var savedScene = 'track';
+try { savedScene = localStorage.getItem('f1scene') || 'track'; } catch (e) {}
+var sceneM = location.hash.match(/scene=(track|garage)/);
+if (sceneM) savedScene = sceneM[1];
+applyScene(savedScene);
 
 window.addEventListener('resize', function () {
   camera.aspect = window.innerWidth / window.innerHeight;
