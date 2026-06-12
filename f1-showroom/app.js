@@ -1,5 +1,6 @@
 /* ============================================================================
-   F1 典藏级 3D 展示 · 1:16 —— 法拉利 SF-24 × 红牛 RB20
+   F1 暗夜车库实景 3D —— 法拉利 F1-75（蒙扎涂装）× 红牛 RB21
+   场景与涂装对照实拍照片还原：链条吊灯车库 / 高反水泥地 / 1:1 实车比例
    纯程序化建模，three.js r128（全局版），零外部资源，可直接 file:// 打开
    功能：360° 环绕 / 驾驶舱第一视角（动态仪表）/ X 光透视 / 引擎拆解分层
    ========================================================================== */
@@ -19,47 +20,50 @@ renderer.toneMappingExposure = 1.0;
 var MAX_ANISO = renderer.capabilities.getMaxAnisotropy();
 
 var scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0a0d13);
-scene.fog = new THREE.Fog(0x0a0d13, 2.8, 8.0);
+scene.background = new THREE.Color(0x07080c);
+scene.fog = new THREE.Fog(0x07080c, 15, 46);
 
-var camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.004, 40);
-camera.position.set(2.1, 1.5, 2.9);
+var camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.02, 120);
+camera.position.set(16, 8.5, 21);
 
-/* 摄影棚环境反射（PMREM，手搓灯箱） */
+/* 暗夜车库环境反射（PMREM：黑场 + 头顶灯管条，参考实拍） */
 (function buildEnvMap() {
   var env = new THREE.Scene();
   env.add(new THREE.Mesh(
-    new THREE.SphereGeometry(10, 16, 12),
-    new THREE.MeshBasicMaterial({ color: 0x05070b, side: THREE.BackSide })));
-  function panel(color, w, h, x, y, z, rx, ry) {
+    new THREE.SphereGeometry(12, 16, 12),
+    new THREE.MeshBasicMaterial({ color: 0x030405, side: THREE.BackSide })));
+  function strip(x, y, z, ry) {
     var m = new THREE.Mesh(
-      new THREE.PlaneGeometry(w, h),
-      new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide }));
-    m.position.set(x, y, z); m.rotation.set(rx, ry, 0);
+      new THREE.BoxGeometry(3.6, 0.14, 0.5),
+      new THREE.MeshBasicMaterial({ color: 0xc9d4e4 }));
+    m.position.set(x, y, z); m.rotation.y = ry;
     env.add(m);
   }
-  panel(0x646b76, 5.5, 2.6, 0, 5, 0, Math.PI / 2, 0);     // 顶部大柔光箱
-  panel(0x3a4660, 1.8, 4.0, -5, 2.2, 0, 0, Math.PI / 2);  // 左冷色灯条
-  panel(0x60503a, 1.8, 4.0, 5, 2.2, 0, 0, -Math.PI / 2);  // 右暖色灯条
-  panel(0x181f2e, 7, 1.6, 0, 1.3, -5.5, 0, 0);            // 背景补光
+  strip(-3.5, 5.0, 1.5, 0.4); strip(0.5, 5.6, -1.0, -0.2);
+  strip(3.4, 5.2, 1.2, 0.7);  strip(-1.0, 4.6, -3.0, 1.2);
+  strip(2.0, 4.8, 3.0, -0.8);
+  var bounce = new THREE.Mesh(new THREE.PlaneGeometry(16, 16),
+    new THREE.MeshBasicMaterial({ color: 0x16140f }));
+  bounce.rotation.x = Math.PI / 2; bounce.position.y = -0.01;
+  env.add(bounce);
   var pm = new THREE.PMREMGenerator(renderer);
-  scene.environment = pm.fromScene(env, 0.05).texture;
+  scene.environment = pm.fromScene(env, 0.035).texture;
   pm.dispose();
 })();
 
-/* 灯光 */
-scene.add(new THREE.HemisphereLight(0xbdd2f4, 0x141008, 0.32));
-var key = new THREE.DirectionalLight(0xfff2e0, 1.1);
-key.position.set(1.6, 2.6, 1.3);
+/* 灯光：冷白主灯（投影）+ 蓝色轮廓光 + 微弱环境光，按实拍影调 */
+scene.add(new THREE.HemisphereLight(0xaabdda, 0x0c0a08, 0.22));
+var key = new THREE.DirectionalLight(0xeef1f6, 1.05);
+key.position.set(4.5, 7.5, 8.5);
 key.castShadow = true;
 key.shadow.mapSize.set(2048, 2048);
-key.shadow.camera.left = -1.0; key.shadow.camera.right = 1.0;
-key.shadow.camera.top = 1.0;  key.shadow.camera.bottom = -0.7;
-key.shadow.camera.near = 0.5; key.shadow.camera.far = 7;
-key.shadow.bias = -0.0002; key.shadow.normalBias = 0.0015;
+key.shadow.camera.left = -6.5; key.shadow.camera.right = 6.5;
+key.shadow.camera.top = 6.5;  key.shadow.camera.bottom = -6.5;
+key.shadow.camera.near = 1; key.shadow.camera.far = 30;
+key.shadow.bias = -0.0003; key.shadow.normalBias = 0.02;
 scene.add(key);
-var rim = new THREE.DirectionalLight(0x86a8ff, 0.5); rim.position.set(-1.8, 1.6, -2.2); scene.add(rim);
-var fill = new THREE.DirectionalLight(0xffd9b8, 0.22); fill.position.set(-1.5, 0.9, 1.9); scene.add(fill);
+var rim = new THREE.DirectionalLight(0x6f8cff, 0.34); rim.position.set(-6, 4.5, -8); scene.add(rim);
+var fill = new THREE.DirectionalLight(0xffd9b8, 0.10); fill.position.set(-7, 3, 8); scene.add(fill);
 
 /* ---------------------------------------------------------- 通用工具 ---- */
 var V_X = new THREE.Vector3(1, 0, 0);
@@ -151,63 +155,160 @@ function partLabel(text, accentCss) {
   return sp;
 }
 
-/* ----------------------------------------------------- 展台 / 桌面 ---- */
-var deskMat = phyMat(0x262220, 0.55, 0.0, 0.5, 0.4, { envMapIntensity: 0.45 });
-var desk = box(3.4, 0.06, 2.3, deskMat, 0, -0.03, 0);
-desk.castShadow = false;
-scene.add(desk);
+/* ------------------------------------------- 暗夜车库（参考实拍搭建） ---- */
+/* 深色高反水泥地：斑驳 + 裂纹 */
+var floorTex = canvasTex(1024, 1024, function (x, w, h) {
+  x.fillStyle = '#131418'; x.fillRect(0, 0, w, h);
+  for (var i = 0; i < 260; i++) {
+    var r = 18 + Math.random() * 110;
+    x.beginPath();
+    x.arc(Math.random() * w, Math.random() * h, r, 0, Math.PI * 2);
+    x.fillStyle = 'rgba(' + (Math.random() < 0.5 ? '34,36,42' : '10,11,14') + ',0.05)';
+    x.fill();
+  }
+  x.strokeStyle = 'rgba(6,7,9,0.5)'; x.lineWidth = 1.4;
+  for (var c = 0; c < 7; c++) {
+    x.beginPath();
+    var px = Math.random() * w, py = Math.random() * h;
+    x.moveTo(px, py);
+    for (var s = 0; s < 6; s++) { px += (Math.random() - 0.5) * 260; py += (Math.random() - 0.5) * 260; x.lineTo(px, py); }
+    x.stroke();
+  }
+});
+floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping;
+floorTex.repeat.set(3, 3);
+var floorMat = phyMat(0x393c42, 0.5, 0.08, 0.18, 0.55, { envMapIntensity: 0.26 });
+floorMat.map = floorTex;
+var ground = mesh(new THREE.PlaneGeometry(34, 28), floorMat, 0, 0, 0);
+ground.rotation.x = -Math.PI / 2;
+ground.castShadow = false;
+scene.add(ground);
 
+/* 斑驳水泥墙 + 黑顶 */
+var wallTex = canvasTex(1024, 512, function (x, w, h) {
+  x.fillStyle = '#2c2d2f'; x.fillRect(0, 0, w, h);
+  for (var i = 0; i < 420; i++) {
+    var r = 10 + Math.random() * 80;
+    x.beginPath();
+    x.arc(Math.random() * w, Math.random() * h, r, 0, Math.PI * 2);
+    var tone = ['62,57,49', '26,27,30', '74,71,66', '16,16,19'][Math.floor(Math.random() * 4)];
+    x.fillStyle = 'rgba(' + tone + ',0.09)';
+    x.fill();
+  }
+  x.fillStyle = 'rgba(0,0,0,0.3)';
+  x.fillRect(0, h - 60, w, 60);
+});
+wallTex.wrapS = THREE.RepeatWrapping; wallTex.repeat.set(2.5, 1);
+var wallMat = stdMat(0xffffff, 0.95, 0.0, { envMapIntensity: 0.22 });
+wallMat.map = wallTex;
+function wall(w, h, x, y, z, ry) {
+  var m = mesh(new THREE.PlaneGeometry(w, h), wallMat, x, y, z);
+  m.rotation.y = ry;
+  m.castShadow = false;
+  scene.add(m);
+}
+wall(26, 7, 0, 3.5, -11, 0);
+wall(26, 7, 0, 3.5, 12.5, Math.PI);
+wall(24, 7, -12.5, 3.5, 0, Math.PI / 2);
+wall(24, 7, 12.5, 3.5, 0, -Math.PI / 2);
+var ceil = mesh(new THREE.PlaneGeometry(26, 24), stdMat(0x0a0a0c, 1, 0), 0, 7, 0);
+ceil.rotation.x = Math.PI / 2;
+ceil.castShadow = false;
+scene.add(ceil);
+
+/* 远处亮门洞（照片右后方） */
+var doorway = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 4.4),
+  new THREE.MeshBasicMaterial({ color: 0x8d97a4 }));
+doorway.position.set(6.8, 2.2, -10.96);
+scene.add(doorway);
+var doorFrame = box(2.7, 4.7, 0.08, stdMat(0x0c0d10, 0.9, 0), 6.8, 2.3, -10.99);
+doorFrame.castShadow = false;
+scene.add(doorFrame);
+
+/* 地面光晕 */
 var glowTex = canvasTex(256, 256, function (x, w, h) {
   var g = x.createRadialGradient(w / 2, h / 2, 10, w / 2, h / 2, w / 2);
-  g.addColorStop(0, 'rgba(170,190,255,0.55)');
-  g.addColorStop(1, 'rgba(170,190,255,0)');
+  g.addColorStop(0, 'rgba(190,205,255,0.5)');
+  g.addColorStop(1, 'rgba(190,205,255,0)');
   x.fillStyle = g; x.fillRect(0, 0, w, h);
 });
 function addGlow(x, z, s, op) {
   var g = new THREE.Mesh(new THREE.PlaneGeometry(s, s),
     new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, opacity: op,
       blending: THREE.AdditiveBlending, depthWrite: false }));
-  g.rotation.x = -Math.PI / 2; g.position.set(x, 0.001, z);
+  g.rotation.x = -Math.PI / 2; g.position.set(x, 0.012, z);
   g.castShadow = false; g.receiveShadow = false;
   scene.add(g);
 }
-addGlow(-0.30, 0, 1.0, 0.30); addGlow(0.30, 0, 1.0, 0.30); addGlow(0, 0, 2.4, 0.12);
+addGlow(-1.8, 0, 8, 0.06); addGlow(1.8, 0, 8, 0.06); addGlow(0, -1, 18, 0.035);
 
-var standBase = stdMat(0x101216, 0.22, 0.85);
-var standTop = stdMat(0x1d2126, 0.45, 0.6);
-var chrome = stdMat(0xb9c2cc, 0.18, 1.0);
-function buildStand(x, ringColor) {
+/* 链条吊挂的灯管组（照片同款）+ 对应聚光灯 */
+var tubeOnMat = new THREE.MeshBasicMaterial({ color: 0xe6edf8 });
+var tubeBodyMat = stdMat(0x1a1d20, 0.6, 0.6);
+var chainMat = stdMat(0x232428, 0.7, 0.5);
+function lightCluster(cx, cy, cz, tubes, aimX) {
   var g = new THREE.Group();
-  var base = mesh(new THREE.CylinderGeometry(0.225, 0.24, 0.016, 48), standBase, 0, 0.008, 0);
-  var lip = mesh(new THREE.TorusGeometry(0.225, 0.004, 8, 48), chrome, 0, 0.017, 0);
-  lip.geometry.rotateX(Math.PI / 2);
-  var top = mesh(new THREE.CylinderGeometry(0.215, 0.215, 0.006, 48), standTop, 0, 0.020, 0);
-  var ring = mesh(new THREE.TorusGeometry(0.19, 0.0022, 6, 48), stdMat(ringColor, 0.35, 0.6), 0, 0.0235, 0);
-  ring.geometry.rotateX(Math.PI / 2);
-  g.add(base, lip, top, ring);
-  g.position.x = x;
-  scene.add(g);
-  return g;
-}
-function buildPlaque(x, line1, line2, accent) {
-  var tex = canvasTex(512, 168, function (c, w, h) {
-    c.fillStyle = '#0b0c10'; c.fillRect(0, 0, w, h);
-    c.strokeStyle = accent; c.lineWidth = 5; c.strokeRect(8, 8, w - 16, h - 16);
-    c.textAlign = 'center';
-    c.fillStyle = '#f2f3f7'; c.font = '700 47px Georgia, "PingFang SC", serif';
-    c.fillText(line1, w / 2, 70);
-    c.fillStyle = accent; c.font = '600 36px Georgia, serif';
-    c.fillText(line2, w / 2, 126);
+  tubes.forEach(function (t) {
+    var tg = new THREE.Group();
+    var body = box(1.25, 0.10, 0.22, tubeBodyMat, 0, 0.05, 0);
+    var lamp = mesh(new THREE.BoxGeometry(1.18, 0.05, 0.17), tubeOnMat, 0, -0.015, 0);
+    lamp.castShadow = false;
+    var glow = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: glowTex, transparent: true, opacity: 0.55,
+      blending: THREE.AdditiveBlending, depthWrite: false }));
+    glow.scale.set(2.6, 0.9, 1);
+    glow.userData.noRay = true;
+    tg.add(body, lamp, glow);
+    tg.position.set(t[0], t[1], t[2]);
+    tg.rotation.set(t[3] || 0, t[4] || 0, t[5] || 0);
+    /* 吊链两根 */
+    [-0.5, 0.5].forEach(function (off) {
+      var top = new THREE.Vector3(t[0] + off * 0.8, 7 - cy, t[2]);
+      var bot = new THREE.Vector3(t[0] + off * Math.cos(t[5] || 0), t[1] + off * Math.sin(t[5] || 0) * 0.5, t[2]);
+      var d = new THREE.Vector3().subVectors(top, bot);
+      var ch = mesh(new THREE.CylinderGeometry(0.012, 0.012, d.length(), 6), chainMat);
+      ch.position.copy(bot).addScaledVector(d, 0.5);
+      ch.quaternion.setFromUnitVectors(V_Y, d.clone().normalize());
+      ch.castShadow = false;
+      g.add(ch);
+    });
+    g.add(tg);
   });
-  var p = new THREE.Mesh(new THREE.PlaneGeometry(0.105, 0.0345),
+  g.position.set(cx, cy, cz);
+  scene.add(g);
+  var spot = new THREE.SpotLight(0xdfe8f5, 0.6, 0, 0.85, 0.7);
+  spot.position.set(cx, cy, cz);
+  spot.target.position.set(aimX, 0, 0);
+  scene.add(spot); scene.add(spot.target);
+}
+lightCluster(-3.6, 3.5, 1.8, [
+  [-0.6, 0.1, 0, 0, 0.3, 0.35], [0.4, -0.2, 0.3, 0, -0.2, -0.25], [1.1, 0.25, -0.2, 0, 0.5, 0.15]
+], -1.8);
+lightCluster(0.3, 4.1, -1.2, [
+  [-0.4, 0, 0, 0, 0.8, -0.3], [0.6, 0.2, 0.2, 0, -0.4, 0.2]
+], 0);
+lightCluster(3.4, 3.6, 1.4, [
+  [-0.5, 0.15, 0.1, 0, -0.6, -0.2], [0.5, -0.1, -0.15, 0, 0.25, 0.3], [1.2, 0.2, 0.15, 0, 0.9, -0.12]
+], 1.8);
+
+/* 地面车名指示牌 */
+function buildSign(x, line1, accent) {
+  var tex = canvasTex(512, 150, function (c, w, h) {
+    c.fillStyle = 'rgba(10,11,15,0.92)'; c.fillRect(0, 0, w, h);
+    c.strokeStyle = accent; c.lineWidth = 5; c.strokeRect(7, 7, w - 14, h - 14);
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillStyle = '#f2f3f7'; c.font = '700 52px Georgia, "PingFang SC", serif';
+    c.fillText(line1, w / 2, h / 2 + 2);
+  });
+  var g = new THREE.Group();
+  var p = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.293),
     new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
-  p.rotation.x = -0.95;
-  p.position.set(x, 0.016, 0.272);
-  p.castShadow = false;
-  scene.add(p);
-  var back = box(0.111, 0.004, 0.040, standBase, x, 0.006, 0.272);
-  back.rotation.x = -0.95;
-  scene.add(back);
+  p.position.y = 0.42; p.rotation.x = -0.12;
+  var post = box(0.045, 0.30, 0.045, stdMat(0x101216, 0.4, 0.8), 0, 0.14, -0.02);
+  var foot = box(0.30, 0.025, 0.18, stdMat(0x101216, 0.4, 0.8), 0, 0.012, -0.02);
+  g.add(p, post, foot);
+  g.position.set(x, 0, 3.6);
+  scene.add(g);
 }
 
 /* ------------------------------------------------------ 共用材质 ---- */
@@ -260,6 +361,7 @@ function buildF1Car(spec) {
   var paint2 = spec.paint2Mat;
   var accent = stdMat(spec.accent, 0.4, 0.3);
   var white = phyMat(0xeef0f2, 0.35, 0.2, 0.8, 0.1);
+  var tyreBandMat = stdMat(spec.tyreBand, 0.85, 0.05);
 
   /* ---- 底板 / 扩散器（常驻） ---- */
   var floor = box(1.40, 0.035, 2.65, M.carbonM, 0, 0.075, -0.35);
@@ -370,16 +472,24 @@ function buildF1Car(spec) {
   var noseTip = mesh(new THREE.SphereGeometry(0.075, 14, 10), spec.noseTipMat, 0, 0.312, 2.795);
   noseTip.scale.set(1, 0.6, 1.3);
   noseG.add(noseTip);
+  /* 鼻锥号码色带（红牛：红底白字，参考实拍） */
+  if (spec.noseBand) {
+    var nb = mesh(new THREE.CylinderGeometry(0.150, 0.176, 0.30, 20), stdMat(spec.noseBand, 0.45, 0.3), 0, 0.398, 1.95);
+    nb.geometry.rotateX(Math.PI / 2);
+    nb.scale.set(1.03, 0.64, 1);
+    nb.rotation.x = 0.103;
+    noseG.add(nb);
+  }
   var noseNum = decal(spec.number, 0.28, 0.28, { italic: true, cw: 256, ch: 256, size: 168, color: spec.numColor, stroke: spec.numStroke });
   noseNum.rotation.x = -1.42;
-  noseNum.position.set(0, 0.538, 1.78);
+  noseNum.position.set(spec.numPos[0], spec.numPos[1], spec.numPos[2]);
   noseG.add(noseNum);
 
   /* 前翼：四层翼片 + 端板 */
   var wingEl = [
     { y: 0.095, z: 2.82, r: -0.05, c: M.carbon, ch: 0.17 },
     { y: 0.130, z: 2.73, r: -0.17, c: M.carbon, ch: 0.16 },
-    { y: 0.163, z: 2.645, r: -0.30, c: paint, ch: 0.15 },
+    { y: 0.163, z: 2.645, r: -0.30, c: spec.wing3Mat, ch: 0.15 },
     { y: 0.196, z: 2.565, r: -0.44, c: spec.wing4Mat, ch: 0.14 }
   ];
   wingEl.forEach(function (e) {
@@ -394,6 +504,13 @@ function buildF1Car(spec) {
     tip.rotation.z = sx * 0.7; tip.rotation.y = sx * 0.10;
     noseG.add(ep, tip);
   });
+  /* 前翼大字（红牛：横贯翼面的红色 Red Bull，参考实拍） */
+  if (spec.wingScript) {
+    var ws = decal(spec.wingScript, 1.55, 0.34, { cw: 1024, ch: 224, size: 148, weight: 900, italic: true, color: spec.wingScriptColor });
+    ws.rotation.x = -Math.PI / 2 + 0.30;
+    ws.position.set(0, 0.175, 2.66);
+    noseG.add(ws);
+  }
   noseG.add(rod(-0.07, 0.30, 2.56, -0.07, 0.13, 2.70, 0.012, M.carbon));
   noseG.add(rod(0.07, 0.30, 2.56, 0.07, 0.13, 2.70, 0.012, M.carbon));
 
@@ -424,8 +541,8 @@ function buildF1Car(spec) {
   spine.scale.set(0.85, 1.22, 1);
   spine.rotation.x = -0.045;
   cover.add(spine);
-  /* 进气箱口（车手头顶） */
-  var airboxRing = mesh(new THREE.TorusGeometry(0.085, 0.028, 10, 24), paint, 0, 0.895, 0.235);
+  /* 进气箱口（车手头顶，参考实拍为黄色点缀） */
+  var airboxRing = mesh(new THREE.TorusGeometry(0.085, 0.028, 10, 24), spec.airboxMat || paint, 0, 0.895, 0.235);
   airboxRing.scale.set(1.25, 0.85, 1);
   var airDuct = mesh(new THREE.CylinderGeometry(0.085, 0.13, 0.45, 16), paint, 0, 0.825, 0.01);
   airDuct.geometry.rotateX(Math.PI / 2);
@@ -461,10 +578,17 @@ function buildF1Car(spec) {
   chassis.add(tailTip);
 
   /* ---- 尾翼 ---- */
-  var rwMain = box(1.00, 0.018, 0.345, paint, 0, 0.875, -2.28); rwMain.rotation.x = -0.22;
+  var rwMain = box(1.00, 0.018, 0.345, spec.rwMainMat, 0, 0.875, -2.28); rwMain.rotation.x = -0.22;
   var rwFlap = box(1.00, 0.014, 0.22, spec.flapMat, 0, 0.97, -2.40); rwFlap.rotation.x = -0.58;
   var drsPod = box(0.05, 0.035, 0.09, M.carbon, 0, 1.015, -2.33);
   chassis.add(rwMain, rwFlap, drsPod);
+  /* 尾翼字样（参考实拍：迎风面大字） */
+  if (spec.rwText) {
+    var rwTxt = decal(spec.rwText, 0.92, 0.16, { cw: 1024, ch: 192, size: 116, weight: 900, italic: true, color: spec.rwTextColor });
+    rwTxt.rotation.x = -0.99;
+    rwTxt.position.set(0, 0.980, -2.393);
+    chassis.add(rwTxt);
+  }
   chassis.add(rod(-0.045, 0.46, -1.62, -0.045, 0.875, -2.24, 0.016, M.carbon));
   chassis.add(rod(0.045, 0.46, -1.62, 0.045, 0.875, -2.24, 0.016, M.carbon));
   [-1, 1].forEach(function (sx) {
@@ -497,7 +621,7 @@ function buildF1Car(spec) {
       g.add(mesh(ringGeo, spec.rimRingMat, s * (width / 2 + 0.004), 0, 0));
       var bandGeo = new THREE.TorusGeometry(0.30, 0.006, 6, 36);
       bandGeo.rotateY(Math.PI / 2);
-      var band = mesh(bandGeo, stdMat(0xc02020, 0.85, 0), s * (width / 2 + 0.001), 0, 0);
+      var band = mesh(bandGeo, tyreBandMat, s * (width / 2 + 0.001), 0, 0);
       band.castShadow = false;
       g.add(band);
     });
@@ -659,85 +783,97 @@ function buildF1Car(spec) {
   return car;
 }
 
-/* -------------------------------------------------- 两辆车的涂装规格 ---- */
-var ferrariPaint = phyMat(0xcc0f1d, 0.32, 0.22, 1.0, 0.06, { envMapIntensity: 0.8 });
-var ferrariDark = phyMat(0x8e0b12, 0.4, 0.25, 0.9, 0.1);
-var rbPaint = phyMat(0x101a40, 0.52, 0.55, 0.55, 0.22, { envMapIntensity: 0.85 });
-var rbDark = phyMat(0x0c1430, 0.55, 0.5, 0.5, 0.25);
-var whiteGloss = phyMat(0xeef0f2, 0.3, 0.2, 0.9, 0.08);
+/* ------------------------------------ 两辆车的涂装规格（对照实拍照片） ---- */
+var ferrariPaint = phyMat(0xa60d15, 0.34, 0.25, 1.0, 0.07, { envMapIntensity: 0.95 });   // F1-75 深酒红
+var ferrariDark = phyMat(0x550a0e, 0.45, 0.3, 0.8, 0.15);
+var ferrariYellowGloss = phyMat(0xf2cc0d, 0.38, 0.2, 0.9, 0.1);                          // 蒙扎黄
+var rbPaint = phyMat(0x0e1736, 0.55, 0.5, 0.5, 0.25, { envMapIntensity: 1.05 });         // 哑光深海军蓝
+var rbDark = phyMat(0x0a102a, 0.6, 0.45, 0.4, 0.3);
+var blackGloss = phyMat(0x0c0d10, 0.3, 0.4, 0.9, 0.1);
 var rbRed = stdMat(0xd6273a, 0.42, 0.35);
-var rbYellow = stdMat(0xffcd0a, 0.45, 0.3);
-var ferrariYellow = stdMat(0xffe200, 0.45, 0.3);
+var rbYellowGloss = phyMat(0xffcd0a, 0.4, 0.2, 0.8, 0.12);
+var ferrariYellow = stdMat(0xf2cc0d, 0.45, 0.3);
 
 var SPEC_FERRARI = {
-  id: 'ferrari', cnName: '法拉利 SF-24',
+  id: 'ferrari', cnName: '法拉利 F1-75',
   paintMat: ferrariPaint, paint2Mat: ferrariDark,
-  accent: 0xffe200,
-  haloColor: 0xdf1721,
+  accent: 0xf2cc0d,
+  haloColor: 0xa60d15,
   beltColor: 0xc41420,
   number: '16', numColor: '#ffffff', numStroke: 'rgba(20,20,20,0.55)',
-  noseTipMat: whiteGloss,
-  wing4Mat: whiteGloss, endplateMat: whiteGloss,
-  finMat: whiteGloss,
-  flapMat: whiteGloss, rwEndMat: ferrariPaint, rwEndStripe: 0xffe200,
+  numPos: [0, 0.538, 1.78],
+  noseTipMat: blackGloss,                                  // 实拍：黑色鼻尖
+  wing3Mat: phyMat(0x16181d, 0.42, 0.42, 0.6, 0.22),       // 实拍：黑色前翼
+  wing4Mat: phyMat(0x16181d, 0.42, 0.42, 0.6, 0.22),
+  endplateMat: phyMat(0x16181d, 0.42, 0.42, 0.6, 0.22),
+  finMat: ferrariPaint,
+  rwMainMat: ferrariYellowGloss,                           // 实拍：蒙扎黄尾翼
+  flapMat: ferrariYellowGloss,
+  rwEndMat: ferrariYellowGloss, rwEndStripe: null,
+  rwText: 'Ferrari', rwTextColor: '#16181d',
+  airboxMat: ferrariYellowGloss,
+  tyreBand: 0xf2cc0d,                                      // 实拍：黄圈轮胎
   camCoverMat: stdMat(0xb02020, 0.62, 0.35),
   rimRingMat: ferrariYellow,
-  podText: 'F E R R A R I', podTextColor: '#ffffff', podItalic: false, podFlash: 0xffe200,
+  podText: 'F E R R A R I', podTextColor: '#ffffff', podItalic: false, podFlash: 0xf2cc0d,
   driverTag: 'C. LECLERC  ·  16',
   labelAccent: 'rgba(255,90,90,0.9)',
-  dashAccent: '#ffe14a', dashTag: 'SF-24',
-  plaque1: 'Scuderia Ferrari SF-24', plaque2: 'SCALE  1 : 16', plaqueAccent: '#e8b34b',
-  standRing: 0xdf1721,
+  dashAccent: '#ffe14a', dashTag: 'F1-75',
+  plaque1: 'Scuderia Ferrari F1-75', plaqueAccent: '#e8b34b',
   specHTML:
-    '<h3>法拉利 SF-24<span>Scuderia Ferrari · 2024 赛季</span></h3>' +
-    '<div class="row"><b>动力单元</b><i>Ferrari 066/12 · 1.6L V6 涡轮增压混动</i></div>' +
+    '<h3>法拉利 F1-75<span>Scuderia Ferrari · 蒙扎特别涂装</span></h3>' +
+    '<div class="row"><b>动力单元</b><i>Ferrari 066/7 · 1.6L V6 涡轮增压混动</i></div>' +
     '<div class="row"><b>综合功率</b><i>≈ 1,000 hp（内燃机 + ERS）</i></div>' +
     '<div class="row"><b>变速箱</b><i>8 速序列式半自动</i></div>' +
     '<div class="row"><b>车手</b><i>#16 勒克莱尔 · #55 塞恩斯</i></div>' +
-    '<div class="row"><b>模型比例</b><i>1 : 16（全长约 35 cm）</i></div>'
+    '<div class="row"><b>整车尺寸</b><i>长 ≈ 5.6 m · 轴距 3.6 m</i></div>'
 };
 var SPEC_REDBULL = {
-  id: 'redbull', cnName: '红牛 RB20',
+  id: 'redbull', cnName: '红牛 RB21',
   paintMat: rbPaint, paint2Mat: rbDark,
   accent: 0xffcd0a,
-  haloColor: 0x121d46,
+  haloColor: 0x0e1736,
   beltColor: 0x20356e,
-  number: '1', numColor: '#ffffff', numStroke: 'rgba(214,39,58,0.9)',
-  noseTipMat: rbRed,
-  wing4Mat: rbRed, endplateMat: rbPaint,
+  number: '1', numColor: '#ffffff', numStroke: null,
+  numPos: [0, 0.514, 1.95],
+  noseBand: 0xd0202e,                                      // 实拍：鼻锥红色号码带
+  noseTipMat: rbYellowGloss,                               // 实拍：黄色鼻尖
+  wing3Mat: rbDark, wing4Mat: rbDark, endplateMat: rbPaint,
+  wingScript: 'Red Bull', wingScriptColor: '#d0202e',      // 实拍：前翼红色大字
   finMat: rbPaint,
-  flapMat: rbPaint, rwEndMat: rbPaint, rwEndStripe: 0xd6273a,
+  rwMainMat: rbPaint, flapMat: rbPaint,
+  rwEndMat: rbPaint, rwEndStripe: 0xd6273a,
+  rwText: 'RED BULL', rwTextColor: '#eef1f6',
+  airboxMat: rbYellowGloss,                                // 实拍：黄色进气口
+  tyreBand: 0x1d1f24,
   camCoverMat: stdMat(0x33363e, 0.6, 0.6),
   rimRingMat: rbRed,
   podText: 'RED BULL', podTextColor: '#e8eaf0', podItalic: true, podFlash: 0xd6273a,
   driverTag: 'M. VERSTAPPEN  ·  1',
   labelAccent: 'rgba(120,160,255,0.95)',
-  dashAccent: '#5e8cff', dashTag: 'RB20',
-  plaque1: 'Oracle Red Bull Racing RB20', plaque2: 'SCALE  1 : 16', plaqueAccent: '#5e8cff',
-  standRing: 0xd6273a,
+  dashAccent: '#5e8cff', dashTag: 'RB21',
+  plaque1: 'Oracle Red Bull Racing RB21', plaqueAccent: '#5e8cff',
   specHTML:
-    '<h3>红牛 RB20<span>Oracle Red Bull Racing · 2024 赛季</span></h3>' +
-    '<div class="row"><b>动力单元</b><i>Honda RBPT RA824H · 1.6L V6 涡轮增压混动</i></div>' +
+    '<h3>红牛 RB21<span>Oracle Red Bull Racing</span></h3>' +
+    '<div class="row"><b>动力单元</b><i>Honda RBPT · 1.6L V6 涡轮增压混动</i></div>' +
     '<div class="row"><b>综合功率</b><i>≈ 1,000 hp（内燃机 + ERS）</i></div>' +
     '<div class="row"><b>变速箱</b><i>8 速序列式半自动</i></div>' +
-    '<div class="row"><b>车手</b><i>#1 维斯塔潘 · #11 佩雷斯</i></div>' +
-    '<div class="row"><b>模型比例</b><i>1 : 16（全长约 35 cm）</i></div>'
+    '<div class="row"><b>车手</b><i>#1 维斯塔潘 · #30 劳森</i></div>' +
+    '<div class="row"><b>整车尺寸</b><i>长 ≈ 5.6 m · 轴距 3.6 m</i></div>'
 };
 
 /* ------------------------------------------------------ 组装到展台 ---- */
 var cars = [];
 function placeCar(spec, x, ry) {
-  buildStand(x, spec.standRing);
-  buildPlaque(x, spec.plaque1, spec.plaque2, spec.plaqueAccent);
+  buildSign(x * 1.35, spec.plaque1, spec.plaqueAccent);
   var car = buildF1Car(spec);
   var wrap = new THREE.Group();
-  wrap.position.set(x, 0.023, 0);
+  wrap.position.set(x, 0.012, 0);
   wrap.rotation.y = ry;
-  wrap.scale.setScalar(1 / 16);
   wrap.add(car.group);
   scene.add(wrap);
   car.wrap = wrap;
-  car.center = new THREE.Vector3(x, 0.075, 0);
+  car.center = new THREE.Vector3(x, 0.55, 0);
   car.rayMeshes = [];
   car.group.traverse(function (o) {
     if (o.isMesh && !o.userData.noRay) { o.userData.carRef = car; car.rayMeshes.push(o); }
@@ -745,8 +881,8 @@ function placeCar(spec, x, ry) {
   cars.push(car);
   return car;
 }
-var ferrari = placeCar(SPEC_FERRARI, -0.30, 0.35);
-var redbull = placeCar(SPEC_REDBULL, 0.30, -0.35);
+var ferrari = placeCar(SPEC_FERRARI, -1.85, 0.30);
+var redbull = placeCar(SPEC_REDBULL, 1.85, -0.30);
 var focusCar = ferrari;
 
 /* ------------------------------------------------ 方向盘仪表屏模拟 ---- */
@@ -819,15 +955,15 @@ function drawDash(car, sim) {
 var ctrl = {
   mode: 'orbit',                       // orbit | cockpit | anim
   view: 'orbit',
-  target: new THREE.Vector3(0, 0.085, 0),
-  targetGoal: new THREE.Vector3(0, 0.085, 0),
-  sph: new THREE.Spherical(1.35, 1.13, 0.50),
-  sphGoal: new THREE.Spherical(1.18, 1.13, 0.50),
+  target: new THREE.Vector3(0, 0.55, 0),
+  targetGoal: new THREE.Vector3(0, 0.55, 0),
+  sph: new THREE.Spherical(15, 1.13, 0.50),
+  sphGoal: new THREE.Spherical(10.5, 1.16, 0.46),
   yaw: 0, pitch: 0, yawGoal: 0, pitchGoal: 0,
   fovOrbit: 40, fovCockpit: 66, fovCockpitGoal: 66,
   auto: true
 };
-var R_MIN = 0.12, R_MAX = 3.0;
+var R_MIN = 1.1, R_MAX = 16;
 var camAnim = null;
 function easeIO(k) { return k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2; }
 function orbitPose() {
@@ -901,9 +1037,9 @@ function panBy(dx, dy) {
   var s = ctrl.sphGoal.radius * 0.0011;
   var right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
   ctrl.targetGoal.addScaledVector(right, -dx * s);
-  ctrl.targetGoal.y = THREE.MathUtils.clamp(ctrl.targetGoal.y + dy * s, 0.02, 0.8);
-  ctrl.targetGoal.x = THREE.MathUtils.clamp(ctrl.targetGoal.x, -1.4, 1.4);
-  ctrl.targetGoal.z = THREE.MathUtils.clamp(ctrl.targetGoal.z, -1.0, 1.0);
+  ctrl.targetGoal.y = THREE.MathUtils.clamp(ctrl.targetGoal.y + dy * s, 0.15, 4.5);
+  ctrl.targetGoal.x = THREE.MathUtils.clamp(ctrl.targetGoal.x, -9, 9);
+  ctrl.targetGoal.z = THREE.MathUtils.clamp(ctrl.targetGoal.z, -7, 8);
 }
 function endPointer(e) {
   if (pointers.has(e.pointerId)) {
@@ -985,7 +1121,7 @@ function setFocus(car, fromClick) {
     flyTo(cockpitPose(car), ctrl.fovCockpitGoal, 1.1, 'cockpit');
   } else {
     ctrl.targetGoal.copy(car.center);
-    ctrl.sphGoal.radius = 0.55;
+    ctrl.sphGoal.radius = 7.2;
   }
 }
 
@@ -1076,7 +1212,7 @@ function animate() {
     ctrl.yaw = THREE.MathUtils.damp(ctrl.yaw, ctrl.yawGoal, 10, dt);
     ctrl.pitch = THREE.MathUtils.damp(ctrl.pitch, ctrl.pitchGoal, 10, dt);
     var pose = cockpitPose(focusCar);
-    pose.p.y += Math.sin(elapsed * 1.6) * 0.00022;   // 轻微呼吸感
+    pose.p.y += Math.sin(elapsed * 1.6) * 0.0035;    // 轻微呼吸感
     camera.position.copy(pose.p);
     camera.quaternion.copy(pose.q);
     qTmp.setFromAxisAngle(V_Y, ctrl.yaw); camera.quaternion.multiply(qTmp);
