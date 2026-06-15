@@ -10,7 +10,6 @@ Logic mirrors the local PowerShell updater:
 """
 from __future__ import annotations
 
-import concurrent.futures as cf
 import json
 import sys
 import urllib.error
@@ -21,13 +20,22 @@ from pathlib import Path
 TICKERS = [
     'SPCX', 'RKLB', 'ASTS', 'SIDU', 'BKSY', 'LUNR',
     'RDW', 'SATS', 'VSAT', 'NBIS', 'CRWV', 'IREN',
+    # SpaceX equity holders (indirect-exposure vehicles)
+    'STCK.TO', 'DXYZ', 'ARKVX', 'NASA', 'GOOGL',
 ]
 COMPANY_NAMES = {
     'SPCX': 'SpaceX', 'RKLB': 'Rocket Lab', 'ASTS': 'AST SpaceMobile',
     'SIDU': 'Sidus Space', 'BKSY': 'BlackSky', 'LUNR': 'Intuitive Machines',
-    'RDW': 'Redwire', 'SATS': 'EchoStar', 'VSAT': 'Viasat',
+    'RDW': 'Redwire', 'SATS': 'EchoStar · 持 SpaceX 股权', 'VSAT': 'Viasat',
     'NBIS': 'Nebius', 'CRWV': 'CoreWeave', 'IREN': 'IREN Ltd',
+    'STCK.TO': 'Stack Capital · SpaceX ~32% · 多伦多/CAD',
+    'DXYZ': 'Destiny Tech100 · SpaceX ~23%(最大持仓)',
+    'ARKVX': 'ARK Venture · 顶级持仓 · 限赎回基金',
+    'NASA': 'Tema Space ETF · SpaceX ~7% + RKLB/ASTS',
+    'GOOGL': 'Alphabet · 2015 直接股权(已稀释 · 低信号)',
 }
+# display label for the bold ticker (strips exchange suffix)
+DISPLAY = {'STCK.TO': 'STCK'}
 TIER = {
     'SPCX': ('epi', '震中', 'tt-epi'),
     'RKLB': ('comp', '对标', 'tt-comp'), 'ASTS': ('comp', '对标', 'tt-comp'),
@@ -36,7 +44,11 @@ TIER = {
     'SATS': ('comp', '代理', 'tt-proxy'), 'VSAT': ('comp', '代理', 'tt-proxy'),
     'NBIS': ('comp', 'AI',  'tt-ai'),   'CRWV': ('comp', 'AI',  'tt-ai'),
     'IREN': ('comp', 'AI',  'tt-ai'),
+    'STCK.TO': ('holder', '持股', 'tt-hold'), 'DXYZ': ('holder', '持股', 'tt-hold'),
+    'ARKVX': ('holder', '持股', 'tt-hold'), 'NASA': ('holder', '持股', 'tt-hold'),
+    'GOOGL': ('holder', '持股', 'tt-hold'),
 }
+IPO_EVE = '2026-06-11'  # baseline date for holders added after IPO
 
 IPO_DATE_BJT = datetime(2026, 6, 12, tzinfo=timezone(timedelta(hours=8)))
 BJT = timezone(timedelta(hours=8))
@@ -70,6 +82,26 @@ def fetch_quote(ticker: str) -> tuple[float | None, float | None]:
     except (urllib.error.URLError, KeyError, ValueError, TypeError, IndexError) as e:
         print(f'  {ticker:5s} FETCH FAILED: {e}', file=sys.stderr)
         return None, None
+
+
+def fetch_close_on(ticker: str, date_str: str) -> float | None:
+    """Daily close for a specific UTC date (used to backfill IPO-eve baselines)."""
+    url = f'https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?range=3mo&interval=1d'
+    req = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.load(resp)
+        result = data['chart']['result'][0]
+        ts = result['timestamp']
+        closes = result['indicators']['quote'][0]['close']
+        from datetime import datetime as _dt
+        for t_unix, c in zip(ts, closes):
+            d = _dt.utcfromtimestamp(t_unix).strftime('%Y-%m-%d')
+            if d == date_str and c:
+                return round(float(c), 2)
+    except (urllib.error.URLError, KeyError, ValueError, TypeError, IndexError):
+        pass
+    return None
 
 
 BASELINE_FILE = Path(__file__).parent / 'data' / 'spcx_baseline.json'
@@ -117,9 +149,10 @@ def row_html(ticker: str, base_price: float | None, cur_price: float | None, bas
             f'      <div class="verdict v-empty">—</div>\n'
             f'    </div>'
         )
+    disp = DISPLAY.get(ticker, ticker)
     return (
         f'    <div class="trow" data-row data-role="{role}">'
-        f'<div class="nm">{ticker} <span class="tier-tag {tier_class}">{tier_label}</span><small>{company}</small></div>'
+        f'<div class="nm">{disp} <span class="tier-tag {tier_class}">{tier_label}</span><small>{company}</small></div>'
         f'<div>{base_input}</div>'
         f'<div><input class="px cur auto" type="number" data-ticker="{ticker}" placeholder="现价"{cur_val}{rvol_attr}></div>'
         f'<div class="pct">—</div><div class="verdict v-empty">—</div></div>'
@@ -134,6 +167,7 @@ def build_html(prices: dict[str, float], base_prices: dict[str, float], rvols: d
         ('▸ 第一圈 · 直接对标', ['RKLB', 'ASTS', 'SIDU', 'BKSY', 'LUNR', 'RDW']),
         ('▸ 第二圈 · 代理标的', ['SATS', 'VSAT']),
         ('▸ 第三圈 · AI 算力链(你的持仓)', ['NBIS', 'CRWV', 'IREN']),
+        ('▸ 第四圈 · 持有 SpaceX 股权的上市标的(间接投资渠道)', ['STCK.TO', 'DXYZ', 'ARKVX', 'NASA', 'GOOGL']),
     ]
     table_inner: list[str] = []
     for section_title, section_tickers in sections:
@@ -202,6 +236,7 @@ h1{{font-family:'Chakra Petch';font-weight:700;font-size:30px;letter-spacing:1px
 .tt-proxy{{background:rgba(86,215,255,.13);color:var(--cyan)}}
 .tt-ai{{background:rgba(255,180,84,.13);color:var(--amber)}}
 .tt-epi{{background:rgba(157,139,255,.16);color:var(--violet)}}
+.tt-hold{{background:rgba(157,139,255,.13);color:var(--violet);border:1px solid rgba(157,139,255,.35)}}
 .nm{{font-weight:600;font-size:14px}}.nm small{{color:var(--faint);font-weight:400;font-size:11px;display:block}}
 input.px{{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--ink);
   font-family:'Space Mono';font-size:13px;padding:7px 9px;text-align:right;transition:border-color .2s}}
@@ -343,6 +378,12 @@ function recompute(){{
       vEl.className='verdict '+(p<0?'v-reflux':'v-defy');
       return;
     }}
+    if(role==='holder'){{
+      if(p>2){{vEl.textContent='💎 同步受益';vEl.className='verdict v-defy';}}
+      else if(p>=-2){{vEl.textContent='持平';vEl.className='verdict v-hold';}}
+      else{{vEl.textContent='⚠ 背离';vEl.className='verdict v-reflux';}}
+      return;
+    }}
     comps++; compPcts.push(p); if(rv>0&&!isNaN(rv)) compRvols.push(rv);
     if(p<-2){{vEl.textContent='🔴 回流(应验)';vEl.className='verdict v-reflux';reflux++;}}
     else if(p<=2){{vEl.textContent='🟡 抗跌';vEl.className='verdict v-hold';}}
@@ -413,13 +454,13 @@ def main() -> int:
     print(f'[{now_bjt:%Y-%m-%d %H:%M} BJT] Fetching prices… mode={mode_tag}')
     prices: dict[str, float] = {}
     rvols: dict[str, float] = {}
-    with cf.ThreadPoolExecutor(max_workers=len(TICKERS)) as ex:
-        for t, (p, rv) in zip(TICKERS, ex.map(fetch_quote, TICKERS)):
-            if p is not None:
-                prices[t] = p
-                if rv is not None:
-                    rvols[t] = rv
-                print(f'  {t:5s} = {p:<9} RVOL={rv if rv is not None else "n/a"}')
+    for t in TICKERS:
+        p, rv = fetch_quote(t)
+        if p is not None:
+            prices[t] = p
+            if rv is not None:
+                rvols[t] = rv
+            print(f'  {t:5s} = {p:<9} RVOL={rv if rv is not None else "n/a"}')
 
     if not prices:
         print('No prices fetched. Aborting (spcx.html unchanged).', file=sys.stderr)
@@ -438,6 +479,23 @@ def main() -> int:
     else:
         base_prices = load_baseline()
         print(f'Baseline LOCKED — loaded {len(base_prices)} tickers from {BASELINE_FILE.name}.')
+        # Backfill any tracked ticker missing from the baseline (e.g. holders added
+        # after the IPO). Use the IPO-eve close so they share the same reference,
+        # then persist so later runs don't refetch.
+        backfilled = False
+        for t in TICKERS:
+            if t == 'SPCX' or t in base_prices:
+                continue
+            eve = fetch_close_on(t, IPO_EVE)
+            if eve is None and t in prices:
+                eve = prices[t]  # fallback: start tracking from today
+            if eve is not None:
+                base_prices[t] = eve
+                backfilled = True
+                print(f'  backfilled base {t} = {eve} (IPO-eve {IPO_EVE})')
+        if backfilled:
+            save_baseline(base_prices, stamp)
+            print('Baseline updated with backfilled tickers.')
 
     html = build_html(prices, base_prices, rvols, update_base, stamp, mode_tag)
 
