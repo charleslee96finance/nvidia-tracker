@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>大话骰</title>
+<style>
+:root{
+  --felt:#14532d; --felt2:#0c3b1f;
+  --ivory:#faf6ea; --ink:#1f2937;
+  --blue:#1d4ed8; --green:#15803d; --red:#dc2626;
+  --gold:#fbbf24;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;height:100%;overflow:hidden;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:radial-gradient(ellipse at 50% 30%, var(--felt) 0%, var(--felt2) 100%);
+  color:#f0fdf4; touch-action:manipulation;}
+.screen{display:none;height:100%;height:100dvh;flex-direction:column;}
+.screen.active{display:flex;}
+
+/* ===== 首页 ===== */
+#scr-home{align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;}
+#scr-home h1{font-size:40px;margin:0 0 4px;letter-spacing:6px;color:var(--gold);text-shadow:0 2px 8px rgba(0,0,0,.5);}
+#scr-home .sub{opacity:.85;margin-bottom:18px;font-size:14px;line-height:1.7;}
+.bigbtn{display:block;width:min(320px,80vw);padding:16px 0;margin:0;border:none;border-radius:14px;
+  font-size:19px;font-weight:700;cursor:pointer;color:#fff;
+  background:linear-gradient(180deg,#16a34a,#15803d);box-shadow:0 4px 12px rgba(0,0,0,.35);}
+.bigbtn.alt{background:linear-gradient(180deg,#2563eb,#1d4ed8);}
+.bigbtn.gold{background:linear-gradient(180deg,#f59e0b,#d97706);}
+.bigbtn:active{transform:scale(.97);}
+.note{font-size:12px;opacity:.65;max-width:340px;line-height:1.6;}
+.lobbylink{position:fixed;top:calc(8px + env(safe-area-inset-top));left:10px;z-index:5;
+  background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;
+  border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;text-decoration:none;}
+
+/* ===== 骰子 ===== */
+.die{display:inline-grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
+  width:clamp(34px,9.5vw,54px);height:clamp(34px,9.5vw,54px);padding:5px;gap:1px;margin:3px;
+  background:linear-gradient(180deg,#fffdf5,var(--ivory));border-radius:10px;border:1px solid #d6cdb4;
+  box-shadow:0 3px 5px rgba(0,0,0,.4);flex:0 0 auto;}
+.die .pip{width:100%;height:100%;display:flex;align-items:center;justify-content:center;}
+.die .pip span{width:clamp(5px,1.5vw,9px);height:clamp(5px,1.5vw,9px);border-radius:50%;background:var(--ink);display:block;}
+.die.wild .pip span{background:var(--red);}
+.die.small{width:clamp(24px,6.4vw,38px);height:clamp(24px,6.4vw,38px);padding:3px;}
+.die.small .pip span{width:clamp(3px,1vw,6px);height:clamp(3px,1vw,6px);}
+.die.cup{background:repeating-linear-gradient(45deg,#1e40af 0 6px,#2563eb 6px 12px);border-color:#1e3a8a;}
+.die.cup::after{content:'?';grid-column:1/4;grid-row:1/4;display:flex;align-items:center;justify-content:center;
+  color:#cbd5e1;font-size:clamp(16px,4.5vw,26px);font-weight:800;}
+
+/* ===== 牌局界面 ===== */
+#scr-game{padding:env(safe-area-inset-top) 8px env(safe-area-inset-bottom);}
+#topbar{display:flex;align-items:center;justify-content:space-between;padding:6px 4px;font-size:13px;}
+#topbar .info{opacity:.9;}
+#topbar button{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;
+  border-radius:8px;padding:5px 12px;font-size:13px;cursor:pointer;}
+#opps{display:flex;gap:8px;padding:4px 0;flex-wrap:wrap;justify-content:center;}
+.opp{flex:1;min-width:130px;background:rgba(0,0,0,.22);border-radius:10px;padding:8px;}
+.opp.cur{outline:2px solid var(--gold);}
+.opp.out{opacity:.4;}
+.opp .nm{font-size:14px;font-weight:700;display:flex;justify-content:space-between;}
+.opp .nm .sc{color:var(--gold);font-weight:400;}
+.opp .dice{display:flex;flex-wrap:wrap;margin-top:4px;}
+.opp .say{font-size:13px;margin-top:4px;min-height:18px;color:#fde68a;}
+#bidboard{flex:0 0 auto;text-align:center;padding:10px;margin:6px 0;background:rgba(0,0,0,.25);border-radius:12px;}
+#bidboard .lab{font-size:13px;opacity:.8;}
+#bidboard .big{font-size:26px;font-weight:800;color:var(--gold);margin-top:2px;}
+#bidboard .big small{font-size:14px;color:#f0fdf4;opacity:.8;font-weight:400;}
+#hintbox{display:none;background:rgba(8,47,73,.92);border:1px solid #38bdf8;border-radius:10px;
+  padding:8px 10px;font-size:13px;line-height:1.55;margin:2px 0;}
+#hintbox.show{display:block;}
+#hintbox .ttl{color:#7dd3fc;font-weight:700;margin-right:4px;}
+#selfzone{flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding:4px 0 2px;}
+#selfinfo{font-size:13px;padding:0 2px 3px;text-align:center;}
+#mydice{display:flex;align-items:center;justify-content:center;padding:8px 0;flex-wrap:wrap;min-height:60px;}
+#bidctl{padding:4px 0;}
+#bidctl .row{display:flex;align-items:center;justify-content:center;gap:6px;margin:6px 0;flex-wrap:wrap;}
+#bidctl .row .cap{font-size:13px;opacity:.85;width:100%;text-align:center;margin-bottom:-2px;}
+.step{display:flex;align-items:center;gap:10px;}
+.step button{width:42px;height:42px;border-radius:10px;border:none;font-size:22px;font-weight:800;color:#fff;
+  background:rgba(255,255,255,.16);cursor:pointer;}
+.step .val{font-size:26px;font-weight:800;min-width:40px;text-align:center;color:var(--gold);}
+.facebtn{width:44px;height:44px;border-radius:10px;border:2px solid transparent;background:rgba(255,255,255,.12);
+  cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:5px;}
+.facebtn.on{border-color:var(--gold);background:rgba(251,191,36,.18);}
+#actions{display:flex;gap:10px;justify-content:center;align-items:center;padding:6px 2px calc(8px + env(safe-area-inset-bottom));min-height:54px;flex-wrap:wrap;}
+.abtn{border:none;border-radius:10px;padding:12px 22px;font-size:17px;font-weight:700;color:#fff;cursor:pointer;
+  box-shadow:0 3px 8px rgba(0,0,0,.4);}
+.abtn:active{transform:scale(.95);}
+.abtn:disabled{opacity:.4;cursor:default;box-shadow:none;}
+.abtn.bid{background:linear-gradient(180deg,#16a34a,#15803d);}
+.abtn.open{background:linear-gradient(180deg,#ef4444,#b91c1c);}
+.abtn.hint{background:linear-gradient(180deg,#8b5cf6,#6d28d9);font-size:14px;padding:10px 16px;}
+#turnmsg{font-size:13px;opacity:.85;width:100%;text-align:center;}
+
+/* ===== 遮罩层 ===== */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:50;
+  align-items:center;justify-content:center;flex-direction:column;padding:20px;text-align:center;}
+.overlay.show{display:flex;}
+.overlay .card{background:#1c2a22;border:1px solid rgba(255,255,255,.15);border-radius:16px;
+  padding:22px 18px;max-width:560px;width:100%;max-height:86vh;overflow-y:auto;}
+.overlay h2{margin:0 0 10px;color:var(--gold);}
+.revrow{display:flex;align-items:center;gap:8px;margin:6px 0;justify-content:space-between;}
+.revrow .nm{font-size:14px;font-weight:700;min-width:64px;text-align:left;}
+.revrow .ds{display:flex;flex-wrap:wrap;}
+
+/* ===== 教学 ===== */
+#scr-tut{padding:10px 12px calc(10px + env(safe-area-inset-bottom));overflow-y:auto;}
+#scr-tut header{display:flex;align-items:center;gap:10px;padding:6px 0 12px;}
+#scr-tut header h1{font-size:22px;margin:0;color:var(--gold);}
+.lesson{background:rgba(0,0,0,.25);border-radius:12px;margin-bottom:10px;overflow:hidden;}
+.lesson>button{width:100%;text-align:left;background:none;border:none;color:#fff;font-size:16px;font-weight:700;
+  padding:14px;cursor:pointer;display:flex;justify-content:space-between;}
+.lesson .body{display:none;padding:0 14px 14px;font-size:14px;line-height:1.8;}
+.lesson.open .body{display:block;}
+.lesson .ex{margin:6px 0;display:flex;flex-wrap:wrap;align-items:center;gap:2px;}
+.backbtn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:7px 14px;font-size:14px;cursor:pointer;}
+</style>
+</head>
+<body>
+
+<!-- 首页 -->
+<div id="scr-home" class="screen active">
+  <a class="lobbylink" href="games.html">← 游戏厅</a>
+  <h1>大话骰</h1>
+  <div class="sub">骰子吹牛 · 3 人对战<br>每人 5 颗骰子摇盅，轮流喊数，不信就「开」</div>
+  <button class="bigbtn gold" onclick="openTutorial()">📖 玩法说明（新手必看）</button>
+  <button class="bigbtn" onclick="startMatch('ai')">🤖 人机对战（你 + 2 电脑）</button>
+  <button class="bigbtn alt" onclick="startMatch('hotseat')">👥 真人对战（同屏 3 人轮流）</button>
+  <div class="note">真人对战为同一台设备轮流传递操作（面对面玩）。轮到谁就把手机给谁看自己的骰子，看完点确认再传给下一人。</div>
+</div>
+
+<!-- 教学 -->
+<div id="scr-tut" class="screen">
+  <header>
+    <button class="backbtn" onclick="showScreen('home')">← 返回</button>
+    <h1>大话骰 玩法</h1>
+  </header>
+  <div id="lessons"></div>
+</div>
+
+<!-- 牌局 -->
+<div id="scr-game" class="screen">
+  <div id="topbar">
+    <span class="info" id="roundinfo"></span>
+    <button onclick="confirmExit()">退出</button>
+  </div>
+  <div id="opps"></div>
+  <div id="bidboard"></div>
+  <div id="hintbox"></div>
+  <div id="selfzone">
+    <div id="selfinfo"></div>
+    <div id="mydice"></div>
+    <div id="bidctl"></div>
+  </div>
+  <div id="actions"></div>
+</div>
+
+<!-- 换人遮罩 -->
+<div id="ov-handoff" class="overlay">
+  <div class="card">
+    <h2 id="ho-title"></h2>
+    <p id="ho-msg" style="font-size:14px;opacity:.85"></p>
+    <button class="bigbtn" style="margin:10px auto 0" id="ho-btn">我已接手，查看骰子</button>
+  </div>
+</div>
+
+<!-- 开盅结果 -->
+<div id="ov-reveal" class="overlay">
+  <div class="card" id="rev-card"></div>
+</div>
+
+<!-- 结果 -->
+<div id="ov-result" class="overlay">
+  <div class="card" id="res-card"></div>
+</div>
+
+<script>
+'use strict';
+/*===ENGINE-START===*/
+/* ================= 引擎：大话骰 =================
+   规则要点：
+   - 每人 5 颗骰子（输一局少 1 颗），摇盅后只看自己的。
+   - 喊数 = {count(几个), face(点数 2~6)}，指「全场所有骰子里这个点数至少有 count 个」。
+   - 1（幺/一点）是百搭，算作任意点数（除非有人专门叫 1，本简化版不叫 1）。
+   - 加注：count 更大；或 count 不变但 face 更大。
+   - 「开」(挑战)：摊开所有骰子数。实际数 ≥ 上家喊的 count → 上家对，挑战者输 1 颗；否则上家输 1 颗。
+   - 只剩 1 人有骰子时，该人获胜。
+*/
+// 统计一组骰子里 face 的数量（1 为百搭，计入）。face 取 2~6。
+function countWild(dice, face){
+  let n=0; for(const d of dice){ if(d===face||d===1)n++; } return n;
+}
+// b 是否是对 prev 的合法加注（prev 为 null 表示开局首叫）
+function bidHigher(b, prev){
+  if(b.count<1||b.face<2||b.face>6) return false;
+  if(!prev) return true;
+  if(b.count>prev.count) return true;
+  if(b.count===prev.count && b.face>prev.face) return true;
+  return false;
+}
+function binom(n,k){ if(k<0||k>n)return 0; let r=1; for(let i=0;i<k;i++)r=r*(n-i)/(i+1); return r; }
+// unknown 个未知骰子中，命中目标 face 的至少有 need 个的概率（每颗命中概率 p=本面或1=1/3）
+function probAtLeast(unknown, need, p){
+  if(need<=0) return 1;
+  if(need>unknown) return 0;
+  let prob=0;
+  for(let k=need;k<=unknown;k++) prob+=binom(unknown,k)*Math.pow(p,k)*Math.pow(1-p,unknown-k);
+  return Math.min(1,prob);
+}
+function bestSupportFace(ownDice){
+  let bf=2,bc=-1;
+  for(let f=2;f<=6;f++){ const c=countWild(ownDice,f); if(c>bc){bc=c;bf=f;} }
+  return bf;
+}
+// AI 决策：返回 {challenge:true} 或 {bid:{count,face}}
+function aiAct(ownDice, prev, totalDice){
+  const p=1/3, unknown=totalDice-ownDice.length;
+  if(prev){
+    const need=prev.count-countWild(ownDice,prev.face);
+    const pTrue=probAtLeast(unknown,need,p);
+    if(pTrue<0.30) return {challenge:true};
+  }
+  const f=bestSupportFace(ownDice);
+  const myExpected=countWild(ownDice,f)+Math.round(unknown*p);
+  let bid;
+  if(!prev){
+    bid={count:Math.max(1,Math.min(totalDice,myExpected)),face:f};
+  }else{
+    if(f>prev.face && prev.count<=myExpected) bid={count:prev.count,face:f};
+    else bid={count:prev.count+1,face:f};
+    if(prev.count+1>myExpected+2){
+      // 要叫的数明显超出预期 → 挑战更划算
+      return {challenge:true};
+    }
+  }
+  if(bid.count>totalDice)bid.count=totalDice;
+  if(bid.face<2)bid.face=2; if(bid.face>6)bid.face=6;
+  if(!bidHigher(bid,prev)){
+    if(prev && prev.face<6) bid={count:prev.count,face:prev.face+1};
+    else if(prev) bid={count:prev.count+1,face:2};
+    if(!bidHigher(bid,prev)) return {challenge:true};
+  }
+  return {bid};
+}
+/*===ENGINE-END===*/
+
+/* ================= 对局状态与流程 ================= */
+let G=null;
+const $=id=>document.getElementById(id);
+function showScreen(n){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $('scr-'+n).classList.add('active');
+}
+function rollN(n){ const d=[]; for(let i=0;i<n;i++)d.push(1+Math.floor(Math.random()*6)); return d; }
+function newPlayer(name,isAI){return{name,isAI,n:5,dice:[],say:'',out:false,score:0};}
+function activeIdx(){ return G.players.map((p,i)=>p.out?-1:i).filter(i=>i>=0); }
+function totalDice(){ return G.players.reduce((s,p)=>s+(p.out?0:p.n),0); }
+function nextActive(p){ let q=p; do{ q=(q+1)%G.players.length; }while(G.players[q].out); return q; }
+
+function startMatch(mode){
+  G={mode,players:[],turn:0,prev:null,lastBidder:0,phase:'',round:1,viewing:0,
+     sel:{count:1,face:2}};
+  if(mode==='ai'){
+    G.players=[newPlayer('你',false),newPlayer('电脑·阿德',true),newPlayer('电脑·阿玲',true)];
+  }else{
+    G.players=[newPlayer('玩家1',false),newPlayer('玩家2',false),newPlayer('玩家3',false)];
+  }
+  showScreen('game');
+  newRound(0);
+}
+function newRound(firstBidder){
+  for(const pl of G.players){ if(!pl.out){ pl.dice=rollN(pl.n); } else { pl.dice=[]; } pl.say=''; }
+  if(G.players[firstBidder].out) firstBidder=nextActive(firstBidder);
+  G.prev=null; G.lastBidder=firstBidder; G.turn=firstBidder; G.phase='bid';
+  G.viewing=G.mode==='ai'?0:firstBidder;
+  G.sel={count:1,face:bestSupportFaceSafe(G.players[G.viewing])};
+  $('ov-reveal').classList.remove('show'); $('ov-result').classList.remove('show');
+  beginBidTurn(firstBidder);
+}
+function bestSupportFaceSafe(pl){ return pl&&pl.dice.length?bestSupportFace(pl.dice):2; }
+function beginBidTurn(p){
+  if(!G||G.phase==='over')return;
+  G.turn=p;
+  const pl=G.players[p];
+  if(pl.isAI){ renderGame(); setTimeout(()=>aiTurn(p),900); return; }
+  if(G.mode==='hotseat'){
+    renderGame();
+    showHandoff(p,'轮到你了，查看自己的骰子后喊数或开盅',()=>{ G.viewing=p; resetSel(); renderGame(); });
+  }else{ resetSel(); renderGame(); }
+}
+function resetSel(){
+  // 进入人类回合时，预设一个合法的最小加注
+  if(!G.prev){ G.sel={count:1,face:bestSupportFaceSafe(G.players[G.viewing])}; }
+  else if(G.prev.face<6){ G.sel={count:G.prev.count,face:G.prev.face+1}; }
+  else { G.sel={count:G.prev.count+1,face:2}; }
+}
+function aiTurn(p){
+  if(!G||G.phase==='over')return;
+  const act=aiAct(G.players[p].dice,G.prev,totalDice());
+  if(act.challenge && G.prev) resolveOpen(p);
+  else doBid(p,act.bid||{count:1,face:bestSupportFace(G.players[p].dice)});
+}
+function doBid(p,bid){
+  if(!G||G.phase==='over')return;
+  if(!bidHigher(bid,G.prev))return;
+  G.prev=bid; G.lastBidder=p;
+  for(const pl of G.players)pl.say='';
+  G.players[p].say='喊：'+bid.count+' 个 '+bid.face;
+  renderGame();
+  setTimeout(()=>{ if(G&&G.phase!=='over')beginBidTurn(nextActive(p)); },G.players[p].isAI?500:300);
+}
+function resolveOpen(challenger){
+  if(!G||!G.prev)return;
+  G.phase='reveal';
+  const face=G.prev.face;
+  let actual=0; const rows=[];
+  for(const i of activeIdx()){
+    const cw=countWild(G.players[i].dice,face);
+    actual+=cw;
+    rows.push({i,cw});
+  }
+  const bidder=G.lastBidder;
+  const bidTrue=actual>=G.prev.count;
+  const loser=bidTrue?challenger:bidder;
+  G.players[loser].n-=1;
+  const willOut=G.players[loser].n<=0;
+  if(willOut)G.players[loser].out=true;
+  // 结果展示
+  let html='<h2>🎲 开盅！</h2>';
+  html+='<p style="font-size:15px;margin:2px 0 10px">'+esc(G.players[bidder].name)+' 喊「<b style="color:#fbbf24">'
+       +G.prev.count+' 个 '+face+'</b>」，'+esc(G.players[challenger].name)+' 开</p>';
+  for(const r of rows){
+    html+='<div class="revrow"><span class="nm">'+esc(G.players[r.i].name)+'</span><span class="ds">';
+    for(const d of G.players[r.i].dice)html+=dieHTML(d,'small'+(d===face||d===1?' wild':''));
+    html+='</span><span style="min-width:40px">×'+r.cw+'</span></div>';
+  }
+  html+='<p style="font-size:16px;margin:10px 0 4px">实际共 <b style="color:#fbbf24">'+actual+'</b> 个 '+face
+       +'（含百搭1），喊的是 '+G.prev.count+' 个</p>';
+  html+='<p style="font-size:16px;font-weight:700;color:'+(bidTrue?'#4ade80':'#f87171')+'">'
+       +(bidTrue?'够数！喊得对 → '+esc(G.players[challenger].name)+' 输 1 颗骰子'
+                :'不够！喊大了 → '+esc(G.players[bidder].name)+' 输 1 颗骰子')+'</p>';
+  if(willOut)html+='<p style="font-size:15px;color:#f87171">'+esc(G.players[loser].name)+' 骰子全部输光，淘汰出局！</p>';
+  // 剩余人数
+  const alive=activeIdx();
+  if(alive.length<=1){
+    const winner=alive[0];
+    G.players[winner].score++;
+    html+='<h2 style="margin-top:14px">🏆 '+esc(G.players[winner].name)+' 获胜！</h2>';
+    html+='<button class="bigbtn" style="margin:12px auto 6px" onclick="rematch()">再来一局</button>';
+    html+='<button class="backbtn" onclick="exitToHome()">返回主页</button>';
+    G.phase='over';
+  }else{
+    html+='<button class="bigbtn" style="margin:14px auto 6px" onclick="continueRound('+loser+')">继续下一轮</button>';
+    html+='<button class="backbtn" onclick="exitToHome()">返回主页</button>';
+  }
+  $('rev-card').innerHTML=html;
+  $('ov-reveal').classList.add('show');
+}
+function continueRound(loser){
+  $('ov-reveal').classList.remove('show');
+  const first=G.players[loser].out?nextActive(loser):loser;
+  G.round++;
+  newRound(first);
+}
+function rematch(){
+  $('ov-reveal').classList.remove('show');
+  const scores=G.players.map(p=>p.score);
+  for(let i=0;i<G.players.length;i++){ G.players[i].n=5; G.players[i].out=false; G.players[i].score=scores[i]; }
+  G.round++;
+  newRound(0);
+}
+function exitToHome(){ G=null; $('ov-reveal').classList.remove('show'); $('ov-result').classList.remove('show'); showScreen('home'); }
+function confirmExit(){ if(confirm('确定退出本局？'))exitToHome(); }
+
+/* ================= 渲染 ================= */
+function esc(s){return String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
+const PIPMAP={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
+function dieHTML(v,cls){
+  let s='<div class="die '+(cls||'')+'">';
+  const pips=PIPMAP[v]||[];
+  for(let c=0;c<9;c++)s+='<div class="pip">'+(pips.includes(c)?'<span></span>':'')+'</div>';
+  return s+'</div>';
+}
+function cupHTML(){ let s='<div class="die cup small">'; for(let c=0;c<9;c++)s+='<div class="pip"></div>'; return s+'</div>'; }
+function renderGame(){
+  if(!G)return;
+  const v=G.viewing;
+  $('roundinfo').textContent='第 '+G.round+' 轮 · 全场 '+totalDice()+' 颗骰子 · '+(G.mode==='ai'?'人机':'同屏');
+  // 对手
+  let oh='';
+  const order=[]; for(let off=1;off<G.players.length;off++)order.push((v+off)%G.players.length);
+  for(const i of order){
+    const pl=G.players[i];
+    oh+='<div class="opp'+(G.turn===i&&G.phase==='bid'?' cur':'')+(pl.out?' out':'')+'">';
+    oh+='<div class="nm"><span>'+esc(pl.name)+(pl.out?'（出局）':'')+'</span><span class="sc">胜 '+pl.score+'</span></div>';
+    oh+='<div class="dice">';
+    if(pl.out)oh+='<span style="opacity:.6;font-size:12px">—</span>';
+    else for(let d=0;d<pl.n;d++)oh+=cupHTML();
+    oh+='</div>';
+    oh+='<div class="say">'+esc(pl.say||'')+'</div>';
+    oh+='</div>';
+  }
+  $('opps').innerHTML=oh;
+  // 当前喊数
+  let bb='';
+  if(G.prev){ bb='<div class="lab">当前喊数（'+esc(G.players[G.lastBidder].name)+'）</div>'
+      +'<div class="big">'+G.prev.count+' 个 <small>点数</small> '+G.prev.face+'</div>'; }
+  else { bb='<div class="lab">本轮刚开始</div><div class="big">等待首家喊数</div>'; }
+  $('bidboard').innerHTML=bb;
+  // 自己
+  const me=G.players[v];
+  $('selfinfo').innerHTML='<b>'+esc(me.name)+'</b> 的骰子（共 '+me.n+' 颗，1 是百搭）'
+     +(G.turn===v&&G.phase==='bid'?' · <span style="color:#fbbf24">轮到你</span>':'');
+  let md='';
+  if(me.out)md='<span style="opacity:.6">已出局</span>';
+  else for(const d of me.dice)md+=dieHTML(d, d===1?'wild':'');
+  $('mydice').innerHTML=md;
+  renderBidCtl();
+  renderActions();
+}
+function renderBidCtl(){
+  const v=G.viewing, me=G.players[v];
+  const myTurn=(G.turn===v&&G.phase==='bid'&&!me.isAI&&!me.out);
+  if(!myTurn){ $('bidctl').innerHTML=''; return; }
+  let h='<div class="row"><span class="cap">我要喊：几个 + 哪个点数</span></div>';
+  h+='<div class="row"><div class="step">'
+    +'<button onclick="bumpCount(-1)">−</button><span class="val">'+G.sel.count+'</span><button onclick="bumpCount(1)">+</button>'
+    +'</div><span style="font-size:15px">个</span></div>';
+  h+='<div class="row">';
+  for(let f=2;f<=6;f++)h+='<button class="facebtn'+(G.sel.face===f?' on':'')+'" onclick="pickFace('+f+')">'+dieHTML(f,'small')+'</button>';
+  h+='</div>';
+  $('bidctl').innerHTML=h;
+}
+function renderActions(){
+  const v=G.viewing, me=G.players[v];
+  let ah='<span id="turnmsg">';
+  if(G.phase==='over')ah+='本局结束';
+  else if(G.phase==='reveal')ah+='开盅中…';
+  else if(G.turn!==v)ah+=esc(G.players[G.turn].name)+' 思考中…';
+  else ah+=(G.prev?'喊更大的数，或点「开」挑战上家':'你先喊数');
+  ah+='</span>';
+  const myTurn=(G.turn===v&&G.phase==='bid'&&!me.isAI&&!me.out);
+  if(myTurn){
+    const valid=bidHigher(G.sel,G.prev);
+    ah+='<button class="abtn bid" '+(valid?'':'disabled')+' onclick="humanBid()">喊数</button>';
+    ah+='<button class="abtn open" '+(G.prev?'':'disabled')+' onclick="humanOpen()">开！</button>';
+    if(G.mode==='ai')ah+='<button class="abtn hint" onclick="showHintNow()">💡 提示</button>';
+  }
+  $('actions').innerHTML=ah;
+}
+function bumpCount(d){ const max=totalDice(); G.sel.count=Math.max(1,Math.min(max,G.sel.count+d)); renderGame(); }
+function pickFace(f){ G.sel.face=f; renderGame(); }
+function humanBid(){ const v=G.viewing; if(G.turn!==v)return; if(!bidHigher(G.sel,G.prev))return; doBid(v,{count:G.sel.count,face:G.sel.face}); }
+function humanOpen(){ const v=G.viewing; if(G.turn!==v||!G.prev)return; resolveOpen(v); }
+function showHintNow(){
+  const v=G.viewing; if(G.turn!==v)return;
+  const act=aiAct(G.players[v].dice,G.prev,totalDice());
+  let msg;
+  if(act.challenge && G.prev){ msg='上家喊「'+G.prev.count+' 个 '+G.prev.face+'」按概率偏虚，建议点「开」挑战。'; }
+  else { const b=act.bid; G.sel={count:b.count,face:b.face};
+    msg='建议喊「<b>'+b.count+' 个 '+b.face+'</b>」（已帮你选好，点「喊数」即可）。别忘了 1 是百搭。'; }
+  $('hintbox').innerHTML='<span class="ttl">💡 助手</span>'+msg;
+  $('hintbox').classList.add('show');
+  renderGame();
+  setTimeout(()=>{const hb=$('hintbox');if(hb)hb.classList.remove('show');},6000);
+}
+
+/* ================= 换人遮罩（真人模式） ================= */
+function showHandoff(p,msg,cb){
+  $('ho-title').textContent='请将设备交给 '+G.players[p].name;
+  $('ho-msg').textContent=msg||'';
+  $('ov-handoff').classList.add('show');
+  $('ho-btn').onclick=()=>{ $('ov-handoff').classList.remove('show'); cb(); };
+}
+
+/* ================= 玩法说明 ================= */
+function exDice(arr){return '<div class="ex">'+arr.map(v=>dieHTML(v,'small'+(v===1?' wild':''))).join('')+'</div>';}
+const LESSONS=[
+ {t:'第 1 课 · 基本玩法',b:function(){return ''
+   +'<p>3 个人，每人 <b>5 颗骰子</b>。开局各自摇盅，<b>只看自己的</b>，别人的盖着看不到。</p>'
+   +'<p>大家轮流「喊数」，喊的是<b>全场所有骰子里某个点数总共有多少个</b>（包括别人看不见的）。</p>'
+   +'<p>例：你喊「3 个 5」= 我猜全场至少有 3 颗 5。</p>'
+   +exDice([5,5,1,3,6])+'<p style="margin:2px 0;font-size:13px;opacity:.8">↑ 这是你的 5 颗，其中 1 是百搭可当 5，所以你这边就有 2 个「5」了。</p>';}},
+ {t:'第 2 课 · 1 是百搭',b:function(){return ''
+   +'<p><b>1（一点）是百搭</b>，可以当作任何点数来算。</p>'
+   +'<p>所以统计「几个 5」时，所有的 5 加上所有的 1 一起数。</p>'
+   +exDice([1,5,5,2,4])+'<p style="margin:2px 0;font-size:13px;opacity:.8">↑ 这里「5」算 3 个（两个5 + 一个百搭1）。</p>'
+   +'<p>（本游戏简化：只喊 2~6 的点数，不单独喊 1。）</p>';}},
+ {t:'第 3 课 · 怎样加注',b:function(){return ''
+   +'<p>轮到你时，必须喊得比上家「更大」，两种方式任选其一：</p>'
+   +'<p>① <b>个数更多</b>：上家「3 个 4」→ 你可以「4 个 任意点」。</p>'
+   +'<p>② <b>个数一样但点数更大</b>：上家「3 个 4」→ 你可以「3 个 5」或「3 个 6」。</p>'
+   +'<p>不能喊得更小，也不能不喊——要么加注，要么「开」。</p>';}},
+ {t:'第 4 课 · 开盅（挑战）',b:function(){return ''
+   +'<p>如果你觉得上家在吹牛、数量不可能有那么多，就点 <b>「开！」</b>。</p>'
+   +'<p>所有人摊开骰子，数一数上家喊的那个点数<b>实际有多少个</b>（含百搭1）：</p>'
+   +'<p>• 实际 <b>≥</b> 上家喊的数 → 上家没吹牛，<b>开的人输</b> 1 颗骰子。</p>'
+   +'<p>• 实际 <b>&lt;</b> 上家喊的数 → 上家吹大了，<b>上家输</b> 1 颗骰子。</p>'
+   +'<p>输骰子的人下一轮少 1 颗。<b>谁先输光 5 颗就出局</b>，最后剩下的人获胜。</p>';}},
+ {t:'第 5 课 · 小技巧',b:function(){return ''
+   +'<p>① 估算：你看不到的每颗骰子，大约 <b>1/3</b> 的机会是你要的点数（本面或百搭1）。</p>'
+   +'<p>② 比如 3 人共 15 颗，你手里有 2 个「6」，另外 10 颗未知 ≈ 还有 3 个，全场约 5 个 6——喊「4 个 6」比较稳。</p>'
+   +'<p>③ 喊自己手里多的点数更安全；别人逼你喊太离谱时，果断「开」。</p>'
+   +'<p>④ 人机对战里随时点 <b>💡提示</b>，助手会按概率帮你决定喊数还是开。</p>';}},
+];
+function openTutorial(){
+  const box=$('lessons');
+  if(!box.dataset.built){
+    let h='';
+    LESSONS.forEach((L,i)=>{
+      h+='<div class="lesson" id="ls'+i+'"><button onclick="toggleLesson('+i+')"><span>'+esc(L.t)+'</span><span>▾</span></button>'
+        +'<div class="body">'+L.b()+'</div></div>';
+    });
+    box.innerHTML=h;box.dataset.built='1';
+  }
+  showScreen('tut');
+}
+function toggleLesson(i){ $('ls'+i).classList.toggle('open'); }
+</script>
+</body>
+</html>

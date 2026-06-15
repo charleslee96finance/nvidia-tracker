@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>棋牌游戏厅</title>
+<style>
+:root{ --felt:#14532d; --felt2:#0c3b1f; --gold:#fbbf24; }
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;min-height:100%;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:radial-gradient(ellipse at 50% 20%, var(--felt) 0%, var(--felt2) 100%);
+  color:#f0fdf4; touch-action:manipulation;}
+.wrap{min-height:100dvh;display:flex;flex-direction:column;align-items:center;
+  padding:calc(28px + env(safe-area-inset-top)) 18px calc(28px + env(safe-area-inset-bottom));}
+h1{font-size:34px;margin:0 0 4px;letter-spacing:4px;color:var(--gold);text-shadow:0 2px 8px rgba(0,0,0,.5);text-align:center;}
+.sub{opacity:.85;font-size:14px;margin:0 0 22px;text-align:center;line-height:1.6;}
+.cards{display:flex;flex-direction:column;gap:14px;width:min(420px,92vw);}
+.gcard{display:flex;align-items:center;gap:14px;text-decoration:none;color:#fff;
+  background:rgba(0,0,0,.26);border:1px solid rgba(255,255,255,.14);border-radius:16px;
+  padding:16px 16px;box-shadow:0 4px 14px rgba(0,0,0,.3);transition:transform .08s;}
+.gcard:active{transform:scale(.98);}
+.gcard .ico{font-size:40px;width:56px;text-align:center;flex:0 0 auto;}
+.gcard .meta{min-width:0;}
+.gcard .nm{font-size:20px;font-weight:800;display:flex;align-items:center;gap:8px;}
+.gcard .nm .tag{font-size:11px;font-weight:600;background:rgba(251,191,36,.2);color:var(--gold);
+  border:1px solid rgba(251,191,36,.4);border-radius:6px;padding:1px 6px;}
+.gcard .ds{font-size:13px;opacity:.82;margin-top:4px;line-height:1.5;}
+.gcard .arrow{margin-left:auto;font-size:22px;opacity:.6;flex:0 0 auto;}
+.foot{margin-top:26px;font-size:12px;opacity:.6;text-align:center;line-height:1.7;max-width:360px;}
+.foot a{color:#93c5fd;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🀄 棋牌游戏厅</h1>
+  <div class="sub">手机 / 电脑都能玩 · 支持人机对战和同屏多人</div>
+  <div class="cards">
+    <a class="gcard" href="mahjong.html">
+      <div class="ico">🀙</div>
+      <div class="meta">
+        <div class="nm">三人麻将 <span class="tag">含教学</span></div>
+        <div class="ds">筒·条·字牌 100 张，可碰/杠/胡。新手有 6 节教学课与引导对局。</div>
+      </div>
+      <div class="arrow">›</div>
+    </a>
+    <a class="gcard" href="bigtwo.html">
+      <div class="ico">🃏</div>
+      <div class="meta">
+        <div class="nm">锄大D <span class="tag">4 人</span></div>
+        <div class="ds">广东经典扑克，2 最大、方块3 先出，谁先出完谁赢。带玩法说明与提示。</div>
+      </div>
+      <div class="arrow">›</div>
+    </a>
+    <a class="gcard" href="dice.html">
+      <div class="ico">🎲</div>
+      <div class="meta">
+        <div class="nm">大话骰 <span class="tag">骰子</span></div>
+        <div class="ds">骰子吹牛喊数，1 是百搭，不信就「开」。AI 会按概率诈唬，刺激好玩。</div>
+      </div>
+      <div class="arrow">›</div>
+    </a>
+  </div>
+  <div class="foot">
+    把本页「添加到主屏幕」，以后像 App 一样一点就玩。<br>
+    NVIDIA 追踪器仍在 <a href="index.html">index.html</a>，互不影响。
+  </div>
+</div>
+</body>
+</html>

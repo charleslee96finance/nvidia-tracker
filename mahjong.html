@@ -32,6 +32,9 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;
 .bigbtn.gold{background:linear-gradient(180deg,#f59e0b,#d97706);}
 .bigbtn:active{transform:scale(.97);}
 .note{font-size:12px;opacity:.65;max-width:320px;line-height:1.6;}
+.lobbylink{position:fixed;top:calc(8px + env(safe-area-inset-top));left:10px;z-index:5;
+  background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;
+  border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;text-decoration:none;}
 
 /* ===== 牌 ===== */
 .tile{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;
@@ -137,6 +140,7 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;
 
 <!-- 首页 -->
 <div id="scr-home" class="screen active">
+  <a class="lobbylink" href="games.html">← 游戏厅</a>
   <h1>三人麻将</h1>
   <div class="sub">筒 · 条 · 字牌 共 100 张<br>不能吃牌，可碰 / 杠 / 胡</div>
   <button class="bigbtn gold" onclick="openTutorial()">📖 教学模式（新手必看）</button>
