@@ -17,17 +17,6 @@ from urllib.parse import quote
 
 import feedparser
 import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
-
-# Shared session: connection pooling + automatic retry for the ~100 Yahoo /
-# SEC / Google News HTTPS calls per run (saves TLS handshakes, rides out 429s).
-SESSION = requests.Session()
-SESSION.mount("https://", HTTPAdapter(
-    pool_connections=20, pool_maxsize=20,
-    max_retries=Retry(total=2, backoff_factor=0.5,
-                      status_forcelist=[429, 500, 502, 503, 504]),
-))
 
 ROOT = Path(__file__).parent
 DATA_DIR = ROOT / "data"
@@ -278,8 +267,8 @@ POSITIVE_WORDS = [
     "launch", "launches", "launched", "unveil", "unveils", "unveiled", "debut", "debuts",
     "breakthrough", "milestone", "agree", "agreed", "partner", "partners", "partnership",
     "deal", "deals", "contract", "contracts", "expansion", "expand", "expanded",
-    "invest", "invests", "invested", "acquire", "acquires", "acquired",
-    "approval", "approved", "approve",
+    "invest", "invests", "invested", "invests", "acquire", "acquires", "acquired",
+    "approval", "approved", "approve", "wins", "wins",
     # Sentiment / forecast
     "upgrade", "upgraded", "upgrades", "bullish", "optimistic", "strong", "robust",
     "growth", "growing", "grow", "profit", "profits", "profitable",
@@ -307,9 +296,8 @@ NEGATIVE_WORDS = [
     "sell", "underweight",
 ]
 
-# dict.fromkeys: dedupe while preserving order (some words repeat across groups)
-POS_RE = re.compile(r'\b(?:' + '|'.join(dict.fromkeys(POSITIVE_WORDS)) + r')\b', re.IGNORECASE)
-NEG_RE = re.compile(r'\b(?:' + '|'.join(dict.fromkeys(NEGATIVE_WORDS)) + r')\b', re.IGNORECASE)
+POS_RE = re.compile(r'\b(?:' + '|'.join(POSITIVE_WORDS) + r')\b', re.IGNORECASE)
+NEG_RE = re.compile(r'\b(?:' + '|'.join(NEGATIVE_WORDS) + r')\b', re.IGNORECASE)
 
 
 def score_sentiment(text):
@@ -398,8 +386,7 @@ def clean_target(raw, parent_co_regex):
 
 # Build per-company patterns + feeds
 for c in COMPANIES:
-    c["patterns"] = [re.compile(t.replace("{co}", c["name_regex"]), re.IGNORECASE)
-                     for t in INVEST_PATTERN_TEMPLATES]
+    c["patterns"] = [t.replace("{co}", c["name_regex"]) for t in INVEST_PATTERN_TEMPLATES]
     c["self_regex"] = re.compile(c["name_regex"], re.IGNORECASE)
     feeds = [
         (f"Google News · {c['name']}",
@@ -473,11 +460,7 @@ def parse_date(s):
 def _fetch_one_feed(args):
     primary, source, url = args
     try:
-        # Fetch ourselves with a timeout — feedparser's own HTTP fetch has no
-        # timeout and a single stuck feed would hang the whole Actions run.
-        resp = SESSION.get(url, headers={"User-Agent": USER_AGENT}, timeout=20)
-        resp.raise_for_status()
-        feed = feedparser.parse(resp.content)
+        feed = feedparser.parse(url, request_headers={"User-Agent": USER_AGENT})
         entries = []
         for entry in feed.entries[:30]:
             title = (entry.get("title") or "").strip()
@@ -543,7 +526,7 @@ def detect_investments(items):
         text = f"{it['title']}. {it['summary']}"
         for c in COMPANIES:
             for pat in c["patterns"]:
-                for m in pat.finditer(text):
+                for m in re.finditer(pat, text, re.IGNORECASE):
                     target = clean_target(m.group(1), c["self_regex"])
                     if target is None:
                         continue
@@ -566,7 +549,7 @@ def detect_investments(items):
 def fetch_sec_for(cik):
     try:
         url = f"https://data.sec.gov/submissions/CIK{cik}.json"
-        r = SESSION.get(url, headers={"User-Agent": USER_AGENT}, timeout=20)
+        r = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=20)
         r.raise_for_status()
         data = r.json()
         recent = data["filings"]["recent"]
@@ -605,46 +588,29 @@ def fetch_sec_all():
 
 
 # --- Stock prices (Yahoo Finance Chart API) ---------------------------------
-def _parse_chart_result(result, nd=2):
-    """Parse one Yahoo chart result: drop null closes, build OHLC bars and the
-    day-change baseline. Returns (meta, timestamps, closes, ohlc, baseline)."""
-    meta = result["meta"]
-    q = result["indicators"]["quote"][0]
-    ts = result.get("timestamp", []) or []
-    opens = q.get("open", []) or []
-    highs = q.get("high", []) or []
-    lows = q.get("low", []) or []
-    raw_closes = q.get("close", []) or []
-    timestamps, closes, ohlc = [], [], []
-    for i, t in enumerate(ts):
-        c = raw_closes[i] if i < len(raw_closes) else None
-        if c is None:
-            continue
-        timestamps.append(t)
-        closes.append(round(c, nd))  # rounded to keep page small
-        o = opens[i] if i < len(opens) and opens[i] is not None else c
-        h = highs[i] if i < len(highs) and highs[i] is not None else c
-        l = lows[i] if i < len(lows) and lows[i] is not None else c
-        ohlc.append([t, round(o, 2), round(h, 2), round(l, 2), round(c, 2)])
-    # Yesterday's close = second-to-last daily close. Yahoo's
-    # meta.previousClose is often null on multi-day range queries, and
-    # meta.chartPreviousClose is the price BEFORE the chart window (1 month ago) —
-    # using it as the day baseline produced "INTC +107% today" type bugs.
-    day_baseline = (closes[-2] if len(closes) >= 2
-                    else meta.get("previousClose")
-                    or meta.get("chartPreviousClose"))
-    return meta, timestamps, closes, ohlc, day_baseline
-
-
 def fetch_price(ticker):
     try:
         url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?range=1mo&interval=1d"
-        r = SESSION.get(url,
-                        headers={"User-Agent": BROWSER_UA, "Accept": "application/json"},
-                        timeout=15)
+        r = requests.get(url,
+                         headers={"User-Agent": BROWSER_UA, "Accept": "application/json"},
+                         timeout=15)
         r.raise_for_status()
-        result = r.json()["chart"]["result"][0]
-        meta, timestamps, closes, ohlc, day_baseline = _parse_chart_result(result)
+        data = r.json()
+        result = data["chart"]["result"][0]
+        meta = result["meta"]
+        raw_closes = result["indicators"]["quote"][0].get("close", []) or []
+        raw_ts = result.get("timestamp", []) or []
+        # Keep only timestamp/close pairs where close is non-null
+        pairs = [(t, c) for t, c in zip(raw_ts, raw_closes) if c is not None]
+        timestamps = [p[0] for p in pairs]
+        closes = [round(p[1], 2) for p in pairs]  # rounded to 2dp to keep page small
+        # Yesterday's close = second-to-last daily close. Yahoo's
+        # meta.previousClose is often null on multi-day range queries, and
+        # meta.chartPreviousClose is the price BEFORE the chart window (1 month ago) —
+        # using it as the day baseline produced "INTC +107% today" type bugs.
+        day_baseline = (closes[-2] if len(closes) >= 2
+                        else meta.get("previousClose")
+                        or meta.get("chartPreviousClose"))
         return {
             "ticker": ticker,
             "price": meta.get("regularMarketPrice"),
@@ -652,9 +618,6 @@ def fetch_price(ticker):
             "currency": meta.get("currency", "USD"),
             "closes": closes,
             "timestamps": timestamps,
-            # Same response already carries 1mo/1d OHLC — reused as the modal's
-            # "1mo" period so it doesn't get fetched a second time.
-            "ohlc_1mo": ohlc,
         }
     except Exception as e:
         print(f"price error {ticker}: {e}", file=sys.stderr)
@@ -718,15 +681,12 @@ PERIOD_SPECS = {
     "3mo": ("3mo", "1d"),
     "1y":  ("1y",  "1wk"),
 }
-# "1mo" OHLC comes free with the base price fetch (same range/interval), so
-# the period fetchers only request the other three; main() merges 1mo back in.
-FETCH_PERIOD_SPECS = {k: v for k, v in PERIOD_SPECS.items() if k != "1mo"}
 
 
 def _fetch_ohlc(ticker, rng, interval):
     """One Yahoo Finance chart call → OHLC list [[ts,open,high,low,close],...]."""
     url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?range={rng}&interval={interval}"
-    r = SESSION.get(url, headers={"User-Agent": BROWSER_UA, "Accept": "application/json"}, timeout=15)
+    r = requests.get(url, headers={"User-Agent": BROWSER_UA, "Accept": "application/json"}, timeout=15)
     r.raise_for_status()
     data = r.json()
     result = data["chart"]["result"][0]
@@ -843,9 +803,7 @@ def fetch_private_news(co, max_items=10):
            + "&hl=en-US&gl=US&ceid=US:en")
     items = []
     try:
-        resp = SESSION.get(url, headers={"User-Agent": USER_AGENT}, timeout=20)
-        resp.raise_for_status()
-        feed = feedparser.parse(resp.content)
+        feed = feedparser.parse(url, request_headers={"User-Agent": USER_AGENT})
         for entry in feed.entries[:max_items]:
             title = (entry.get("title") or "").strip()
             if not title:
@@ -879,6 +837,11 @@ def fetch_all_private_news():
     return out
 
 
+# Backwards-compat shim so the old call site still works if referenced.
+def fetch_spacex_news(max_items=10):
+    return fetch_private_news(PRIVATE_COS[0], max_items)
+
+
 # --- Market indices: indices + commodities + rates --------------------------
 # Each entry: (ticker, display_name, color, unit). `unit` controls formatting.
 INDICES = [
@@ -900,10 +863,19 @@ def _fetch_index_price(spec):
         url = ("https://query1.finance.yahoo.com/v8/finance/chart/"
                + quote(spec["ticker"], safe="")
                + "?range=1mo&interval=1d")
-        r = SESSION.get(url, headers={"User-Agent": BROWSER_UA, "Accept": "application/json"}, timeout=15)
+        r = requests.get(url, headers={"User-Agent": BROWSER_UA, "Accept": "application/json"}, timeout=15)
         r.raise_for_status()
-        result = r.json()["chart"]["result"][0]
-        meta, timestamps, closes, ohlc, day_baseline = _parse_chart_result(result, nd=4)
+        data = r.json()
+        result = data["chart"]["result"][0]
+        meta = result["meta"]
+        raw_closes = result["indicators"]["quote"][0].get("close", []) or []
+        raw_ts = result.get("timestamp", []) or []
+        pairs = [(t, c) for t, c in zip(raw_ts, raw_closes) if c is not None]
+        timestamps = [p[0] for p in pairs]
+        closes = [round(p[1], 4) for p in pairs]
+        day_baseline = (closes[-2] if len(closes) >= 2
+                        else meta.get("previousClose")
+                        or meta.get("chartPreviousClose"))
         return {
             "ticker": spec["ticker"],
             "name": spec["name"],
@@ -913,7 +885,6 @@ def _fetch_index_price(spec):
             "prev_close": day_baseline,
             "closes": closes,
             "timestamps": timestamps,
-            "ohlc_1mo": ohlc,
         }
     except Exception as e:
         print(f"index err {spec['ticker']}: {e}", file=sys.stderr)
@@ -938,7 +909,7 @@ def fetch_indices_periods():
     """Fetch 4 OHLC periods (5d/1mo/3mo/1y) for every index, parallel."""
     jobs = [(s["ticker"], k, rng, interval)
             for s in INDICES
-            for k, (rng, interval) in FETCH_PERIOD_SPECS.items()]
+            for k, (rng, interval) in PERIOD_SPECS.items()]
     out = {}
     with cf.ThreadPoolExecutor(max_workers=12) as ex:
         futs = {}
@@ -970,7 +941,7 @@ def fetch_vix():
 def fetch_vix_periods():
     """Multi-period OHLC for VIX so the modal chart supports period switching."""
     out = {}
-    for k, (rng, interval) in FETCH_PERIOD_SPECS.items():
+    for k, (rng, interval) in PERIOD_SPECS.items():
         try:
             out[k] = _fetch_ohlc("^VIX", rng, interval)
         except Exception as e:
@@ -985,7 +956,7 @@ def fetch_main_periods():
     Parallelizes (ticker x period) calls."""
     jobs = [(c["ticker"], k, rng, interval)
             for c in COMPANIES
-            for k, (rng, interval) in FETCH_PERIOD_SPECS.items()]
+            for k, (rng, interval) in PERIOD_SPECS.items()]
     out = {}
     with cf.ThreadPoolExecutor(max_workers=12) as ex:
         futures = {ex.submit(_fetch_ohlc, t, rng, intv): (t, k) for t, k, rng, intv in jobs}
@@ -1166,6 +1137,19 @@ TEMPLATE = """<!DOCTYPE html>
   .alert-banner{background:linear-gradient(135deg,rgba(255,77,0,.06) 0%,rgba(245,166,35,.08) 100%)}
   /* The bg grid is too faint on light bg — use a touch more alpha */
   body::before{background-image:linear-gradient(var(--grid-line) 1px,transparent 1px),linear-gradient(90deg,var(--grid-line) 1px,transparent 1px)}
+}
+/* ===== Glassmorphism (frosted glass) ===== */
+/* Ambient colored glow blobs — the actual content for the backdrop-filter to blur */
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(900px 700px at 15% 8%,rgba(118,185,0,.12),transparent 55%),radial-gradient(800px 600px at 85% 18%,rgba(77,166,255,.14),transparent 55%),radial-gradient(1000px 800px at 50% 95%,rgba(167,139,250,.12),transparent 60%),radial-gradient(600px 500px at 95% 75%,rgba(247,147,26,.08),transparent 60%)}
+/* Mid-weight glass for the bulk of the surfaces */
+.stat,.price-card,.index-card,.signal-card,.news-card,.investment-card,.vix-widget,.alert-banner,.sec-card,.spacex-header,.spacex-news-item,.modal-stat,.modal-chart-wrap,.reason-col,.port-stat,.search-results,.search-result{background:rgba(11,15,30,.55);backdrop-filter:blur(14px) saturate(160%);-webkit-backdrop-filter:blur(14px) saturate(160%);border-color:rgba(255,255,255,.08)}
+/* Heavier glass for big overlays */
+.modal,.port-panel{background:rgba(11,15,30,.78);backdrop-filter:blur(28px) saturate(180%);-webkit-backdrop-filter:blur(28px) saturate(180%)}
+/* Light mode — white frosted glass */
+@media (prefers-color-scheme: light) {
+  body::after{background:radial-gradient(900px 700px at 15% 8%,rgba(118,185,0,.18),transparent 55%),radial-gradient(800px 600px at 85% 18%,rgba(77,166,255,.20),transparent 55%),radial-gradient(1000px 800px at 50% 95%,rgba(167,139,250,.16),transparent 60%),radial-gradient(600px 500px at 95% 75%,rgba(247,147,26,.12),transparent 60%)}
+  .stat,.price-card,.index-card,.signal-card,.news-card,.investment-card,.vix-widget,.alert-banner,.sec-card,.spacex-header,.spacex-news-item,.modal-stat,.modal-chart-wrap,.reason-col,.port-stat,.search-results,.search-result{background:rgba(255,255,255,.65);border-color:rgba(0,0,0,.08)}
+  .modal,.port-panel{background:rgba(255,255,255,.82)}
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;overscroll-behavior-x:none}
@@ -2739,19 +2723,6 @@ def main():
         private_news_by_co = f_priv_news.result()
         indices_data = f_indices.result()
         indices_periods = f_idx_periods.result()
-
-    # Merge the 1mo OHLC that came with the base price fetches into the period
-    # data (the period fetchers skip 1mo — see FETCH_PERIOD_SPECS).
-    for c in COMPANIES:
-        d = prices_by_co.get(c["name"])
-        if d and d.get("ohlc_1mo"):
-            main_periods.setdefault(c["ticker"], {})["1mo"] = d["ohlc_1mo"]
-    for ticker, d in indices_data.items():
-        if d.get("ohlc_1mo"):
-            indices_periods.setdefault(ticker, {})["1mo"] = d["ohlc_1mo"]
-    if vix_data and vix_data.get("ohlc_1mo"):
-        vix_periods["1mo"] = vix_data["ohlc_1mo"]
-
     # Inject private-company news into the main news pool so filter buttons work
     flat_private_news = [item for items in private_news_by_co.values() for item in items]
     # Mark them as "is_new" against the seen cache, with the same logic as fetch_news
@@ -2759,6 +2730,7 @@ def main():
         it["is_new"] = it["id"] not in seen
         it["summary"] = ""  # private feeds don't include summaries; keep schema consistent
     news = news + flat_private_news
+    spacex_news = private_news_by_co.get("spacex", [])  # back-compat for any code still using this
 
     news = dedupe(news)
     news.sort(key=lambda x: parse_date(x["published"]), reverse=True)
