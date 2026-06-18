@@ -1,0 +1,52 @@
+name: Update SPCX Scorecard
+
+on:
+  schedule:
+    # US market closes 16:00 ET (= 20:00 UTC EDT / 21:00 UTC EST).
+    # Run shortly after close so the same trading day's close is captured.
+    # Two times give redundancy against GitHub's scheduled-run delays;
+    # the workflow only commits when prices actually change, so the second
+    # run is a no-op if the first already updated.
+    - cron: '0 21 * * 1-5'    # ~1h after EDT close (weekdays)
+    - cron: '30 23 * * 1-5'   # safety net: covers EST close + GitHub delay
+  workflow_dispatch:          # allow manual trigger
+  push:
+    branches: [main]
+    paths:
+      - 'update_spcx.py'
+      - '.github/workflows/spcx.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spcx-update
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run SPCX updater
+        run: python update_spcx.py
+
+      - name: Commit spcx.html + baseline
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add spcx.html data/spcx_baseline.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "auto: refresh spcx scorecard $(date -u +'%Y-%m-%d %H:%MZ')"
+            git push
+          fi
