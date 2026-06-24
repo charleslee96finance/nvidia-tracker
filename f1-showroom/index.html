@@ -49,7 +49,20 @@
   body[data-focus="redbull"] button.seg.active {
                       background: rgba(46, 84, 214, 0.34);
                       border-color: rgba(110, 150, 255, 0.8); }
+  .seg3 { display: flex; gap: 4px; }
+  button.seg.s3 { flex: 1; padding: 7px 2px; text-align: center; font-size: 12px; margin: 4px 0; }
   #hint { margin: 8px 2px 0; font-size: 11px; line-height: 1.65; color: #8d96b2; }
+
+  #photoBar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+              z-index: 20; display: none; gap: 10px; }
+  body.photo #photoBar { display: flex; }
+  #photoBar button { background: rgba(11, 14, 24, 0.78); color: #e9ecf4;
+              border: 1px solid rgba(150, 160, 200, 0.4); border-radius: 10px;
+              padding: 9px 18px; font-size: 13px; cursor: pointer;
+              backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  #photoBar button:hover { background: rgba(40, 48, 78, 0.85); }
+  body.photo #panel, body.photo #title, body.photo #spec,
+  body.photo #cockpitTip, body.photo #vignette { display: none !important; }
 
   #spec { right: 14px; bottom: 14px; padding: 12px 16px; max-width: 295px;
           font-size: 12px; line-height: 1.7; }
@@ -86,6 +99,13 @@
     <button class="seg active" data-scene="track">🏜️ 摩洛哥赛道</button>
     <button class="seg" data-scene="garage">🌃 暗夜车库</button>
   </div>
+  <div class="grp" id="grpTime"><label id="lblTime">时 段</label>
+    <div class="seg3">
+      <button class="seg s3 active" data-time="noon">☀️ 正午</button>
+      <button class="seg s3" data-time="sunset">🌅 黄昏</button>
+      <button class="seg s3" data-time="night">🌙 夜战</button>
+    </div>
+  </div>
   <div class="grp"><label id="lblCar">车 辆</label>
     <button class="seg active" data-car="ferrari">🟥 法拉利 F1-75</button>
     <button class="seg" data-car="redbull">🟦 红牛 RB21</button>
@@ -104,6 +124,9 @@
     <button class="seg" id="btnSound">🔇 引擎声浪：关</button>
   </div>
   <div class="grp">
+    <button class="seg" id="btnPhoto">📷 拍照模式</button>
+  </div>
+  <div class="grp">
     <button class="seg active" id="btnSpin">⟳ 自动旋转：开</button>
     <button class="seg" id="btnLang">🌐 English</button>
   </div>
@@ -112,6 +135,10 @@
 
 <div id="spec" class="panel"></div>
 <div id="cockpitTip" class="panel hidden">拖动环顾四周 · 方向盘中央即仪表屏（转速灯 / 档位 / 车速 / ERS）· 滚轮调整视野</div>
+<div id="photoBar">
+  <button id="btnSnap">📸 保存壁纸</button>
+  <button id="btnPhotoExit">✕ 退出拍照</button>
+</div>
 
 <script src="three.min.js"></script>
 <script src="app.js"></script>
