@@ -9,7 +9,7 @@
 
 /* ---------------------------------------------------------------- 基础 ---- */
 var canvas = document.getElementById('stage');
-var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
@@ -26,8 +26,8 @@ scene.fog = new THREE.Fog(0x07080c, 15, 46);
 var camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.02, 120);
 camera.position.set(16, 8.5, 21);
 
-/* 环境反射贴图 ×2（PMREM）：暗夜车库灯管条 / 摩洛哥晴空沙漠 */
-var envGarage, envTrack;
+/* 环境反射贴图（PMREM）：车库 / 赛道正午·黄昏·夜战 */
+var envGarage, envTrack, envSunset, envNight;
 (function buildEnvMaps() {
   var pm = new THREE.PMREMGenerator(renderer);
   /* 车库：黑场 + 头顶灯管条 */
@@ -50,20 +50,24 @@ var envGarage, envTrack;
   bounce.rotation.x = Math.PI / 2; bounce.position.y = -0.01;
   g.add(bounce);
   envGarage = pm.fromScene(g, 0.035).texture;
-  /* 赛道：蓝天穹顶 + 暖阳 + 沙漠地面反弹 */
-  var t = new THREE.Scene();
-  t.add(new THREE.Mesh(
-    new THREE.SphereGeometry(12, 16, 12),
-    new THREE.MeshBasicMaterial({ color: 0x86add4, side: THREE.BackSide })));
-  var sunBall = new THREE.Mesh(new THREE.SphereGeometry(1.4, 12, 10),
-    new THREE.MeshBasicMaterial({ color: 0xfff2cf }));
-  sunBall.position.set(6, 8, -3);
-  t.add(sunBall);
-  var sand = new THREE.Mesh(new THREE.PlaneGeometry(24, 24),
-    new THREE.MeshBasicMaterial({ color: 0x8a6e46 }));
-  sand.rotation.x = -Math.PI / 2; sand.position.y = -0.5;
-  t.add(sand);
-  envTrack = pm.fromScene(t, 0.045).texture;
+  /* 赛道通用构建：天空色 / 太阳色+位置 / 地面色 */
+  function trackEnv(sky, sunCol, sunPos, ground, blur) {
+    var t = new THREE.Scene();
+    t.add(new THREE.Mesh(new THREE.SphereGeometry(12, 16, 12),
+      new THREE.MeshBasicMaterial({ color: sky, side: THREE.BackSide })));
+    var sunBall = new THREE.Mesh(new THREE.SphereGeometry(1.4, 12, 10),
+      new THREE.MeshBasicMaterial({ color: sunCol }));
+    sunBall.position.set(sunPos[0], sunPos[1], sunPos[2]);
+    t.add(sunBall);
+    var sand = new THREE.Mesh(new THREE.PlaneGeometry(24, 24),
+      new THREE.MeshBasicMaterial({ color: ground }));
+    sand.rotation.x = -Math.PI / 2; sand.position.y = -0.5;
+    t.add(sand);
+    return pm.fromScene(t, blur || 0.045).texture;
+  }
+  envTrack = trackEnv(0x86add4, 0xfff2cf, [6, 8, -3], 0x8a6e46);
+  envSunset = trackEnv(0x5a3a52, 0xff9a4e, [7, 2.2, -3], 0x5a4330, 0.05);
+  envNight = trackEnv(0x0a0e1c, 0x3a4a6e, [-6, 6, 4], 0x14110c, 0.05);
   pm.dispose();
 })();
 scene.environment = envTrack;
@@ -435,6 +439,8 @@ function buildSign(x, line1, accent) {
 var trackG = new THREE.Group();
 scene.add(trackG);
 var startLamps = [];                 // [列][上灯,下灯]，起跑灯序点亮
+var trackSun, nightRig, starField;   // 太阳精灵 / 夜战泛光架 / 星空（随时段切换）
+var floodLights = [];                // 夜战聚光灯
 function setLampsLit(n) {            // 前 n 列亮红，其余熄灭
   for (var c = 0; c < startLamps.length; c++) {
     var on = c < n;
@@ -625,13 +631,87 @@ function setLampsLit(n) {            // 前 n 列亮红，其余熄灭
     sn.scale.z = 0.55; sn.castShadow = false; sn.receiveShadow = false;
     tAdd(sn);
   });
-  var sun = new THREE.Sprite(new THREE.SpriteMaterial({
+  trackSun = new THREE.Sprite(new THREE.SpriteMaterial({
     map: glowTex, color: 0xfff0c8, transparent: true, opacity: 0.95,
     blending: THREE.AdditiveBlending, depthWrite: false }));
-  sun.scale.set(26, 26, 1);
-  sun.position.set(52, 34, -26);
-  sun.userData.noRay = true;
-  tAdd(sun);
+  trackSun.scale.set(26, 26, 1);
+  trackSun.position.set(52, 34, -26);
+  trackSun.userData.noRay = true;
+  tAdd(trackSun);
+
+  /* ---- 观众看台（主直道两侧，起跑跟拍可见） ---- */
+  var crowdTex = canvasTex(256, 128, function (x, w, h) {
+    x.fillStyle = '#181a20'; x.fillRect(0, 0, w, h);
+    var cols = ['#d23', '#2a6', '#39c', '#fb2', '#eee', '#e63', '#8c3', '#c5c', '#26d'];
+    for (var i = 0; i < 2400; i++) {
+      x.fillStyle = cols[(Math.random() * cols.length) | 0];
+      x.globalAlpha = 0.5 + Math.random() * 0.5;
+      x.fillRect(Math.random() * w, Math.random() * h, 3, 3);
+    }
+    x.globalAlpha = 1;
+    x.fillStyle = 'rgba(10,11,14,0.5)';      // 排间横档
+    for (var r = 0; r < h; r += 9) x.fillRect(0, r, w, 1.5);
+  });
+  var crowdMat = stdMat(0xffffff, 0.92, 0, { envMapIntensity: 0.2 });
+  crowdMat.map = crowdTex; crowdMat.map.wrapS = THREE.RepeatWrapping; crowdMat.map.repeat.set(6, 1);
+  var standStruct = stdMat(0x6c7079, 0.7, 0.3);
+  var standRoof = stdMat(0x20242c, 0.6, 0.4);
+  function grandstand(sx, z0, len) {
+    var g = new THREE.Group();
+    var seat = mesh(new THREE.PlaneGeometry(len, 5.4), crowdMat, 0, 2.5, 0);
+    seat.rotation.y = -sx * Math.PI / 2;        // 朝向赛道
+    seat.rotation.x = sx * 0.62;                // 看台倾角
+    seat.castShadow = false; seat.receiveShadow = false;
+    g.add(seat);
+    g.add(box(0.5, 5.2, len, standStruct, sx * 1.55, 2.5, 0));   // 后挡墙
+    var roof = box(3.4, 0.18, len + 0.6, standRoof, sx * 0.2, 5.25, 0);
+    roof.rotation.z = sx * 0.12; g.add(roof);
+    for (var pz = -len / 2 + 1; pz < len / 2; pz += 3.2) {       // 顶棚立柱
+      g.add(box(0.16, 5.3, 0.16, standStruct, sx * 1.4, 2.6, pz));
+      g.add(box(0.16, 5.3, 0.16, standStruct, -sx * 1.2, 2.6, pz));
+    }
+    g.position.set(sx * 9.0, 0, z0);
+    tAdd(g);
+  }
+  grandstand(1, 6, 26); grandstand(-1, 2, 26);
+  grandstand(1, -30, 18); grandstand(-1, -32, 18);
+
+  /* ---- 夜战泛光灯架（4 座，含真实聚光灯，仅夜间开） ---- */
+  nightRig = new THREE.Group();
+  var rigPole = stdMat(0x2a2d33, 0.5, 0.6);
+  var rigPanel = stdMat(0x0e0f12, 0.6, 0.3, { emissive: new THREE.Color(0xeaf0ff), emissiveIntensity: 0.0 });
+  nightRig.userData.panels = [];
+  [[-10.5, -8], [10.5, -8], [-10.5, 22], [10.5, 22]].forEach(function (p) {
+    var head = new THREE.Group();
+    head.add(mesh(new THREE.CylinderGeometry(0.18, 0.26, 9, 8), rigPole, 0, 4.5, 0));
+    var panel = box(3.0, 1.4, 0.3, rigPanel.clone(), 0, 9, p[0] > 0 ? -0.4 : 0.4);
+    panel.rotation.x = (p[1] > 7 ? 0.5 : -0.5);
+    panel.castShadow = false;
+    head.add(panel); nightRig.userData.panels.push(panel.material);
+    head.position.set(p[0], 0, p[1]);
+    nightRig.add(head);
+    var fl = new THREE.SpotLight(0xdce6ff, 0, 60, 0.6, 0.5);
+    fl.position.set(p[0], 9, p[1]);
+    fl.target.position.set(p[0] * 0.15, 0, 4);
+    nightRig.add(fl); nightRig.add(fl.target);
+    floodLights.push(fl);
+  });
+  nightRig.visible = false;
+  tAdd(nightRig);
+
+  /* ---- 星空（夜间） ---- */
+  var starGeo = new THREE.BufferGeometry();
+  var sp = [];
+  for (var si = 0; si < 420; si++) {
+    var th = Math.random() * Math.PI * 2, ph = Math.random() * 0.95 + 0.12;
+    var rr = 88;
+    sp.push(Math.cos(th) * Math.sin(ph) * rr, Math.cos(ph) * rr + 6, Math.sin(th) * Math.sin(ph) * rr);
+  }
+  starGeo.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3));
+  starField = new THREE.Points(starGeo, new THREE.PointsMaterial({
+    color: 0xdde6ff, size: 0.6, sizeAttenuation: true, transparent: true, opacity: 0.95, depthWrite: false, fog: false }));
+  starField.userData.noRay = true; starField.visible = false;
+  tAdd(starField);
 })();
 
 /* ------------------------------------------------------ 共用材质 ---- */
@@ -1377,6 +1457,8 @@ var I18N = {
     title: 'F1 暗夜车库 3D 实景', badge: '实拍还原',
     sub: '法拉利 F1-75 × 红牛 RB21 — 360° 自由旋转 · 驾驶舱第一视角 · 分层拆解引擎',
     lblScene: '场 景', sceneTrack: '🏜️ 摩洛哥赛道', sceneGarage: '🌃 暗夜车库',
+    lblTime: '时 段', timeNoon: '☀️ 正午', timeSunset: '🌅 黄昏', timeNight: '🌙 夜战',
+    photo: '📷 拍照模式', photoSave: '📸 保存壁纸', photoExit: '✕ 退出拍照',
     lblCar: '车 辆', lblView: '视 角', lblLayer: '结构层',
     carF: '🟥 法拉利 F1-75', carR: '🟦 红牛 RB21',
     viewOrbit: '360° 环绕展示', viewCockpit: '驾驶舱第一视角',
@@ -1393,6 +1475,8 @@ var I18N = {
     title: 'F1 Night Garage in 3D', badge: 'PHOTO-MATCHED',
     sub: 'Ferrari F1-75 × Red Bull RB21 — free 360° orbit · cockpit POV · layered engine teardown',
     lblScene: 'SCENE', sceneTrack: '🏜️ Marrakesh Track', sceneGarage: '🌃 Night Garage',
+    lblTime: 'TIME', timeNoon: '☀️ Noon', timeSunset: '🌅 Sunset', timeNight: '🌙 Night',
+    photo: '📷 Photo Mode', photoSave: '📸 Save Wallpaper', photoExit: '✕ Exit Photo',
     lblCar: 'CAR', lblView: 'VIEW', lblLayer: 'LAYERS',
     carF: '🟥 Ferrari F1-75', carR: '🟦 Red Bull RB21',
     viewOrbit: '360° Orbit', viewCockpit: 'Cockpit POV',
@@ -1586,7 +1670,56 @@ function setFocus(car, fromClick) {
     ctrl.sphGoal.radius = 7.2;
   }
 }
-/* 场景切换：摩洛哥赛道（正午烈日）/ 暗夜车库（聚光氛围） */
+/* 赛道时段配置：正午 / 黄昏 / 夜战 */
+var TRACK_TIME = {
+  noon:   { env: function () { return envTrack; }, bg: 0x8fb9de, fog: 0xddc8a2, fogN: 34, fogF: 115,
+            hemiSky: 0xbfd9f5, hemiGnd: 0x9a7445, hemiI: 0.44,
+            keyCol: 0xffe9c2, keyI: 1.32, keyPos: [9, 13, -4], rimCol: 0x9db8e0, rimI: 0.18,
+            fillCol: 0xffe2bb, fillI: 0.24, exp: 1.0,
+            sunCol: 0xfff0c8, sunPos: [52, 34, -26], sunOp: 0.95, sunScale: 26, flood: 0 },
+  sunset: { env: function () { return envSunset; }, bg: 0xe89a5a, fog: 0xd98b54, fogN: 26, fogF: 100,
+            hemiSky: 0xf0b070, hemiGnd: 0x6a4a30, hemiI: 0.38,
+            keyCol: 0xff9036, keyI: 1.45, keyPos: [22, 5.5, -8], rimCol: 0xff6a3a, rimI: 0.42,
+            fillCol: 0xff8a4a, fillI: 0.30, exp: 1.04,
+            sunCol: 0xff7e3a, sunPos: [40, 8, -30], sunOp: 1.0, sunScale: 34, flood: 0 },
+  night:  { env: function () { return envNight; }, bg: 0x070a16, fog: 0x0a0e1c, fogN: 26, fogF: 95,
+            hemiSky: 0x33415e, hemiGnd: 0x0a0c12, hemiI: 0.22,
+            keyCol: 0x6f86b8, keyI: 0.45, keyPos: [-6, 12, 5], rimCol: 0x4a6cff, rimI: 0.30,
+            fillCol: 0x8aa0d0, fillI: 0.16, exp: 1.02,
+            sunCol: 0xbfd0ff, sunPos: [-46, 30, 24], sunOp: 0.5, sunScale: 9, flood: 2.4 }
+};
+var trackTime = 'noon';
+function applyTrackTime(tt) {
+  trackTime = tt;
+  try { localStorage.setItem('f1time', tt); } catch (e) {}
+  var c = TRACK_TIME[tt];
+  if (sceneMode === 'track') {
+    scene.background.set(c.bg);
+    scene.fog.color.set(c.fog); scene.fog.near = c.fogN; scene.fog.far = c.fogF;
+    scene.environment = c.env();
+    hemi.color.set(c.hemiSky); hemi.groundColor.set(c.hemiGnd); hemi.intensity = c.hemiI;
+    key.color.set(c.keyCol); key.intensity = c.keyI; key.position.set(c.keyPos[0], c.keyPos[1], c.keyPos[2]);
+    rim.color.set(c.rimCol); rim.intensity = c.rimI;
+    fill.color.set(c.fillCol); fill.intensity = c.fillI;
+    renderer.toneMappingExposure = c.exp;
+  }
+  if (trackSun) {
+    trackSun.material.color.set(c.sunCol); trackSun.material.opacity = c.sunOp;
+    trackSun.scale.set(c.sunScale, c.sunScale, 1);
+    trackSun.position.set(c.sunPos[0], c.sunPos[1], c.sunPos[2]);
+  }
+  if (nightRig) {
+    nightRig.visible = (tt === 'night');
+    nightRig.userData.panels.forEach(function (m) { m.emissiveIntensity = (tt === 'night') ? 1.6 : 0; });
+    floodLights.forEach(function (fl) { fl.intensity = c.flood; });
+  }
+  if (starField) starField.visible = (tt === 'night');
+  document.querySelectorAll('[data-time]').forEach(function (b) {
+    b.classList.toggle('active', b.getAttribute('data-time') === tt);
+  });
+}
+
+/* 场景切换：摩洛哥赛道（含时段）/ 暗夜车库 */
 var sceneMode = 'track';
 function applyScene(s) {
   if (launchActive && s !== sceneMode) stopLaunch(true);
@@ -1594,6 +1727,8 @@ function applyScene(s) {
   try { localStorage.setItem('f1scene', s); } catch (e) {}
   garageG.visible = (s === 'garage');
   trackG.visible = (s === 'track');
+  var grp = document.getElementById('grpTime');
+  if (grp) grp.style.display = (s === 'track') ? '' : 'none';
   if (s === 'garage') {
     scene.background.set(0x07080c);
     scene.fog.color.set(0x07080c); scene.fog.near = 15; scene.fog.far = 46;
@@ -1604,14 +1739,7 @@ function applyScene(s) {
     fill.color.set(0xffd9b8); fill.intensity = 0.10;
     renderer.toneMappingExposure = 1.0;
   } else {
-    scene.background.set(0x8fb9de);
-    scene.fog.color.set(0xddc8a2); scene.fog.near = 34; scene.fog.far = 115;
-    scene.environment = envTrack;
-    hemi.color.set(0xbfd9f5); hemi.groundColor.set(0x9a7445); hemi.intensity = 0.44;
-    key.color.set(0xffe9c2); key.intensity = 1.32; key.position.set(9, 13, -4);
-    rim.color.set(0x9db8e0); rim.intensity = 0.18;
-    fill.color.set(0xffe2bb); fill.intensity = 0.24;
-    renderer.toneMappingExposure = 1.0;
+    applyTrackTime(trackTime);
   }
   document.querySelectorAll('[data-scene]').forEach(function (b) {
     b.classList.toggle('active', b.getAttribute('data-scene') === s);
@@ -1621,6 +1749,31 @@ function applyScene(s) {
 /* UI 事件 */
 document.querySelectorAll('[data-scene]').forEach(function (b) {
   b.addEventListener('click', function () { applyScene(b.getAttribute('data-scene')); });
+});
+document.querySelectorAll('[data-time]').forEach(function (b) {
+  b.addEventListener('click', function () {
+    if (sceneMode !== 'track') applyScene('track');
+    applyTrackTime(b.getAttribute('data-time'));
+  });
+});
+
+/* 拍照模式：隐藏 UI + 保存壁纸 */
+function setPhoto(on) {
+  document.body.classList.toggle('photo', on);
+  document.getElementById('btnPhoto').classList.toggle('active', on);
+}
+document.getElementById('btnPhoto').addEventListener('click', function () { setPhoto(true); });
+document.getElementById('btnPhotoExit').addEventListener('click', function () { setPhoto(false); });
+document.getElementById('btnSnap').addEventListener('click', function () {
+  renderer.render(scene, camera);                  // 确保缓冲为当前帧
+  var url = canvas.toDataURL('image/png');
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'F1_' + focusCar.spec.id + '_' + sceneMode + '_' + trackTime + '.png';
+  a.click();
+});
+window.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape' && document.body.classList.contains('photo')) setPhoto(false);
 });
 document.querySelectorAll('[data-car]').forEach(function (b) {
   b.addEventListener('click', function () {
@@ -1645,6 +1798,13 @@ function applyLang(l) {
   document.getElementById('lblScene').textContent = t.lblScene;
   document.querySelector('[data-scene="track"]').textContent = t.sceneTrack;
   document.querySelector('[data-scene="garage"]').textContent = t.sceneGarage;
+  document.getElementById('lblTime').textContent = t.lblTime;
+  document.querySelector('[data-time="noon"]').textContent = t.timeNoon;
+  document.querySelector('[data-time="sunset"]').textContent = t.timeSunset;
+  document.querySelector('[data-time="night"]').textContent = t.timeNight;
+  document.getElementById('btnPhoto').textContent = t.photo;
+  document.getElementById('btnSnap').textContent = t.photoSave;
+  document.getElementById('btnPhotoExit').textContent = t.photoExit;
   document.getElementById('tTitle').textContent = t.title;
   document.getElementById('tBadge').textContent = t.badge;
   document.getElementById('tSub').textContent = t.sub;
@@ -1678,17 +1838,61 @@ var savedLang = 'zh';
 try { savedLang = localStorage.getItem('f1lang') || 'zh'; } catch (e) {}
 if (/[#&?]lang=en/.test(location.href)) savedLang = 'en';
 applyLang(savedLang);
+try { trackTime = localStorage.getItem('f1time') || 'noon'; } catch (e) {}
+var timeM = location.hash.match(/time=(noon|sunset|night)/);
+if (timeM) trackTime = timeM[1];
+if (!TRACK_TIME[trackTime]) trackTime = 'noon';
 var savedScene = 'track';
 try { savedScene = localStorage.getItem('f1scene') || 'track'; } catch (e) {}
 var sceneM = location.hash.match(/scene=(track|garage)/);
 if (sceneM) savedScene = sceneM[1];
 applyScene(savedScene);
+applyTrackTime(trackTime);
 
 window.addEventListener('resize', function () {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
+/* ================= 扬沙尾流粒子池（起跑时后轮喷出） ================= */
+var dustTex = canvasTex(64, 64, function (x, w, h) {
+  var g = x.createRadialGradient(w / 2, h / 2, 2, w / 2, h / 2, w / 2);
+  g.addColorStop(0, 'rgba(212,190,150,0.9)');
+  g.addColorStop(0.5, 'rgba(196,168,120,0.5)');
+  g.addColorStop(1, 'rgba(196,168,120,0)');
+  x.fillStyle = g; x.fillRect(0, 0, w, h);
+});
+var DUST_N = 90, dustPool = [], dustIdx = 0, wpTmp = new THREE.Vector3();
+for (var di = 0; di < DUST_N; di++) {
+  var ds = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: dustTex, color: 0xcdb488, transparent: true, opacity: 0, depthWrite: false }));
+  ds.visible = false; ds.userData = { life: 0, max: 1, vel: new THREE.Vector3() };
+  ds.userData.noRay = true;
+  trackG.add(ds); dustPool.push(ds);
+}
+function emitDust(x, y, z, push) {
+  var s = dustPool[dustIdx]; dustIdx = (dustIdx + 1) % DUST_N;
+  s.visible = true; s.userData.life = 0; s.userData.max = 0.9 + Math.random() * 0.7;
+  s.position.set(x + (Math.random() - 0.5) * 0.3, y, z + (Math.random() - 0.5) * 0.3);
+  s.userData.vel.set((Math.random() - 0.5) * 1.2, 0.6 + Math.random() * 1.0, -push - Math.random() * 2.0);
+  s.scale.setScalar(0.25);
+}
+function updateDust(dt) {
+  for (var i = 0; i < DUST_N; i++) {
+    var s = dustPool[i];
+    if (!s.visible) continue;
+    var u = s.userData; u.life += dt;
+    if (u.life >= u.max) { s.visible = false; continue; }
+    var k = u.life / u.max;
+    s.position.addScaledVector(u.vel, dt);
+    u.vel.multiplyScalar(1 - 1.6 * dt);
+    u.vel.y -= 0.4 * dt;
+    s.material.opacity = (sceneMode === 'track' ? 0.5 : 0) * (1 - k) * Math.min(1, k * 5);
+    s.scale.setScalar(0.25 + k * 1.7);
+  }
+}
+function clearDust() { for (var i = 0; i < DUST_N; i++) dustPool[i].visible = false; }
 
 /* ================= 起跑灯序 + 起跑动画 + 引擎声浪 + 细节动画 ========= */
 var elapsed = 0;
@@ -1713,7 +1917,7 @@ function startLaunch() {
 function stopLaunch(keepCam) {
   if (!launchActive) return;
   launchActive = false; launchPhase = 'idle';
-  setLampsLit(0);
+  setLampsLit(0); clearDust();
   cars.forEach(function (c) {
     c.runZ = 0; c.runV = 0; c.runSteer = 0;
     c.wrap.position.z = 0; c.wrap.rotation.y = c.baseRotY;
@@ -1750,6 +1954,16 @@ function updateLaunch(dt) {
       c.runZ += c.runV * dt;
       c.wrap.position.z = c.runZ;
       c.runSteer = Math.sin(launchT * 9 + i * 2) * 0.05 * Math.max(0, 1 - c.runV / 14);  // 起步扭动
+      /* 后轮扬沙：起步轮滑时最浓，提速后渐弱 */
+      var amt = Math.max(0, 1 - c.runV / 34);
+      if (c.runV > 0.5 && amt > 0.02) {
+        c.wheels.forEach(function (wr) {
+          if (!wr.front && Math.random() < 0.5 + amt) {
+            wr.yawGrp.getWorldPosition(wpTmp);
+            emitDust(wpTmp.x, 0.18, wpTmp.z - 0.3, 3 + c.runV * 0.25);
+          }
+        });
+      }
     });
     if (Math.max(cars[0].runZ, cars[1].runZ) > 41 || launchT > launchGoT + 8) stopLaunch();
   }
@@ -1891,9 +2105,10 @@ function animate() {
   drawDash(ferrari, sim);
   drawDash(redbull, driveSim(elapsed + 5.2));
 
-  /* 起跑 + 细节 + 声浪 */
+  /* 起跑 + 细节 + 声浪 + 扬沙 */
   if (launchActive) updateLaunch(dt);
   updateDetails(dt);
+  updateDust(dt);
   updateAudio();
 
   /* 相机 */
