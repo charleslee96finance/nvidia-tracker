@@ -21,7 +21,10 @@
       exitSurface: '🚀 返回太空',
       constellation: '⭐ 星座', sandbox: '🎮 引力沙盒', sound: '🔊 音效',
       sandboxHint: '拖动并松手发射新天体 · 试试让它绕太阳转！',
-      clear: '🧹 清空'
+      clear: '🧹 清空',
+      realpos: '🌐 真实位置', today: '📍 此刻', gyro: '🧭 陀螺仪',
+      realOn: '行星位于真实天文位置', realOff: '行星位置为示意（非真实）',
+      gyroNeed: '需要在手机上授权动作权限'
     },
     en: {
       title: 'Solar System 3D',
@@ -32,7 +35,10 @@
       exitSurface: '🚀 Back to space',
       constellation: '⭐ Constellations', sandbox: '🎮 Gravity sandbox', sound: '🔊 Sound',
       sandboxHint: 'Drag & release to launch a body · try to make it orbit!',
-      clear: '🧹 Clear'
+      clear: '🧹 Clear',
+      realpos: '🌐 Real positions', today: '📍 Now', gyro: '🧭 Gyroscope',
+      realOn: 'Planets shown at their true positions', realOff: 'Planet positions are illustrative',
+      gyroNeed: 'Needs motion permission on your phone'
     }
   };
 
@@ -125,6 +131,60 @@
   var KEPLER_K = (2 * Math.PI / 60) * Math.pow(25, 1.5);
   var DAYS_PER_SIM_SECOND = 365.25 / 60;
   var START_DATE = new Date(2026, 5, 10);
+
+  // ---------- real positions: JPL/Standish approximate Keplerian elements ----------
+  // [a(AU), e, I(deg), L(deg), longPeri(deg), longNode(deg)] at J2000 + rates/century.
+  // We use the heliocentric ecliptic longitude only and keep the compressed radii,
+  // so planetary configurations (conjunctions, alignments) are astronomically real.
+  var ELEMENTS = {
+    Mercury: [[0.38709927, 0.20563593, 7.00497902, 252.25032350, 77.45779628, 48.33076593],
+              [0.00000037, 0.00001906, -0.00594749, 149472.67411175, 0.16047689, -0.12534081]],
+    Venus:   [[0.72333566, 0.00677672, 3.39467605, 181.97909950, 131.60246718, 76.67984255],
+              [0.00000390, -0.00004107, -0.00078890, 58517.81538729, 0.00268329, -0.27769418]],
+    Earth:   [[1.00000261, 0.01671123, -0.00001531, 100.46457166, 102.93768193, 0.0],
+              [0.00000562, -0.00004392, -0.01294668, 35999.37244981, 0.32327364, 0.0]],
+    Mars:    [[1.52371034, 0.09339410, 1.84969142, -4.55343205, -23.94362959, 49.55953891],
+              [0.00001847, 0.00007882, -0.00813131, 19140.30268499, 0.44441088, -0.29257343]],
+    Jupiter: [[5.20288700, 0.04838624, 1.30439695, 34.39644051, 14.72847983, 100.47390909],
+              [-0.00011607, -0.00013253, -0.00183714, 3034.74612775, 0.21252668, 0.20469106]],
+    Saturn:  [[9.53667594, 0.05386179, 2.48599187, 49.95424423, 92.59887831, 113.66242448],
+              [-0.00125060, -0.00050991, 0.00193609, 1222.49362201, -0.41897216, -0.28867794]],
+    Uranus:  [[19.18916464, 0.04725744, 0.77263783, 313.23810451, 170.95427630, 74.01692503],
+              [-0.00196176, -0.00004397, -0.00242939, 428.48202785, 0.40805281, 0.04240589]],
+    Neptune: [[30.06992276, 0.00859048, 1.77004347, -55.12002969, 44.96476227, 131.78422574],
+              [0.00026291, 0.00005105, 0.00035372, 218.45945325, -0.32241464, -0.00508664]],
+    Pluto:   [[39.48211675, 0.24882730, 17.14001206, 238.92903833, 224.06891629, 110.30393684],
+              [-0.00031596, 0.00005170, 0.00004818, 145.20780515, -0.04062942, -0.01183482]]
+  };
+  var DEG = Math.PI / 180;
+
+  function helioLongitude(elem, T) {
+    var a = elem[0][0] + elem[1][0] * T;
+    var e = elem[0][1] + elem[1][1] * T;
+    var I = (elem[0][2] + elem[1][2] * T) * DEG;
+    var L = elem[0][3] + elem[1][3] * T;
+    var peri = elem[0][4] + elem[1][4] * T;
+    var node = elem[0][5] + elem[1][5] * T;
+    var M = (((L - peri) % 360) + 540) % 360 - 180; // mean anomaly in [-180,180]
+    M *= DEG;
+    var E = M + e * Math.sin(M); // solve Kepler's equation (radians)
+    for (var k = 0; k < 6; k++) {
+      E += (M - (E - e * Math.sin(E))) / (1 - e * Math.cos(E));
+    }
+    var xp = a * (Math.cos(E) - e);
+    var yp = a * Math.sqrt(1 - e * e) * Math.sin(E);
+    var w = (peri - node) * DEG, N = node * DEG;
+    var cw = Math.cos(w), sw = Math.sin(w), cN = Math.cos(N), sN = Math.sin(N), cI = Math.cos(I);
+    var xe = (cw * cN - sw * sN * cI) * xp + (-sw * cN - cw * sN * cI) * yp;
+    var ye = (cw * sN + sw * cN * cI) * xp + (-sw * sN + cw * cN * cI) * yp;
+    return Math.atan2(ye, xe); // heliocentric ecliptic longitude (radians)
+  }
+
+  function julianCenturies(date) {
+    return (date.getTime() / 86400000 + 2440587.5 - 2451545.0) / 36525.0;
+  }
+
+  var realPositions = true; // headline feature: planets at their true positions
 
   // ---------- renderer / scene ----------
   var scene = new THREE.Scene();
@@ -556,7 +616,8 @@
       clouds: clouds, moonPivot: moonPivot, moonMesh: moonMesh,
       ringMat: ringMat, baseRingOp: baseRingOp,
       angle0: Math.random() * Math.PI * 2,
-      omega: KEPLER_K / Math.pow(p.dist, 1.5)
+      omega: KEPLER_K / Math.pow(p.dist, 1.5),
+      elem: ELEMENTS[p.name]
     };
   });
   var earthObj = planetObjs[2];
@@ -812,6 +873,67 @@
     skyEl.style.background = 'linear-gradient(to top, ' + rgb(hor) + ' 0%, ' + rgb(zen) + ' 65%)';
   }
 
+  // ---------- gyroscope look-around (surface mode) ----------
+  var gyroActive = false, gyroHaveData = false;
+  var gyroAlpha = 0, gyroBeta = 0, gyroGamma = 0, gyroOrient = 0;
+  var deviceQuat = new THREE.Quaternion();
+  var basisQuat = new THREE.Quaternion();
+  var basisMat = new THREE.Matrix4();
+  var southV = new THREE.Vector3();
+  var zeeV = new THREE.Vector3(0, 0, 1);
+  var gyroEuler = new THREE.Euler();
+  var qBack = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)); // -90° about X
+  var qScreen = new THREE.Quaternion();
+
+  function onDeviceOrientation(e) {
+    if (e.alpha === null || e.alpha === undefined) return;
+    gyroAlpha = e.alpha * DEG;
+    gyroBeta = (e.beta || 0) * DEG;
+    gyroGamma = (e.gamma || 0) * DEG;
+    var o = (window.screen && window.screen.orientation && window.screen.orientation.angle) ||
+            window.orientation || 0;
+    gyroOrient = o * DEG;
+    gyroHaveData = true;
+  }
+
+  function deviceQuaternion(q) {
+    gyroEuler.set(gyroBeta, gyroAlpha, -gyroGamma, 'YXZ'); // device frame
+    q.setFromEuler(gyroEuler);
+    q.multiply(qBack); // camera looks out the back of the phone
+    q.multiply(qScreen.setFromAxisAngle(zeeV, -gyroOrient)); // account for screen rotation
+  }
+
+  function setGyro(on) {
+    gyroActive = on;
+    var b = document.getElementById('gyroBtn');
+    if (on) {
+      gyroHaveData = false;
+      window.addEventListener('deviceorientation', onDeviceOrientation, true);
+      if (b) b.classList.add('active');
+    } else {
+      window.removeEventListener('deviceorientation', onDeviceOrientation, true);
+      if (b) b.classList.remove('active');
+    }
+  }
+
+  function toggleGyro() {
+    if (gyroActive) { setGyro(false); return; }
+    if (typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function') {
+      DeviceOrientationEvent.requestPermission()
+        .then(function (resp) { if (resp === 'granted') setGyro(true); })
+        .catch(function () {});
+    } else {
+      setGyro(true);
+    }
+  }
+
+  function setRealPos(on) {
+    realPositions = on;
+    var b = document.getElementById('realposBtn');
+    if (on) b.classList.add('active'); else b.classList.remove('active');
+  }
+
   function updateSurfaceCamera() {
     var cfg = activeSurface;
     surfaceAnchor.getWorldPosition(aPos);
@@ -821,13 +943,22 @@
     axisV.set(0, 1, 0).applyQuaternion(qTmp).normalize();
     eastV.crossVectors(axisV, upV).normalize();
 
-    lookV.copy(eastV).applyAxisAngle(upV, lookYaw);
-    lookV.multiplyScalar(Math.cos(lookPitch)).addScaledVector(upV, Math.sin(lookPitch)).normalize();
-
     camera.position.copy(aPos).addScaledVector(upV, cfg.height);
-    camera.up.copy(upV);
-    tmpV.copy(camera.position).addScaledVector(lookV, 10);
-    camera.lookAt(tmpV);
+    if (gyroActive && gyroHaveData) {
+      // orient the camera from the phone's pose, re-based onto the local
+      // tangent frame (east, up, south) so "up" is the surface normal
+      southV.crossVectors(eastV, upV).normalize();
+      basisMat.makeBasis(eastV, upV, southV);
+      basisQuat.setFromRotationMatrix(basisMat);
+      deviceQuaternion(deviceQuat);
+      camera.quaternion.copy(basisQuat).multiply(deviceQuat);
+    } else {
+      lookV.copy(eastV).applyAxisAngle(upV, lookYaw);
+      lookV.multiplyScalar(Math.cos(lookPitch)).addScaledVector(upV, Math.sin(lookPitch)).normalize();
+      camera.up.copy(upV);
+      tmpV.copy(camera.position).addScaledVector(lookV, 10);
+      camera.lookAt(tmpV);
+    }
 
     // sun elevation above the local horizon (sun is at the origin)
     var sunElev = upV.dot(tmpV.copy(aPos).negate().normalize());
@@ -846,6 +977,7 @@
     currentInfo = null;
     surfacePanel.classList.remove('hidden');
     navPanel.classList.add('hidden');
+    gyroHaveData = false; // fall back to drag until the phone reports a pose
     document.getElementById('surfaceHint').textContent = LANG === 'zh' ? cfg.hintZh : cfg.hintEn;
     hideOnSurface.forEach(function (o) { o.visible = false; });
     cfg.mesh.add(surfaceAnchor);
@@ -883,6 +1015,7 @@
 
   function exitSurfaceMode() {
     if (!surfaceMode) return;
+    if (gyroActive) setGyro(false);
     var cfg = activeSurface;
     surfaceMode = false;
     activeSurface = null;
@@ -1365,6 +1498,9 @@
     document.getElementById('soundBtn').textContent = u.sound;
     document.getElementById('sandboxHintText').textContent = u.sandboxHint;
     document.getElementById('clearBtn').textContent = u.clear;
+    document.getElementById('realposBtn').textContent = u.realpos;
+    document.getElementById('todayBtn').textContent = u.today;
+    document.getElementById('gyroBtn').textContent = u.gyro;
     navEntries.forEach(function (en) {
       en.btn.textContent = l === 'zh' ? en.it.zh : en.it.en;
       en.btn.title = l === 'zh' ? en.it.titleZh : en.it.titleEn;
@@ -1415,6 +1551,14 @@
   document.getElementById('soundBtn').addEventListener('click', function () {
     setSound(!audio.on);
   });
+  document.getElementById('realposBtn').addEventListener('click', function () {
+    setRealPos(!realPositions);
+  });
+  document.getElementById('todayBtn').addEventListener('click', function () {
+    if (!realPositions) setRealPos(true);
+    simTime = (Date.now() - START_DATE.getTime()) / 86400000 / DAYS_PER_SIM_SECOND;
+  });
+  document.getElementById('gyroBtn').addEventListener('click', toggleGyro);
   var datePicker = document.getElementById('datePicker');
   document.getElementById('datePanel').addEventListener('click', function () {
     var d = new Date(START_DATE.getTime() + simTime * DAYS_PER_SIM_SECOND * 86400000);
@@ -1431,6 +1575,7 @@
   });
   setLang('zh');
   document.getElementById('constBtn').classList.add('active');
+  setRealPos(true);
 
   window.addEventListener('resize', function () {
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -1443,7 +1588,22 @@
   // test hooks (used by automated verification; harmless in production)
   window.__sim = { enterSurfaceMode: enterSurfaceMode, exitSurfaceMode: exitSurfaceMode,
                    setSpeed: setSpeed, startTour: startTour, stopTour: stopTour,
-                   setSandbox: setSandbox,
+                   setSandbox: setSandbox, setRealPos: setRealPos,
+                   setGyro: setGyro,
+                   feedGyro: function (a, b, g) { onDeviceOrientation({ alpha: a, beta: b, gamma: g }); },
+                   jumpToDate: function (iso) {
+                     var t = Date.parse(iso + 'T00:00:00Z');
+                     if (!isNaN(t)) simTime = (t - START_DATE.getTime()) / 86400000 / DAYS_PER_SIM_SECOND;
+                   },
+                   planetLongitudes: function () {
+                     var out = {};
+                     var jc = julianCenturies(new Date(START_DATE.getTime() +
+                       simTime * DAYS_PER_SIM_SECOND * 86400000));
+                     planetObjs.forEach(function (o) {
+                       if (o.elem) out[o.p.name] = helioLongitude(o.elem, jc) / DEG;
+                     });
+                     return out;
+                   },
                    spawn: function (x, z, vx, vz) {
                      spawnBody(new THREE.Vector3(x, 0, z), new THREE.Vector3(vx, 0, vz));
                    } };
@@ -1459,9 +1619,14 @@
     elapsed += dt;
     if (!paused) simTime += dt * speed;
 
+    var simDate = new Date(START_DATE.getTime() + simTime * DAYS_PER_SIM_SECOND * 86400000);
+    var jc = realPositions ? julianCenturies(simDate) : 0;
+
     for (var i = 0; i < planetObjs.length; i++) {
       var o = planetObjs[i];
-      var a = o.angle0 + o.omega * simTime;
+      var a = (realPositions && o.elem)
+        ? helioLongitude(o.elem, jc)
+        : o.angle0 + o.omega * simTime;
       o.posGroup.position.set(Math.cos(a) * o.p.dist, 0, Math.sin(a) * o.p.dist);
       if (!paused) {
         o.mesh.rotation.y += o.p.spin * dt * speed;
@@ -1544,7 +1709,6 @@
     }
     updateSandbox(paused ? 0 : dt * speed);
 
-    var simDate = new Date(START_DATE.getTime() + simTime * DAYS_PER_SIM_SECOND * 86400000);
     dateValue.textContent = simDate.getFullYear() + '-' + pad2(simDate.getMonth() + 1) +
                             '-' + pad2(simDate.getDate());
     var yrs = simTime * DAYS_PER_SIM_SECOND / 365.25;
