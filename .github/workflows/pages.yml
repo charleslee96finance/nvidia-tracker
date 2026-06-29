@@ -1,0 +1,47 @@
+name: Deploy GitHub Pages
+
+# Publishes the repository (including clear-glass.html) to GitHub Pages.
+# Runs automatically when changes land on the default branch, and can be
+# triggered by hand from the Actions tab.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment; newer runs cancel in-progress ones.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Disable Jekyll processing
+        run: touch .nojekyll
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          # Enable Pages via the API on the first run so no manual toggle is needed.
+          enablement: true
+
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
