@@ -823,18 +823,24 @@ async function syncFacebook(){
   const st=document.getElementById("fbStatus"),btn=document.getElementById("fbBtn");
   if(!token){st.textContent="请先贴上 Token";return;}
   btn.disabled=true;st.innerHTML='<span class="spinner"></span> 连接中…';
-  let igWarn="";
+  let igWarn="",fbWarn="";
   try{
     const pg=await resolvePage(token,pageIdIn);
     let items=[];
-    if(scope==="fb"||scope==="both"){st.innerHTML='<span class="spinner"></span> 抓取 Facebook 贴文…';items=items.concat(await fetchFB(pg.id,pg.token));}
+    if(scope==="fb"||scope==="both"){st.innerHTML='<span class="spinner"></span> 抓取 Facebook 贴文…';
+      try{items=items.concat(await fetchFB(pg.id,pg.token));}
+      catch(e){if(scope==="fb")throw e;
+        fbWarn=/pages_read_user_content|Page Public Content Access/i.test(e.message)?"Token 缺 pages_read_user_content 权限":e.message;}
+    }
     if(scope==="ig"||scope==="both"){st.innerHTML='<span class="spinner"></span> 抓取 Instagram 贴文…';
       try{items=items.concat(await fetchIG(pg.id,pg.token));}catch(e){if(scope==="ig")throw e;igWarn=e.message;}
     }
+    if(fbWarn&&igWarn)throw new Error("FB："+fbWarn+"；IG："+igWarn);
     const r=upsertFetched(items);
     if(document.getElementById("fbRemember").checked)tokenPersist();
     else document.getElementById("fbToken").value="";
     let msg="✅ 完成：新增 "+r.added+"、更新 "+r.updated;
+    if(fbWarn)msg+="（FB 跳过："+fbWarn+"）";
     if(igWarn)msg+="（IG 跳过："+igWarn+"）";
     st.textContent=msg;toast("已同步 "+(r.added+r.updated)+" 条");
     document.querySelector('.tab[data-tab=board]').click();renderBoard();
