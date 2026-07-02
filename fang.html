@@ -184,7 +184,7 @@
       <svg class="smoke" viewBox="0 0 26 34"><path d="M13 33 C13 26 8 24 9 18 C10 13 17 12 16 6 C15.5 3 13 2 13 1"/></svg>
       <div>
         <h1>FANG <span class="dot">·</span> 内容雷达</h1>
-        <div class="sub">每周内容表现追踪 ｜ 跨平台对比 ｜ AI 下期选题</div>
+        <div class="sub">每周内容表现追踪 ｜ 跨平台对比 ｜ AI 下期选题 <span style="opacity:.55">· v4</span></div>
       </div>
     </div>
     <div class="backup">
@@ -847,7 +847,8 @@ async function syncFacebook(){
   }catch(e){
     console.error(e);
     let hint=String(e.message||e);
-    if(/Failed to fetch|NetworkError|load failed|ERR_/i.test(hint))hint="网络被挡住了——很可能因为现在在 Claude 预览窗里。把本文件下载到电脑用浏览器打开再试。";
+    if(/^FB：/.test(hint)){/* combined FB+IG message, already user-facing — keep both parts */}
+    else if(/Failed to fetch|NetworkError|load failed|ERR_/i.test(hint))hint="网络被挡住了——很可能因为现在在 Claude 预览窗里。把本文件下载到电脑用浏览器打开再试。";
     else if(/pages_read_user_content|Page Public Content Access/i.test(hint))hint="Token 缺少 pages_read_user_content 权限。回 Graph API Explorer，在权限列表里加上它再重新生成 Token（自己的应用不用送审），然后重贴。";
     else if(/expired|Session has expired|Error validating access token/i.test(hint))hint="Token 已过期或失效，回 Graph API Explorer 重新生成一个再贴上。";
     st.innerHTML='抓取失败：<span class="note">'+esc(hint)+'</span>';
