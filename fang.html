@@ -221,7 +221,7 @@
     </div>
     <div class="card" style="margin-bottom:14px">
       <div class="cardtitle">🔗 连接 Facebook / Instagram</div>
-      <div class="hint">贴上 Page Access Token，自动抓最近的 FB 贴文和 IG 贴文填进来。默认不保存 Token；勾选下方「记住」则只存在这台设备的浏览器里。<br>所需权限：<code>pages_show_list</code>、<code>pages_read_engagement</code>、<code>read_insights</code>、<code>instagram_basic</code>、<code>instagram_manage_insights</code>（不需要 pages_read_user_content）。<br><b>想要 60 天长效 Token：</b>在 Graph API Explorer 生成 Token 后，到 <a href="https://developers.facebook.com/tools/debug/accesstoken" target="_blank" rel="noopener">Access Token Debugger</a> 贴上 → Debug → 点底部「Extend Access Token」，把延长后的 Token 贴到下面并勾选「记住」。<br><b>注意：</b>在 Claude 预览窗里抓取会被网络限制挡住——把本文件下载到电脑、用浏览器打开（或放到你自己的空间）就能正常用。曝光用的是 2026 年 6 月起的新指标（views / post_media_view），少数贴文若拿不到会显示 0，可再用截图补。</div>
+      <div class="hint">贴上 Page Access Token，自动抓最近的 FB 贴文和 IG 贴文填进来。默认不保存 Token；勾选下方「记住」则只存在这台设备的浏览器里。<br>所需权限：<code>pages_show_list</code>、<code>pages_read_engagement</code>、<code>pages_read_user_content</code>、<code>read_insights</code>、<code>instagram_basic</code>、<code>instagram_manage_insights</code>。<br><b>想要 60 天长效 Token：</b>在 Graph API Explorer 生成 Token 后，到 <a href="https://developers.facebook.com/tools/debug/accesstoken" target="_blank" rel="noopener">Access Token Debugger</a> 贴上 → Debug → 点底部「Extend Access Token」，把延长后的 Token 贴到下面并勾选「记住」。<br><b>注意：</b>在 Claude 预览窗里抓取会被网络限制挡住——把本文件下载到电脑、用浏览器打开（或放到你自己的空间）就能正常用。曝光用的是 2026 年 6 月起的新指标（views / post_media_view），少数贴文若拿不到会显示 0，可再用截图补。</div>
       <div style="margin-top:12px">
         <label>Page Access Token</label>
         <input id="fbToken" type="password" placeholder="EAAB… 从 Graph API Explorer 或你的 App 取得" autocomplete="off">
@@ -769,7 +769,7 @@ async function fetchFB(pageId,token){
   const withC="id,message,story,created_time,permalink_url,shares,reactions.summary(true).limit(0),comments.summary(true).limit(0)";
   const noC="id,message,story,created_time,permalink_url,shares,reactions.summary(true).limit(0)";
   const ins=",insights.metric(post_media_view)";
-  // /published_posts only needs pages_read_engagement (avoids pages_read_user_content).
+  // /published_posts requires pages_read_engagement + pages_read_user_content.
   // Degrade gracefully: full -> drop comments -> drop insights.
   let j;
   try{j=await gget(pageId+"/published_posts",token,{fields:withC+ins,limit:"25"});}
@@ -842,6 +842,8 @@ async function syncFacebook(){
     console.error(e);
     let hint=String(e.message||e);
     if(/Failed to fetch|NetworkError|load failed|ERR_/i.test(hint))hint="网络被挡住了——很可能因为现在在 Claude 预览窗里。把本文件下载到电脑用浏览器打开再试。";
+    else if(/pages_read_user_content|Page Public Content Access/i.test(hint))hint="Token 缺少 pages_read_user_content 权限。回 Graph API Explorer，在权限列表里加上它再重新生成 Token（自己的应用不用送审），然后重贴。";
+    else if(/expired|Session has expired|Error validating access token/i.test(hint))hint="Token 已过期或失效，回 Graph API Explorer 重新生成一个再贴上。";
     st.innerHTML='抓取失败：<span class="note">'+esc(hint)+'</span>';
   }finally{btn.disabled=false;}
 }
