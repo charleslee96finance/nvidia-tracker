@@ -182,8 +182,34 @@
   .nav button{
     border:none;background:transparent;color:rgba(255,255,255,.85);cursor:pointer;
     font-family:inherit;font-size:13.5px;font-weight:700;
-    padding:10px 22px;border-radius:999px;transition:all .2s;
+    padding:10px 16px;border-radius:999px;transition:all .2s;
   }
+
+  /* ---------- settings / sync ---------- */
+  .set-input{
+    width:100%;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.32);
+    border-radius:14px;padding:11px 13px;margin-top:8px;
+    color:#fff;font-family:inherit;font-size:13px;outline:none;
+  }
+  .set-input::placeholder{color:rgba(255,255,255,.4);}
+  .set-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+  .set-btn{
+    border:none;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:700;
+    padding:9px 14px;border-radius:999px;color:#fff;
+    background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.34);
+    transition:transform .12s,background .15s;
+  }
+  .set-btn:active{transform:scale(.96);}
+  .set-btn.primary{background:rgba(255,255,255,.92);color:#3c2a63;}
+  .sync-info{font-size:12px;color:var(--text-dim);margin-top:10px;line-height:1.5;}
+  details.gs{margin-top:10px;}
+  details.gs summary{font-size:12.5px;font-weight:700;cursor:pointer;color:var(--text-dim);}
+  details.gs pre{
+    margin-top:8px;background:rgba(20,10,50,.35);border:1px solid rgba(255,255,255,.2);
+    border-radius:12px;padding:12px;font-size:10.5px;line-height:1.5;color:rgba(255,255,255,.9);
+    overflow-x:auto;white-space:pre;
+  }
+  .steps{font-size:12px;color:var(--text-dim);line-height:1.8;padding-left:18px;margin-top:8px;}
   .nav button.active{background:rgba(255,255,255,.94);color:#3c2a63;box-shadow:0 4px 14px rgba(30,10,70,.25);}
 
   .toast{
@@ -208,6 +234,7 @@
     <div class="screen-head fade-in">
       <div class="eyebrow">New Entry · 新增</div>
       <div class="screen-title">添加一笔消费</div>
+      <div id="sync-chip" style="font-size:11px;color:var(--text-faint);margin-top:6px;min-height:14px;"></div>
     </div>
 
     <div class="card amount-card fade-in">
@@ -299,12 +326,101 @@
       <div id="cat-breakdown" style="margin-top:6px;"></div>
     </div>
   </section>
+
+  <!-- ============ 设置 Sync ============ -->
+  <section id="scr-sync" hidden>
+    <div class="screen-head fade-in">
+      <div class="eyebrow">Google Sheet · 同步</div>
+      <div class="screen-title">设置</div>
+    </div>
+
+    <div class="card fade-in">
+      <div class="mini-label">Apps Script Web App URL</div>
+      <input class="set-input" id="sync-url" type="text" placeholder="https://script.google.com/macros/s/…/exec">
+      <div class="set-btns">
+        <button class="set-btn primary" id="btn-url-save">保存 URL</button>
+        <button class="set-btn" id="btn-ping">测试连接</button>
+        <button class="set-btn" id="btn-push">立即上传</button>
+        <button class="set-btn" id="btn-pull">从 Sheet 拉取</button>
+      </div>
+      <div class="sync-info" id="sync-info">尚未配置同步 URL</div>
+    </div>
+
+    <div class="card fade-in">
+      <div class="mini-label">如何连接你的 Google Sheet</div>
+      <ol class="steps">
+        <li>打开你的 Google Sheet</li>
+        <li>菜单 <b>扩展程序 → Apps Script</b></li>
+        <li>删掉默认代码，粘贴下方代码，保存</li>
+        <li><b>部署 → 新建部署 → Web 应用</b>：执行身份选<b>我</b>，访问权限选<b>任何人</b></li>
+        <li>复制生成的 <b>/exec URL</b> 粘贴到上面并点「保存 URL」→「测试连接」</li>
+      </ol>
+      <details class="gs">
+        <summary>📋 Apps Script 代码（点开复制）</summary>
+        <pre id="gs-pre"></pre>
+      </details>
+    </div>
+  </section>
 </div>
+
+<script type="text/plain" id="gs-code">
+function doPost(e) {
+  var body = JSON.parse(e.postData.contents);
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('消费记录') || ss.insertSheet('消费记录');
+  if (sh.getLastRow() === 0) sh.appendRow(['id','日期','时间','金额','分类','备注','createdAt']);
+  var out = { ok: true };
+  if (body.action === 'sync') {
+    var ids = {};
+    var last = sh.getLastRow();
+    if (last > 1) sh.getRange(2, 1, last - 1, 1).getValues().forEach(function(r){ ids[String(r[0])] = 1; });
+    var saved = [];
+    (body.records || []).forEach(function(r) {
+      if (!ids[String(r.id)]) sh.appendRow([r.id, r.date, r.time || '', r.amount, r.category, r.note || '', r.createdAt || '']);
+      saved.push(r.id);
+    });
+    out = { ok: true, savedIds: saved };
+  } else if (body.action === 'delete') {
+    var data = sh.getDataRange().getValues();
+    for (var i = data.length - 1; i >= 1; i--) {
+      if (String(data[i][0]) === String(body.id)) sh.deleteRow(i + 1);
+    }
+  } else if (body.action === 'pull') {
+    var rows = sh.getDataRange().getValues();
+    var recs = [];
+    for (var j = 1; j < rows.length; j++) {
+      var r2 = rows[j];
+      if (!r2[0]) continue;
+      recs.push({
+        id: String(r2[0]),
+        date: fmtD(r2[1]),
+        time: fmtT(r2[2]),
+        amount: Number(r2[3]) || 0,
+        category: String(r2[4] || '其他'),
+        note: String(r2[5] || ''),
+        createdAt: String(r2[6] || '')
+      });
+    }
+    out = { ok: true, records: recs };
+  }
+  return ContentService.createTextOutput(JSON.stringify(out))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+function fmtD(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  return String(v);
+}
+function fmtT(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'HH:mm');
+  return String(v || '');
+}
+</script>
 
 <nav class="nav">
   <button class="active" data-scr="add">录入</button>
   <button data-scr="list">明细</button>
   <button data-scr="stats">统计</button>
+  <button data-scr="sync">设置</button>
 </nav>
 
 <div class="toast" id="toast"></div>
@@ -354,10 +470,11 @@ document.querySelectorAll('.nav button').forEach(b=>{
   b.addEventListener('click',()=>{
     document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));
     b.classList.add('active');
-    ['add','list','stats'].forEach(s=>document.getElementById('scr-'+s).hidden = s!==b.dataset.scr);
+    ['add','list','stats','sync'].forEach(s=>document.getElementById('scr-'+s).hidden = s!==b.dataset.scr);
     replayFade('scr-'+b.dataset.scr);
     if(b.dataset.scr==='list') renderList();
     if(b.dataset.scr==='stats') renderStats();
+    if(b.dataset.scr==='sync') renderSync();
   });
 });
 function replayFade(id){
@@ -400,6 +517,7 @@ document.getElementById('btn-save').addEventListener('click',()=>{
   document.getElementById('f-note').value='';
   document.getElementById('usd-hint').textContent='≈ USD 0.00 · today';
   listMonth=date.slice(0,7);
+  syncPending();
 });
 
 /* ---------- list screen ---------- */
@@ -447,8 +565,10 @@ function renderList(){
   }).join('');
   body.querySelectorAll('.del').forEach(b=>{
     b.addEventListener('click',()=>{
-      records=records.filter(r=>r.id!==b.dataset.id);
+      const delId=b.dataset.id;
+      records=records.filter(r=>r.id!==delId);
       save(); toast('已删除'); renderList();
+      syncDelete(delId);
     });
   });
 }
@@ -495,10 +615,129 @@ function renderStats(){
     </div>`).join('');
 }
 
+/* ---------- Google Sheet sync ---------- */
+const SYNC_KEY='clear_glass_sync_url_v1';
+const TOMB_KEY='clear_glass_deleted_v1';
+function getSyncUrl(){ return localStorage.getItem(SYNC_KEY)||''; }
+function setSyncUrl(u){ localStorage.setItem(SYNC_KEY,u); }
+function tombs(){ try{ return new Set(JSON.parse(localStorage.getItem(TOMB_KEY)||'[]')); }catch(e){ return new Set(); } }
+function addTomb(id){ const t=tombs(); t.add(String(id)); localStorage.setItem(TOMB_KEY,JSON.stringify([...t])); }
+
+function updateSyncChip(){
+  const el=document.getElementById('sync-chip');
+  if(!getSyncUrl()){ el.textContent=''; return; }
+  const n=records.filter(r=>!r.synced).length;
+  el.textContent = n===0 ? '☁ 已全部同步到 Google Sheet' : '☁ '+n+' 笔待同步';
+  el.style.color = n===0 ? 'rgba(190,255,220,.95)' : 'rgba(255,230,160,.95)';
+}
+
+async function postToSheet(payload){
+  const url=getSyncUrl();
+  if(!url) throw new Error('未设置 Apps Script URL');
+  const res=await fetch(url,{
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify(payload),
+  });
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  const text=await res.text();
+  try{ return JSON.parse(text); }
+  catch(e){ throw new Error('Sheet 返回非 JSON：'+text.slice(0,120)); }
+}
+
+let syncing=false;
+async function syncPending(){
+  if(syncing) return;
+  if(!getSyncUrl()){ updateSyncChip(); return; }
+  const pending=records.filter(r=>!r.synced);
+  if(!pending.length){ updateSyncChip(); return; }
+  syncing=true;
+  try{
+    const result=await postToSheet({action:'sync',records:pending});
+    if(result.ok){
+      const ids=new Set((result.savedIds||pending.map(r=>r.id)).map(String));
+      records.forEach(r=>{ if(ids.has(String(r.id))) r.synced=true; });
+      save();
+    }else{
+      toast('Sheet 返回错误：'+(result.error||'未知'));
+    }
+  }catch(err){
+    toast('同步失败：'+err.message);
+  }finally{
+    syncing=false;
+    updateSyncChip();
+    if(!document.getElementById('scr-sync').hidden) renderSync();
+  }
+}
+
+async function syncDelete(id){
+  addTomb(id);
+  updateSyncChip();
+  if(!getSyncUrl()) return;
+  try{ await postToSheet({action:'delete',id}); }
+  catch(err){ /* tombstone keeps it deleted locally; next pull won't restore */ }
+}
+
+async function pullFromSheet(){
+  if(!getSyncUrl()) return 0;
+  const result=await postToSheet({action:'pull'});
+  if(!result.ok||!Array.isArray(result.records)) throw new Error(result.error||'返回格式错误');
+  const localIds=new Set(records.map(r=>String(r.id)));
+  const dead=tombs();
+  const fresh=result.records
+    .filter(r=>!localIds.has(String(r.id))&&!dead.has(String(r.id)))
+    .map(r=>({...r,synced:true}));
+  if(fresh.length){
+    records=records.concat(fresh);
+    save();
+    if(!document.getElementById('scr-list').hidden) renderList();
+    if(!document.getElementById('scr-stats').hidden) renderStats();
+  }
+  updateSyncChip();
+  return fresh.length;
+}
+
+function renderSync(){
+  document.getElementById('sync-url').value=getSyncUrl();
+  const total=records.length;
+  const synced=records.filter(r=>r.synced).length;
+  document.getElementById('sync-info').textContent = getSyncUrl()
+    ? `已配置同步 · 共 ${total} 笔，已同步 ${synced} 笔，待同步 ${total-synced} 笔`
+    : '尚未配置同步 URL — 按下方教程部署 Apps Script';
+}
+
+document.getElementById('btn-url-save').addEventListener('click',()=>{
+  setSyncUrl(document.getElementById('sync-url').value.trim());
+  toast(getSyncUrl()?'已保存 URL':'已清空 URL');
+  renderSync(); updateSyncChip();
+});
+document.getElementById('btn-ping').addEventListener('click',async()=>{
+  try{ const r=await postToSheet({action:'ping'}); toast(r.ok?'连接成功 ✓':'响应异常'); }
+  catch(err){ toast('连接失败：'+err.message); }
+});
+document.getElementById('btn-push').addEventListener('click',async()=>{
+  if(!getSyncUrl()){ toast('请先填 URL'); return; }
+  toast('上传中…');
+  await syncPending();
+  renderSync();
+});
+document.getElementById('btn-pull').addEventListener('click',async()=>{
+  if(!getSyncUrl()){ toast('请先填 URL'); return; }
+  toast('拉取中…');
+  try{
+    const n=await pullFromSheet();
+    toast(n>0?`拉取到 ${n} 条新记录`:'没有新记录');
+  }catch(err){ toast('拉取失败：'+err.message); }
+  renderSync();
+});
+
 /* ---------- init ---------- */
 document.getElementById('f-date').value=today();
 document.getElementById('f-time').value=nowTime();
+document.getElementById('gs-pre').textContent=document.getElementById('gs-code').textContent.trim();
 renderCats();
+updateSyncChip();
+if(getSyncUrl()){ pullFromSheet().catch(()=>{}).then(()=>syncPending()); }
 </script>
 </body>
 </html>
