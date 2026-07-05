@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="消费记录">
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%237b6cff'/%3E%3Ctext x='90' y='118' font-size='84' text-anchor='middle'%3E%F0%9F%92%8E%3C/text%3E%3C/svg%3E">
 <style>
   :root{
@@ -788,6 +789,11 @@ document.getElementById('gs-pre').textContent=document.getElementById('gs-code')
 renderCats();
 updateSyncChip();
 if(getSyncUrl()){ pullFromSheet().catch(()=>{}).then(()=>syncPending()); }
+
+/* offline: cache the app shell so it opens without network (PWA) */
+if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
 </script>
 </body>
 </html>
