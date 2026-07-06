@@ -990,10 +990,13 @@ def render_sparkline(closes, width=140, height=36):
     color = "#00e5a0" if up else "#ff6b6b"
     fill = "rgba(0,229,160,0.10)" if up else "rgba(255,107,107,0.10)"
     area_pts = f"0,{height} " + pts + f" {width:.1f},{height}"
+    # spark-line / spark-fill + pathLength=1 let CSS run a draw-in animation
+    # when the card scrolls into view (see the motion system in TEMPLATE).
     return (f'<svg viewBox="0 0 {width} {height}" width="100%" height="{height}" '
             f'preserveAspectRatio="none">'
-            f'<polygon fill="{fill}" points="{area_pts}"/>'
-            f'<polyline fill="none" stroke="{color}" stroke-width="1.5" points="{pts}"/>'
+            f'<polygon class="spark-fill" fill="{fill}" points="{area_pts}"/>'
+            f'<polyline class="spark-line" pathLength="1" fill="none" stroke="{color}" '
+            f'stroke-width="1.5" points="{pts}"/>'
             f'</svg>')
 
 
@@ -1111,33 +1114,26 @@ TEMPLATE = """<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="refresh" content="900">
+<!-- JS handles auto-refresh politely (only when hidden/idle); meta refresh kept as no-JS fallback -->
+<noscript><meta http-equiv="refresh" content="900"></noscript>
+<meta name="description" content="美股巨头投资追踪：Mag 7 + 芯片股（NVIDIA、Intel、AMD、Apple、Microsoft、Alphabet、Amazon、Meta、Tesla）实时股价走势、新闻信号、SEC 文件，自动更新。">
+<meta name="theme-color" content="#050810" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f4f6fb" media="(prefers-color-scheme: light)">
+<meta property="og:title" content="美股巨头 · 投资追踪">
+<meta property="og:description" content="Mag 7 + 芯片股：实时股价走势 · 新闻信号 · SEC 文件 · 自动更新">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://fangagarwood.com/">
+<link rel="canonical" href="https://fangagarwood.com/">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
 <title>美股巨头 · 投资追踪 · {{NOW}}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#050810;--bg2:#0b0f1e;--border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.15);--text:#e8edf5;--text2:#8a9ab8;--text3:#4a5a78;--green:#00e5a0;--blue:#4da6ff;--amber:#f5a623;--fire:#ff4d00;--purple:#a78bfa;--grid-line:rgba(77,166,255,.03);--alpha-soft:rgba(255,255,255,.06);--alpha-soft2:rgba(255,255,255,.05)}
-/* ===== Auto-adapt to iOS / macOS / Windows light mode ===== */
-@media (prefers-color-scheme: light) {
-  :root{--bg:#f4f6fb;--bg2:#ffffff;--border:rgba(0,0,0,.07);--border2:rgba(0,0,0,.16);--text:#0a1428;--text2:#475974;--text3:#94a0b8;--grid-line:rgba(77,166,255,.08);--alpha-soft:rgba(0,0,0,.04);--alpha-soft2:rgba(0,0,0,.05)}
-  /* Hero title gradient: first stop #fff would be invisible on white — use dark text */
-  .hero-title{background:linear-gradient(135deg,#0a1428 0%,#76b900 30%,#4da6ff 60%,#ed1c24 100%);-webkit-background-clip:text}
-  /* Modal & portfolio backdrops: lighter overlay */
-  .modal-backdrop{background:rgba(20,30,50,.45)}
-  .port-backdrop{background:rgba(20,30,50,.3)}
-  /* Various places hardcode rgba(255,255,255,.06) for subtle bg — keep as a single var alias */
-  .chart-bar-wrap, .sec-default{background:var(--alpha-soft)}
-  /* News badges have low-alpha colored bgs — tweak for legibility on white */
-  .cb-nvda{background:rgba(118,185,0,.18);color:#5a8c00}
-  .cb-intc{background:rgba(0,113,197,.18);color:#0071c5}
-  .cb-amd{background:rgba(237,28,36,.18);color:#c5181f}
-  /* Code-mono price text — slightly darker for contrast */
-  .price-now, .modal-price, .sr-price{color:#0a1428}
-  /* Soft fills used for "up" / "down" pills — bump alpha on white */
-  .up{filter:none}
-  .alert-banner{background:linear-gradient(135deg,rgba(255,77,0,.06) 0%,rgba(245,166,35,.08) 100%)}
-  /* The bg grid is too faint on light bg — use a touch more alpha */
-  body::before{background-image:linear-gradient(var(--grid-line) 1px,transparent 1px),linear-gradient(90deg,var(--grid-line) 1px,transparent 1px)}
-}
+/* Light-mode overrides live at the BOTTOM of this stylesheet — they must come
+   after the base component rules, otherwise equal-specificity base rules
+   declared later would silently win (that was a real bug). */
 /* ===== Glassmorphism (frosted glass) ===== */
 /* Ambient colored glow blobs — the actual content for the backdrop-filter to blur */
 body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(900px 700px at 15% 8%,rgba(118,185,0,.12),transparent 55%),radial-gradient(800px 600px at 85% 18%,rgba(77,166,255,.14),transparent 55%),radial-gradient(1000px 800px at 50% 95%,rgba(167,139,250,.12),transparent 60%),radial-gradient(600px 500px at 95% 75%,rgba(247,147,26,.08),transparent 60%)}
@@ -1145,16 +1141,10 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;back
 .stat,.price-card,.index-card,.signal-card,.news-card,.investment-card,.vix-widget,.alert-banner,.sec-card,.spacex-header,.spacex-news-item,.modal-stat,.modal-chart-wrap,.reason-col,.port-stat,.search-results,.search-result{background:rgba(11,15,30,.55);backdrop-filter:blur(14px) saturate(160%);-webkit-backdrop-filter:blur(14px) saturate(160%);border-color:rgba(255,255,255,.08)}
 /* Heavier glass for big overlays */
 .modal,.port-panel{background:rgba(11,15,30,.78);backdrop-filter:blur(28px) saturate(180%);-webkit-backdrop-filter:blur(28px) saturate(180%)}
-/* Light mode — white frosted glass */
-@media (prefers-color-scheme: light) {
-  body::after{background:radial-gradient(900px 700px at 15% 8%,rgba(118,185,0,.18),transparent 55%),radial-gradient(800px 600px at 85% 18%,rgba(77,166,255,.20),transparent 55%),radial-gradient(1000px 800px at 50% 95%,rgba(167,139,250,.16),transparent 60%),radial-gradient(600px 500px at 95% 75%,rgba(247,147,26,.12),transparent 60%)}
-  .stat,.price-card,.index-card,.signal-card,.news-card,.investment-card,.vix-widget,.alert-banner,.sec-card,.spacex-header,.spacex-news-item,.modal-stat,.modal-chart-wrap,.reason-col,.port-stat,.search-results,.search-result{background:rgba(255,255,255,.65);border-color:rgba(0,0,0,.08)}
-  .modal,.port-panel{background:rgba(255,255,255,.82)}
-}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;overscroll-behavior-x:none}
 html{overflow-x:hidden}
-body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(77,166,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(77,166,255,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(var(--grid-line) 1px,transparent 1px),linear-gradient(90deg,var(--grid-line) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
 .wrap{max-width:1280px;margin:0 auto;padding:40px 20px 60px;position:relative;z-index:1}
 .hero{margin-bottom:36px}
 .hero-eyebrow{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--blue);margin-bottom:12px;opacity:.8}
@@ -1415,6 +1405,104 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .back-to-top{position:fixed;bottom:calc(24px + env(safe-area-inset-bottom));right:calc(24px + env(safe-area-inset-right));width:52px;height:52px;border-radius:50%;background:var(--bg2);border:1px solid var(--border2);color:var(--text);font-size:22px;font-weight:700;cursor:pointer;z-index:90;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transform:translateY(8px);transition:opacity .25s,transform .2s,background .15s,border-color .15s;box-shadow:0 4px 16px rgba(0,0,0,.5);font-family:'Space Mono',monospace;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .back-to-top.visible{opacity:1;pointer-events:auto;transform:translateY(0)}
 .back-to-top:hover{background:var(--blue);border-color:var(--blue);color:#000}
+/* ============================================================
+   Motion system — entrances, scroll reveals, micro-interactions.
+   Everything here is neutralized by the prefers-reduced-motion
+   block at the very end of the stylesheet.
+   ============================================================ */
+html{scroll-behavior:smooth}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+/* --- Hero entrance: staggered rise on page load (pure CSS, no JS needed) --- */
+.hero-eyebrow,.hero-title,.hero-sub,.hero-time,.stock-search,.vix-widget{animation:slideUp .7s cubic-bezier(.22,1,.36,1) backwards}
+.hero-eyebrow{animation-delay:.05s}
+.hero-sub{animation-delay:.26s}
+.hero-time{animation-delay:.36s}
+.stock-search{animation-delay:.44s}
+.vix-widget{animation-delay:.52s}
+/* Hero title: entrance + slow gradient shimmer across the multicolor text */
+.hero-title{background-size:230% 230%;animation:slideUp .7s cubic-bezier(.22,1,.36,1) .14s backwards,heroGradient 10s ease-in-out 1.2s infinite}
+@keyframes heroGradient{0%,100%{background-position:8% 50%}50%{background-position:92% 50%}}
+/* --- Ambient glow blobs drift very slowly behind the glass --- */
+body::after{will-change:transform;animation:ambientDrift 46s ease-in-out infinite}
+@keyframes ambientDrift{0%,100%{transform:translate3d(0,0,0) scale(1)}33%{transform:translate3d(2.5%,-2%,0) scale(1.07)}66%{transform:translate3d(-2%,2%,0) scale(1.04)}}
+/* --- Scroll reveal: JS adds .reveal then .in-view as cards enter the viewport.
+       Without JS no class is added, so content is never hidden. --- */
+.reveal{opacity:0}
+.reveal.in-view{opacity:1;animation:slideUp .6s cubic-bezier(.22,1,.36,1) var(--rd,0ms) backwards}
+/* Sparklines draw themselves once their card reveals (pathLength=1 set in SVG) */
+@keyframes drawLine{to{stroke-dashoffset:0}}
+.reveal .spark-line{stroke-dasharray:1;stroke-dashoffset:1}
+.reveal.in-view .spark-line{animation:drawLine 1s cubic-bezier(.33,.6,.6,1) forwards;animation-delay:calc(var(--rd,0ms) + 180ms)}
+.reveal .spark-fill{opacity:0}
+.reveal.in-view .spark-fill{animation:fadeIn .6s ease forwards;animation-delay:calc(var(--rd,0ms) + 750ms)}
+/* Modal chart: line draws in, area/candles fade (elements are recreated per render) */
+.chart-line{stroke-dasharray:1;stroke-dashoffset:1;animation:drawLine .9s cubic-bezier(.33,.6,.6,1) .05s forwards}
+.chart-area{opacity:0;animation:fadeIn .55s ease .5s forwards}
+.chart-candles{animation:fadeIn .45s ease}
+.chart-grid{animation:fadeIn .35s ease}
+/* Modal content: stat tiles cascade in on every open */
+.modal-stats .modal-stat{animation:slideUp .45s cubic-bezier(.22,1,.36,1) backwards}
+.modal-stats .modal-stat:nth-child(2){animation-delay:.05s}
+.modal-stats .modal-stat:nth-child(3){animation-delay:.1s}
+.modal-stats .modal-stat:nth-child(4){animation-delay:.15s}
+.modal-stats .modal-stat:nth-child(5){animation-delay:.2s}
+.modal-stats .modal-stat:nth-child(6){animation-delay:.25s}
+#investmentGrid .investment-card,.reason-item{animation:fadeIn .5s ease backwards}
+/* --- Unified hover physics: springy lift + soft shadow on every card --- */
+.stat,.price-card,.signal-card,.news-card,.sec-card,.index-card,.plugin-card,.spacex-news-item,.investment-card,.alert-pill,.vix-widget,.search-result{transition:border-color .25s ease,background .25s ease,transform .35s cubic-bezier(.22,1,.36,1),box-shadow .35s ease}
+.stat:hover{transform:translateY(-2px);border-color:var(--border2)}
+.signal-card:hover,.news-card:hover{transform:translateY(-3px);box-shadow:0 12px 26px rgba(0,0,0,.30)}
+.price-card.clickable:hover{transform:translateY(-4px);box-shadow:0 14px 30px rgba(0,0,0,.34)}
+.index-card.clickable:hover{transform:translateY(-3px)}
+.sec-card:hover{transform:translateX(4px)}
+.plugin-icon{transition:transform .3s cubic-bezier(.22,1,.36,1)}
+.plugin-card:hover .plugin-icon{transform:scale(1.18) rotate(-8deg)}
+/* Press feedback */
+.filter-btn:active,.chart-btn:active,.alert-bell:active,.port-add-form button:active{transform:scale(.94)}
+.portfolio-fab:active,.back-to-top:active,.modal-close:active,.port-close:active{transform:scale(.86)}
+.price-card.clickable:active,.index-card.clickable:active,.alert-pill:active,.plugin-card:active,.search-result:active{transform:scale(.98)}
+.price-card,.index-card,.alert-pill,.search-result,.plugin-card,.vix-widget,.spacex-news-item,.sec-card{-webkit-tap-highlight-color:transparent}
+/* Attention accents */
+.badge-new{animation:newPulse 2.4s ease-in-out infinite}
+@keyframes newPulse{0%,100%{box-shadow:0 0 0 0 rgba(0,229,160,.45)}50%{box-shadow:0 0 0 6px rgba(0,229,160,0)}}
+.co-dot{animation:dotBreathe 3.2s ease-in-out infinite}
+@keyframes dotBreathe{0%,100%{box-shadow:0 0 6px currentColor}50%{box-shadow:0 0 16px currentColor}}
+.search-results.open{animation:popIn .22s cubic-bezier(.22,1,.36,1)}
+@keyframes popIn{from{opacity:0;transform:translateY(-6px) scale(.985)}to{opacity:1;transform:none}}
+/* --- Rendering perf: skip layout/paint of long off-screen lists --- */
+.news-card{content-visibility:auto;contain-intrinsic-size:auto 210px}
+.sec-card{content-visibility:auto;contain-intrinsic-size:auto 46px}
+/* ============================================================
+   Light mode (auto via prefers-color-scheme). Kept at the bottom
+   so these equal-specificity overrides actually beat base rules.
+   ============================================================ */
+@media (prefers-color-scheme: light) {
+  :root{--bg:#f4f6fb;--bg2:#ffffff;--border:rgba(0,0,0,.07);--border2:rgba(0,0,0,.16);--text:#0a1428;--text2:#475974;--text3:#94a0b8;--grid-line:rgba(77,166,255,.08);--alpha-soft:rgba(0,0,0,.04);--alpha-soft2:rgba(0,0,0,.05)}
+  /* Hero title gradient: first stop #fff would be invisible on white — use dark text */
+  .hero-title{background:linear-gradient(135deg,#0a1428 0%,#76b900 30%,#4da6ff 60%,#ed1c24 100%);-webkit-background-clip:text;background-size:230% 230%}
+  /* Modal & portfolio backdrops: lighter overlay */
+  .modal-backdrop{background:rgba(20,30,50,.45)}
+  .port-backdrop{background:rgba(20,30,50,.3)}
+  .sec-default{background:var(--alpha-soft)}
+  /* Code-mono price text — slightly darker for contrast */
+  .price-now,.modal-price,.sr-price{color:#0a1428}
+  .alert-banner{background:linear-gradient(135deg,rgba(255,77,0,.06) 0%,rgba(245,166,35,.08) 100%)}
+  /* White frosted glass */
+  body::after{background:radial-gradient(900px 700px at 15% 8%,rgba(118,185,0,.18),transparent 55%),radial-gradient(800px 600px at 85% 18%,rgba(77,166,255,.20),transparent 55%),radial-gradient(1000px 800px at 50% 95%,rgba(167,139,250,.16),transparent 60%),radial-gradient(600px 500px at 95% 75%,rgba(247,147,26,.12),transparent 60%)}
+  .stat,.price-card,.index-card,.signal-card,.news-card,.investment-card,.vix-widget,.alert-banner,.sec-card,.spacex-header,.spacex-news-item,.modal-stat,.modal-chart-wrap,.reason-col,.port-stat,.search-results,.search-result{background:rgba(255,255,255,.65);border-color:rgba(0,0,0,.08)}
+  .modal,.port-panel{background:rgba(255,255,255,.82)}
+  /* Softer hover shadows on white */
+  .signal-card:hover,.news-card:hover{box-shadow:0 12px 26px rgba(30,50,90,.12)}
+  .price-card.clickable:hover{box-shadow:0 14px 30px rgba(30,50,90,.14)}
+}
+/* ============================================================
+   Accessibility: honor reduced-motion — collapse all animation
+   and transitions to imperceptible durations.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+  html{scroll-behavior:auto}
+}
 </style>
 </head>
 <body>
@@ -1607,6 +1695,86 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 // const Temporal Dead Zone.
 const deferIdle = window.requestIdleCallback || function(cb){ return setTimeout(cb, 200); };
 
+// ===== Motion utilities =====
+const REDUCED_MOTION = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// Roll a number from 0 to `to`, formatting each frame with `fmt`.
+function animateNumber(el, to, fmt, dur) {
+  if (!el || !isFinite(to)) return;
+  if (REDUCED_MOTION) { el.textContent = fmt(to); return; }
+  dur = dur || 900;
+  const start = performance.now();
+  function tick(now) {
+    const p = Math.min(1, (now - start) / dur);
+    const e = 1 - Math.pow(1 - p, 3);  // easeOutCubic
+    el.textContent = fmt(to * e);
+    if (p < 1) requestAnimationFrame(tick);
+    else el.textContent = fmt(to);
+  }
+  requestAnimationFrame(tick);
+}
+
+// Count-up for the stat tiles and price cards on first load.
+if (!REDUCED_MOTION) {
+  document.querySelectorAll('.stat-val').forEach(el => {
+    const n = parseInt(el.textContent, 10);
+    if (isFinite(n)) animateNumber(el, n, v => String(Math.round(v)));
+  });
+  document.querySelectorAll('.price-now').forEach(el => {
+    const m = el.textContent.match(/^\\$([0-9]+(?:\\.[0-9]+)?)$/);
+    if (m) animateNumber(el, parseFloat(m[1]), v => '$' + v.toFixed(2), 1000);
+  });
+}
+
+// Scroll reveal: cards rise in (staggered per batch) as they enter the viewport.
+// Progressive enhancement — the .reveal (hidden) class is only ever added here,
+// so without JS nothing is hidden.
+if (!REDUCED_MOTION && 'IntersectionObserver' in window) {
+  const revealIO = new IntersectionObserver(entries => {
+    let batch = 0;
+    for (const en of entries) {
+      if (!en.isIntersecting) continue;
+      revealIO.unobserve(en.target);
+      en.target.style.setProperty('--rd', Math.min(batch * 60, 480) + 'ms');
+      en.target.classList.add('in-view');
+      batch++;
+    }
+  }, { rootMargin: '0px 0px -7% 0px', threshold: 0.04 });
+  document.querySelectorAll(
+    '.stat,.plugin-card,.subgroup-label,.price-card,.section-label,.index-card,' +
+    '.spacex-header,.spacex-news-item,.co-header,.signal-card,.sec-card,.news-card,' +
+    '.alert-banner,.footer'
+  ).forEach(el => {
+    el.classList.add('reveal');
+    revealIO.observe(el);
+  });
+}
+
+// ===== Smart auto-refresh (replaces <meta http-equiv=refresh>) =====
+// The old 15-min hard reload yanked the page away mid-read. Now we only
+// reload when it cannot disturb anyone: the tab is hidden, or it has been
+// visible-but-idle for a long time with no overlay open (wall-dashboard case).
+(function initSmartRefresh() {
+  const STALE_MS = 15 * 60 * 1000;      // consider data stale after 15 min
+  const DASH_MS = 45 * 60 * 1000;       // visible dashboard: reload after 45 min...
+  const IDLE_MS = 5 * 60 * 1000;        // ...if untouched for 5 min
+  const loadedAt = Date.now();
+  let lastAct = Date.now();
+  ['pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'].forEach(ev =>
+    window.addEventListener(ev, () => { lastAct = Date.now(); }, { passive: true }));
+  const overlayOpen = () =>
+    !!document.querySelector('.modal-backdrop.open,.port-panel.open') ||
+    (document.activeElement && document.activeElement.tagName === 'INPUT');
+  const maybeReload = () => {
+    const age = Date.now() - loadedAt;
+    if (age < STALE_MS) return;
+    if (document.hidden) { location.reload(); return; }
+    if (age > DASH_MS && Date.now() - lastAct > IDLE_MS && !overlayOpen()) location.reload();
+  };
+  setInterval(maybeReload, 60 * 1000);
+  document.addEventListener('visibilitychange', maybeReload);
+})();
+
 const badge = document.getElementById('time-badge');
 const utc = '{{NOW_ISO}}';
 if (utc) {
@@ -1655,7 +1823,7 @@ function openPriceModal(ticker) {
   const chg = cur - prev;
   const chgPct = prev ? (chg/prev*100) : 0;
   const up = chg >= 0;
-  mPrice.textContent = '$' + cur.toFixed(2);
+  animateNumber(mPrice, cur, v => '$' + v.toFixed(2), 500);
   mChg.textContent = (up?'+':'') + chg.toFixed(2) + ' (' + (up?'+':'') + chgPct.toFixed(2) + '%)';
   mChg.className = 'modal-chg ' + (up?'up':'down');
 
@@ -1875,8 +2043,8 @@ function renderChart(ohlc, type) {
     const lineColor = overallUp ? '#00e5a0' : '#ff6b6b';
     const fillColor = overallUp ? 'rgba(0,229,160,0.10)' : 'rgba(255,107,107,0.10)';
     const areaPts = padL+','+(padT+ch) + ' ' + ptsStr + ' ' + (padL+cw)+','+(padT+ch);
-    chartSvg = '<polygon fill="'+fillColor+'" points="'+areaPts+'"/>' +
-               '<polyline fill="none" stroke="'+lineColor+'" stroke-width="2" points="'+ptsStr+'"/>';
+    chartSvg = '<polygon class="chart-area" fill="'+fillColor+'" points="'+areaPts+'"/>' +
+               '<polyline class="chart-line" pathLength="1" fill="none" stroke="'+lineColor+'" stroke-width="2" points="'+ptsStr+'"/>';
   } else {
     // Candle mode
     const cwidth = Math.max(2, Math.min(cw / n * 0.7, 14));
@@ -1892,11 +2060,11 @@ function renderChart(ohlc, type) {
       const bodyH = Math.max(1, Math.abs(yC - yO));
       candles += '<rect x="'+(x - cwidth/2).toFixed(1)+'" y="'+bodyTop.toFixed(1)+'" width="'+cwidth.toFixed(1)+'" height="'+bodyH.toFixed(1)+'" fill="'+col+'"/>';
     }
-    chartSvg = candles;
+    chartSvg = '<g class="chart-candles">' + candles + '</g>';
   }
 
   mChart.innerHTML =
-    gridSvg + chartSvg + dateSvg +
+    '<g class="chart-grid">' + gridSvg + dateSvg + '</g>' + chartSvg +
     '<line id="hLine" x1="0" y1="'+padT+'" x2="0" y2="'+(padT+ch)+'" stroke="rgba(255,255,255,0.3)" stroke-width="1" visibility="hidden"/>' +
     (type === 'line' ? '<circle id="hDot" r="5" fill="'+(overallUp?'#00e5a0':'#ff6b6b')+'" stroke="#fff" stroke-width="2" visibility="hidden"/>' : '') +
     '<rect id="hOverlay" x="'+padL+'" y="'+padT+'" width="'+cw+'" height="'+ch+'" fill="transparent" style="cursor:crosshair"/>';
@@ -1985,7 +2153,7 @@ document.getElementById('investmentGrid').addEventListener('keydown', e => {
   const chg = vix - prev;
   const chgPct = prev ? (chg / prev * 100) : 0;
   const up = chg >= 0;
-  document.getElementById('vixNum').textContent = vix.toFixed(2);
+  animateNumber(document.getElementById('vixNum'), vix, v => v.toFixed(2), 900);
   const chgEl = document.getElementById('vixChg');
   chgEl.textContent = (up ? '+' : '') + chg.toFixed(2) + ' (' + (up ? '+' : '') + chgPct.toFixed(2) + '%)';
   chgEl.className = 'vix-chg ' + (up ? 'up' : 'down');  // VIX up = bad (red), down = good (green)
@@ -2226,7 +2394,7 @@ function fireDesktopNotifications(alerts) {
     const up = a.chgPct >= 0;
     new Notification('📊 ' + a.ticker + (up ? ' 大涨' : ' 大跌') + ' ' + (up?'+':'') + a.chgPct.toFixed(2) + '%', {
       body: a.name + ' · 当前 $' + a.price.toFixed(2) + ' · 点击查看详情',
-      icon: 'https://charleslee96finance.github.io/nvidia-tracker/favicon.ico',
+      icon: 'favicon.svg',
       tag: 'stock-alert-' + a.ticker,
     });
     seen[a.ticker] = true;
@@ -2425,7 +2593,7 @@ if (backBtn) {
   window.addEventListener('scroll', toggleBackBtn, { passive: true });
   toggleBackBtn();
   backBtn.addEventListener('click', () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: REDUCED_MOTION ? 'auto' : 'smooth' });
   });
 }
 
