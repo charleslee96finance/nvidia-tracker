@@ -1,5 +1,5 @@
 // Clear Glass app service worker — caches the app shell so it opens offline.
-const CACHE = 'clear-glass-v1';
+const CACHE = 'clear-glass-v2';
 const ASSETS = ['clear-glass-app.html', 'manifest.webmanifest', 'icon.svg'];
 
 self.addEventListener('install', (e) => {

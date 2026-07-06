@@ -93,6 +93,16 @@
     margin-bottom:14px;
   }
 
+  /* ---------- year countdown ---------- */
+  .countdown{padding:13px 16px;}
+  .cd-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;}
+  .cd-row .lbl{font-size:11px;color:var(--text-dim);font-weight:600;}
+  .cd-row .num{font-size:16px;font-weight:800;color:var(--text);margin:0 3px;}
+  .cd-row .pct{font-size:11px;color:var(--text-faint);font-weight:600;}
+  .cd-dots{display:flex;gap:2.5px;margin-top:9px;flex-wrap:wrap;}
+  .cd-dot{width:5px;height:5px;border-radius:50%;background:var(--bar);flex-shrink:0;}
+  .cd-dot.dim{background:var(--bar-dim);}
+
   .eyebrow{font-size:10.5px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--text-dim);}
   .screen-title{font-size:26px;font-weight:800;letter-spacing:-.5px;margin-top:4px;color:var(--text);}
   .screen-head{margin:2px 2px 16px;}
@@ -282,6 +292,8 @@
 
   <!-- ============ 录入 Add ============ -->
   <section id="scr-add">
+    <div class="card countdown fade-in" id="year-countdown"></div>
+
     <div class="screen-head fade-in">
       <div class="eyebrow">New Entry · 新增</div>
       <div class="screen-title">添加一笔消费</div>
@@ -782,7 +794,30 @@ document.getElementById('btn-pull').addEventListener('click',async()=>{
   renderSync();
 });
 
+/* ---------- year countdown ---------- */
+function updateCountdown(){
+  const el=document.getElementById('year-countdown');
+  if(!el) return;
+  const now=new Date();
+  const year=now.getFullYear();
+  const yearEnd=new Date(year,11,31,23,59,59);
+  const yearStart=new Date(year,0,1);
+  const daysLeft=Math.ceil((yearEnd-now)/86400000);
+  const totalDays=Math.round((yearEnd-yearStart)/86400000)+1;
+  const pct=Math.round((totalDays-daysLeft)/totalDays*100);
+  const DOTS=50;
+  const bright=Math.round(daysLeft/totalDays*DOTS);
+  let dots='';
+  for(let i=0;i<DOTS;i++) dots+='<span class="cd-dot'+(i>=bright?' dim':'')+'"></span>';
+  el.innerHTML=
+    '<div class="cd-row"><span class="lbl">'+year+' 还剩<span class="num">'+daysLeft+' 天</span></span>'+
+    '<span class="pct">已过 '+pct+'%</span></div>'+
+    '<div class="cd-dots">'+dots+'</div>';
+}
+setInterval(updateCountdown,60000);
+
 /* ---------- init ---------- */
+updateCountdown();
 document.getElementById('f-date').value=today();
 document.getElementById('f-time').value=nowTime();
 document.getElementById('gs-pre').textContent=document.getElementById('gs-code').textContent.trim();
