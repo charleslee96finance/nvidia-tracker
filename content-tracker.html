@@ -292,6 +292,7 @@ a.link{color:var(--accent);text-decoration:none}
 <section id="scr-content" hidden>
   <div class="btn-row" style="margin:0 0 12px">
     <button class="btn primary" id="btn-add">＋ 记录内容</button>
+    <button class="btn" id="btn-meta-sync">⚡ 同步 FB/IG 数据</button>
     <span style="flex:1"></span>
   </div>
 
@@ -323,7 +324,10 @@ a.link{color:var(--accent);text-decoration:none}
         <input class="f-in" type="text" id="f-title" placeholder="例如：如何选第一条木质手串">
       </div>
       <div class="full">
-        <label class="f-label">数据（发布后可以随时回来更新）</label>
+        <label class="f-label" style="display:flex;align-items:center;gap:10px">
+          数据（发布后可以随时回来更新）
+          <button type="button" class="btn small" id="f-fetch" style="margin-left:auto">⚡ 读取该帖数据</button>
+        </label>
         <div class="metrics-grid">
           <div><label class="f-label">浏览</label><input class="f-in" type="number" min="0" id="f-views" placeholder="0"></div>
           <div><label class="f-label">点赞</label><input class="f-in" type="number" min="0" id="f-likes" placeholder="0"></div>
@@ -429,6 +433,38 @@ a.link{color:var(--accent);text-decoration:none}
   </div>
 
   <div class="card">
+    <div class="mini-label">自动读取 Facebook / Instagram 数据（可选）</div>
+    <div style="font-size:13.5px;color:var(--ink2)" id="meta-info">
+      配置后：内容页一键把 FANG 主页 + 绑定 IG 的最近帖子（浏览 / 点赞 / 评论 / 分享 / IG 收藏）同步进来，也可设成每天全自动。
+      小红书 / 抖音官方不开放接口，仍手动填。
+    </div>
+    <div style="margin-top:8px">
+      <label class="f-label">FB / IG 帖子导入到哪个主页</label>
+      <div class="chips-row" id="meta-page"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn small" id="meta-check">检查配置状态</button>
+      <button class="btn primary small" id="meta-sync2">立即同步</button>
+    </div>
+    <details class="gs">
+      <summary>📖 一次性配置教程（约 10 分钟）</summary>
+      <ol class="steps">
+        <li>先完成上面的 Google Sheet 连接（Apps Script 已部署）</li>
+        <li>打开 <b>developers.facebook.com</b> → 我的应用 → <b>创建应用</b>（类型选「商务」或「其他」都行）→
+            在 应用设置 → 基本 里记下 <b>应用编号 App ID</b> 和 <b>应用密钥 App Secret</b></li>
+        <li>顶部菜单 工具 → <b>Graph API 探索工具</b>：右侧选中你的应用 → 添加权限：
+            <b>pages_show_list, pages_read_engagement, pages_read_user_content, read_insights, instagram_basic, instagram_manage_insights</b>
+            → 点 <b>Generate Access Token</b> 并授权（勾选 FANG 主页）→ 复制生成的 token</li>
+        <li>回到 Sheet 的 Apps Script 编辑器：找到代码里的 <b>SETUP_APP_ID / SETUP_APP_SECRET / SETUP_SHORT_TOKEN</b>
+            三个空值，填进去 → 上方函数选 <b>RUN_SETUP</b> → 运行 → 日志显示「完成 ✓」后，把三个值清空再保存一次</li>
+        <li>回到这里点「检查配置状态」→ 显示 ✓ 后点「立即同步」</li>
+        <li>想全自动：Apps Script 左侧 ⏰<b>触发器</b> → 添加触发器 → 函数选 <b>autoSyncMeta</b> → 时间驱动 → 天定时器，
+            数据每天自动更新进表格，App 拉取即见</li>
+      </ol>
+    </details>
+  </div>
+
+  <div class="card">
     <div class="mini-label">示例数据</div>
     <div style="font-size:13.5px;color:var(--ink2)" id="demo-info"></div>
     <div class="btn-row">
@@ -496,10 +532,12 @@ function doPost(e) {
     var body = JSON.parse(e.postData.contents);
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     ensureSetup(ss);
-    if (body.action === 'ping')        out = { ok:true, ver:2, name:ss.getName() };
+    if (body.action === 'ping')        out = { ok:true, ver:3, name:ss.getName() };
     else if (body.action === 'push')   out = doPush(ss, body);
     else if (body.action === 'pull')   out = doPull(ss);
     else if (body.action === 'delete') out = doDelete(ss, body);
+    else if (body.action === 'meta_status') out = metaStatus();
+    else if (body.action === 'meta_fetch')  out = metaFetch();
     else out = { ok:false, error:'未知 action' };
   } catch (err) {
     out = { ok:false, error:String(err) };
@@ -625,6 +663,137 @@ function num(v) { v = Number(v); return isNaN(v) ? 0 : v; }
 function fmtD(v) {
   if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
   return String(v || '');
+}
+
+/* ============ Meta（Facebook / Instagram）自动读取 · 可选 ============ */
+/* ▶ 一次性配置：把下面三个值换成你的，运行一次 RUN_SETUP，成功后把三个值清空再保存 */
+var SETUP_APP_ID = '', SETUP_APP_SECRET = '', SETUP_SHORT_TOKEN = '';
+function RUN_SETUP() { setupMeta(SETUP_APP_ID, SETUP_APP_SECRET, SETUP_SHORT_TOKEN); }
+
+var MP = PropertiesService.getScriptProperties();
+var GV = 'https://graph.facebook.com/v21.0/';
+
+function setupMeta(appId, appSecret, shortToken) {
+  if (!appId || !appSecret || !shortToken) throw new Error('三个值都要填：App ID / App Secret / 短期 token');
+  var r = JSON.parse(UrlFetchApp.fetch(GV + 'oauth/access_token?grant_type=fb_exchange_token&client_id='
+    + appId + '&client_secret=' + appSecret + '&fb_exchange_token=' + shortToken).getContentText());
+  var accs = JSON.parse(UrlFetchApp.fetch(GV + 'me/accounts?fields=id,name,access_token,instagram_business_account&access_token='
+    + r.access_token).getContentText());
+  if (!accs.data || !accs.data.length) throw new Error('这个账号下没有可管理的公共主页（检查授权时有没有勾选主页）');
+  var pg = accs.data[0];
+  MP.setProperty('FB_PAGE_ID', pg.id);
+  MP.setProperty('FB_TOKEN', pg.access_token);
+  if (pg.instagram_business_account) MP.setProperty('IG_USER_ID', pg.instagram_business_account.id);
+  else MP.deleteProperty('IG_USER_ID');
+  Logger.log('完成 ✓ 主页：' + pg.name + (pg.instagram_business_account ? '，已连 Instagram' : '，未发现绑定的 Instagram'));
+}
+
+function metaStatus() {
+  return { ok:true, fb: !!MP.getProperty('FB_TOKEN'), ig: !!MP.getProperty('IG_USER_ID') };
+}
+
+function metaFetch() {
+  var token = MP.getProperty('FB_TOKEN');
+  if (!token) return { ok:false, error:'未配置 Meta 读取（看设置页教程，运行一次 RUN_SETUP）' };
+  var out = { ok:true, fb:[], ig:[] };
+  try {
+    var res = JSON.parse(UrlFetchApp.fetch(GV + MP.getProperty('FB_PAGE_ID')
+      + '/posts?limit=25&fields=message,permalink_url,created_time,shares,reactions.summary(true),comments.summary(true),insights.metric(post_impressions)&access_token='
+      + token).getContentText());
+    (res.data || []).forEach(function(p){
+      var views = 0;
+      try { views = p.insights.data[0].values[0].value || 0; } catch (e) {}
+      out.fb.push({
+        id: p.id,
+        title: String(p.message || '').split('\n')[0].slice(0, 60),
+        link: p.permalink_url || '',
+        date: String(p.created_time || '').slice(0, 10),
+        views: views,
+        likes: (p.reactions && p.reactions.summary && p.reactions.summary.total_count) || 0,
+        comments: (p.comments && p.comments.summary && p.comments.summary.total_count) || 0,
+        shares: (p.shares && p.shares.count) || 0
+      });
+    });
+  } catch (e) { out.fbError = String(e); }
+  var ig = MP.getProperty('IG_USER_ID');
+  if (ig) {
+    try {
+      var res2 = JSON.parse(UrlFetchApp.fetch(GV + ig
+        + '/media?limit=25&fields=caption,permalink,media_type,media_product_type,timestamp,like_count,comments_count&access_token='
+        + token).getContentText());
+      var items = res2.data || [];
+      var reqs = items.map(function(m){
+        return { url: GV + m.id + '/insights?metric=views,saved&access_token=' + token, muteHttpExceptions: true };
+      });
+      var ins = reqs.length ? UrlFetchApp.fetchAll(reqs) : [];
+      items.forEach(function(m, i){
+        var views = 0, saves = 0;
+        try {
+          (JSON.parse(ins[i].getContentText()).data || []).forEach(function(x){
+            var v = (x.values && x.values[0] && x.values[0].value) || 0;
+            if (x.name === 'views') views = v;
+            if (x.name === 'saved') saves = v;
+          });
+        } catch (e) {}
+        out.ig.push({
+          id: m.id,
+          title: String(m.caption || '').split('\n')[0].slice(0, 60),
+          link: m.permalink || '',
+          date: String(m.timestamp || '').slice(0, 10),
+          type: m.media_product_type === 'REELS' ? 'Reels' : (m.media_product_type === 'STORY' ? 'Story' : (m.media_type === 'VIDEO' ? '视频' : '图文')),
+          views: views,
+          likes: m.like_count || 0,
+          comments: m.comments_count || 0,
+          saves: saves
+        });
+      });
+    } catch (e) { out.igError = String(e); }
+  }
+  return out;
+}
+
+/* 全自动：Apps Script 左侧「触发器」→ 添加 → 函数选 autoSyncMeta → 时间驱动 → 每天 */
+function autoSyncMeta() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  ensureSetup(ss);
+  var data = metaFetch();
+  if (!data.ok) throw new Error(data.error);
+  var pageName = MP.getProperty('META_PAGE_NAME');
+  if (!pageName) pageName = String(ss.getSheetByName(TABS.pages).getRange(2, 2).getValue() || '主页 1');
+  var sh = ss.getSheetByName(TABS.content);
+  var rows = sh.getDataRange().getValues();
+  var byId = {}, byLink = {};
+  for (var i = 1; i < rows.length; i++) {
+    byId[String(rows[i][0])] = i + 1;
+    var L = normLink(rows[i][6]);
+    if (L) byLink[L] = i + 1;
+  }
+  var applyOne = function(rec, platform, type) {
+    var rid = (platform === 'Facebook' ? 'fb|' : 'ig|') + rec.id;
+    var at = byId[rid] || byLink[normLink(rec.link)];
+    if (at) {
+      var cur = sh.getRange(at, 8, 1, 5).getValues()[0];  // H..L = 浏览 点赞 评论 分享 收藏
+      sh.getRange(at, 8, 1, 5).setValues([[
+        rec.views || cur[0] || 0, rec.likes || 0, rec.comments || 0,
+        rec.shares || cur[3] || 0, (rec.saves != null && rec.saves) ? rec.saves : (cur[4] || 0)
+      ]]);
+    } else {
+      sh.appendRow([rid, rec.date, pageName, platform, rec.title || '(无标题)', type || rec.type || '图文',
+        rec.link || '', rec.views || 0, rec.likes || 0, rec.comments || 0, rec.shares || 0, rec.saves || 0,
+        '自动导入', new Date().toISOString()]);
+      byId[rid] = sh.getLastRow();
+    }
+  };
+  data.fb.forEach(function(r){ applyOne(r, 'Facebook', '图文'); });
+  data.ig.forEach(function(r){ applyOne(r, 'Instagram', r.type); });
+}
+
+function normLink(u) {
+  u = String(u || '').trim().toLowerCase();
+  if (!u) return '';
+  u = u.replace(/^https?:\/\//, '').replace(/^(www\.|m\.|web\.)/, '');
+  u = u.split('?')[0].split('#')[0];
+  return u.replace(/\/+$/, '');
 }
 </script>
 
@@ -1634,6 +1803,95 @@ async function pullFromSheet(showToast){
   }
 }
 
+/* ---------- Meta（FB/IG）自动读取 ---------- */
+function normLink(u){
+  u = String(u || '').trim().toLowerCase();
+  if (!u) return '';
+  u = u.replace(/^https?:\/\//, '').replace(/^(www\.|m\.|web\.)/, '');
+  u = u.split('?')[0].split('#')[0];
+  return u.replace(/\/+$/, '');
+}
+async function metaFetchAll(){
+  if (!getSyncUrl()) { toast('先在「设置」里连接 Google Sheet'); return null; }
+  const res = await postToSheet({ action:'meta_fetch' });
+  if (!res.ok) { toast(res.error || '未配置：看「设置 → 自动读取」教程'); return null; }
+  return res;
+}
+async function syncMeta(){
+  toast('正在读取 Facebook / Instagram 数据…');
+  let res;
+  try { res = await metaFetchAll(); } catch (e) { return toast('读取失败：' + e.message); }
+  if (!res) return;
+  const storedMp = store.get('metaPage', '');
+  const metaPage = pageNames().includes(storedMp) ? storedMp : pageNames()[0];
+  const byLink = new Map(), byId = new Map();
+  contents.forEach(c => { const L = normLink(c.link); if (L) byLink.set(L, c); byId.set(String(c.id), c); });
+  let added = 0, updated = 0;
+  const apply = (r, platform) => {
+    const rid = (platform === 'Facebook' ? 'fb|' : 'ig|') + r.id;
+    const rec = byId.get(rid) || byLink.get(normLink(r.link));
+    if (rec) {
+      rec.views = r.views || rec.views || 0;
+      rec.likes = r.likes || 0;
+      rec.comments = r.comments || 0;
+      rec.shares = (r.shares != null && r.shares) ? r.shares : (rec.shares || 0);
+      if (r.saves != null && r.saves) rec.saves = r.saves;
+      rec.synced = false; rec.demo = false; updated++;
+    } else {
+      contents.push({
+        id:rid, date:r.date || iso(new Date()), page:metaPage, platform,
+        title:r.title || '(无标题)', type:r.type || '图文', link:r.link || '',
+        views:r.views || 0, likes:r.likes || 0, comments:r.comments || 0,
+        shares:r.shares || 0, saves:r.saves || 0,
+        note:'自动导入', createdAt:nowIso(), synced:false
+      });
+      added++;
+    }
+  };
+  (res.fb || []).forEach(r => apply(r, 'Facebook'));
+  (res.ig || []).forEach(r => apply(r, 'Instagram'));
+  saveAll(); renderAll(); pushPending();
+  toast('同步完成：新增 ' + added + ' 条，更新 ' + updated + ' 条'
+    + (res.fbError || res.igError ? '（部分平台失败，去设置检查状态）' : ''));
+}
+async function fetchOnePost(){
+  const link = normLink($('#f-link').value);
+  if (!link) return toast('先在「链接」里粘贴帖子的永久链接');
+  toast('正在读取…');
+  let res;
+  try { res = await metaFetchAll(); } catch (e) { return toast('读取失败：' + e.message); }
+  if (!res) return;
+  const all = [...(res.fb || []).map(r => ({ ...r, platform:'Facebook' })),
+               ...(res.ig || []).map(r => ({ ...r, platform:'Instagram' }))];
+  const hit = all.find(r => normLink(r.link) === link);
+  if (!hit) return toast('没匹配到这条链接 — 只能读取你主页最近 25 条 FB/IG 帖子，且要用帖子的永久链接');
+  $('#f-views').value = hit.views || '';
+  $('#f-likes').value = hit.likes || '';
+  $('#f-comments').value = hit.comments || '';
+  $('#f-shares').value = hit.shares || '';
+  if (hit.saves != null && hit.saves) $('#f-saves').value = hit.saves;
+  if (!$('#f-title').value.trim() && hit.title) $('#f-title').value = hit.title;
+  if (!$('#f-date').value && hit.date) $('#f-date').value = hit.date;
+  fPlatform = hit.platform;
+  if (hit.type) fType = hit.type;
+  renderPickers();
+  toast('已读取，检查后点保存');
+}
+$('#btn-meta-sync').onclick = syncMeta;
+$('#meta-sync2').onclick = syncMeta;
+$('#f-fetch').onclick = fetchOnePost;
+$('#meta-check').onclick = async () => {
+  if (!getSyncUrl()) return toast('先连接 Google Sheet');
+  try {
+    const r = await postToSheet({ action:'meta_status' });
+    if (!r.ok) return toast(r.error || '检查失败');
+    $('#meta-info').textContent = r.fb
+      ? ('已配置 ✓ Facebook 主页' + (r.ig ? ' + Instagram' : '（未发现绑定的 Instagram）') + ' — 可以点「立即同步」，或按教程第 6 步设成每天全自动。')
+      : '还没配置 — 按下方教程操作一次即可（约 10 分钟）。';
+    toast(r.fb ? 'Meta 读取已配置 ✓' : '还没配置，看下方教程');
+  } catch (e) { toast('检查失败：' + e.message + '（先确认 Apps Script 用的是最新代码）'); }
+};
+
 function updateSyncChip(){
   const chips = $('#chips'); chips.textContent = '';
   const url = getSyncUrl();
@@ -1671,6 +1929,17 @@ function renderSyncInfo(){
     inp.value = p.name; inp.dataset.key = p.key;
     box.append(lab, inp); pg.append(box);
   });
+  // Meta 导入目标主页
+  const mp = $('#meta-page'); mp.textContent = '';
+  const stored = store.get('metaPage', '');
+  const cur = pageNames().includes(stored) ? stored : pageNames()[0];
+  pageNames().forEach(name => {
+    const b = document.createElement('button'); b.type = 'button';
+    b.className = 'pick' + (cur === name ? ' on' : '');
+    b.textContent = name;
+    b.onclick = () => { store.set('metaPage', name); renderSyncInfo(); };
+    mp.append(b);
+  });
 }
 $('#pg-save').onclick = () => {
   const inputs = [...document.querySelectorAll('#pg-grid input')];
@@ -1688,6 +1957,7 @@ $('#pg-save').onclick = () => {
       }));
       checklist.forEach(item => { if (item.page === oldName) item.page = newName; });
       if (state.page === oldName) state.page = newName;
+      if (store.get('metaPage', '') === oldName) store.set('metaPage', newName);
       p.name = newName; renamed++;
     }
   });
