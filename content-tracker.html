@@ -3,24 +3,55 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e0f14" media="(prefers-color-scheme: dark)">
 <title>内容追踪中心 · FANG</title>
 <style>
 :root{
-  --bg:#0e0f14;
-  --surface:#171821;
-  --line:rgba(255,255,255,.08);
-  --line2:rgba(255,255,255,.14);
-  --ink:#f2f3f7;
-  --ink2:rgba(235,238,248,.66);
-  --ink3:rgba(235,238,248,.42);
-  --grid:rgba(255,255,255,.07);
-  --axis:rgba(255,255,255,.16);
-  --fb:#3987e5; --ig:#d55181; --xhs:#e66767; --dy:#199e70;
-  --good:#0ca30c; --bad:#d03b3b; --warn:#fab219;
-  --accent:#3987e5;
+  color-scheme: light dark;
+  /* ---------- 浅色（默认白底） ---------- */
+  --bg:#f5f6f8;
+  --surface:#ffffff;
+  --field:#f2f3f6;
+  --pop:#ffffff;
+  --line:rgba(15,18,25,.10);
+  --line2:rgba(15,18,25,.20);
+  --ink:#171922;
+  --ink2:rgba(23,26,34,.68);
+  --ink3:rgba(23,26,34,.46);
+  --grid:rgba(15,18,25,.08);
+  --axis:rgba(15,18,25,.22);
+  --tab-ink:#ffffff;
+  --fb:#2a78d6; --ig:#e87ba4; --xhs:#e34948; --dy:#1baf7a;
+  --accent:#2a78d6;
+  --good:#0ca30c;
+  --up:#006300; --down:#c53030;
+  --warn-ink:#8a5a00; --warn-line:rgba(200,133,0,.45);
+  --shadow:0 6px 20px rgba(15,18,25,.10);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0e0f14;
+    --surface:#171821;
+    --field:#10111a;
+    --pop:#20222e;
+    --line:rgba(255,255,255,.08);
+    --line2:rgba(255,255,255,.16);
+    --ink:#f2f3f7;
+    --ink2:rgba(235,238,248,.66);
+    --ink3:rgba(235,238,248,.42);
+    --grid:rgba(255,255,255,.07);
+    --axis:rgba(255,255,255,.16);
+    --tab-ink:#12131a;
+    --fb:#3987e5; --ig:#d55181; --xhs:#e66767; --dy:#199e70;
+    --accent:#3987e5;
+    --good:#0ca30c;
+    --up:#2fbf2f; --down:#e05252;
+    --warn-ink:#fab219; --warn-line:rgba(250,178,25,.4);
+    --shadow:0 6px 20px rgba(0,0,0,.4);
+  }
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html{color-scheme:dark}
 body{
   background:var(--bg);color:var(--ink);
   font-family:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
@@ -34,18 +65,29 @@ h1{font-size:24px;font-weight:700;margin-top:2px}
 .sub{color:var(--ink2);font-size:13px;margin-top:2px}
 #chips{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;font-size:12px}
 .chip{border:1px solid var(--line);border-radius:99px;padding:2px 10px;color:var(--ink2)}
-.chip.demo{color:var(--warn);border-color:rgba(250,178,25,.35)}
-nav.tabs{
-  position:sticky;top:0;z-index:30;display:flex;gap:6px;
-  background:rgba(14,15,20,.92);backdrop-filter:blur(10px);
-  padding:10px 0;margin-top:10px;border-bottom:1px solid var(--line);
-  overflow-x:auto;
+.chip.demo{color:var(--warn-ink);border-color:var(--warn-line)}
+/* 顶部固定：功能页签 + 主页选择 */
+.stickybar{
+  position:sticky;top:0;z-index:30;
+  background:var(--bg);
+  background:color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);
+  margin-top:10px;
 }
+nav.tabs{display:flex;gap:6px;padding:10px 0 8px;overflow-x:auto}
 nav.tabs button{
   flex:0 0 auto;border:1px solid var(--line);background:transparent;color:var(--ink2);
   border-radius:99px;padding:7px 16px;font-size:14px;cursor:pointer;
 }
-nav.tabs button.active{background:var(--ink);color:#12131a;border-color:var(--ink);font-weight:600}
+nav.tabs button.active{background:var(--ink);color:var(--tab-ink);border-color:var(--ink);font-weight:600}
+.pagesel{display:flex;gap:6px;align-items:center;padding:0 0 10px;overflow-x:auto}
+.pagesel .ps-label{font-size:12px;color:var(--ink3);flex:0 0 auto;margin-right:2px}
+.pagesel button{
+  flex:0 0 auto;border:1px solid var(--line);background:transparent;color:var(--ink2);
+  border-radius:99px;padding:4px 13px;font-size:13px;cursor:pointer;
+}
+.pagesel button.on{border-color:var(--accent);color:var(--accent);font-weight:600;background:color-mix(in srgb, var(--accent) 10%, transparent)}
 section{padding-top:16px}
 .card{
   background:var(--surface);border:1px solid var(--line);border-radius:16px;
@@ -65,12 +107,12 @@ section{padding-top:16px}
 .hero-num{font-size:48px;font-weight:700;line-height:1.1}
 .hero-line{color:var(--ink2);font-size:13px;margin-top:4px}
 .delta{font-size:13px;font-weight:600}
-.delta.up{color:#2fbf2f}
-.delta.down{color:#e05252}
+.delta.up{color:var(--up)}
+.delta.down{color:var(--down)}
 .delta.flat{color:var(--ink3)}
 .grid-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-bottom:14px}
 .pcard{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px}
-.pcard .phead{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px}
+.phead{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px}
 .dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
 .pcard .pnums{display:flex;gap:18px;margin-top:10px}
 .pcard .pnum b{font-size:20px;font-weight:700;display:block}
@@ -82,8 +124,8 @@ section{padding-top:16px}
 #trend-wrap svg{width:100%;height:auto;display:block}
 #tip{
   position:absolute;pointer-events:none;display:none;z-index:5;
-  background:#20222e;border:1px solid var(--line2);border-radius:10px;
-  padding:8px 10px;font-size:12px;min-width:150px;box-shadow:0 6px 20px rgba(0,0,0,.4);
+  background:var(--pop);border:1px solid var(--line2);border-radius:10px;
+  padding:8px 10px;font-size:12px;min-width:150px;box-shadow:var(--shadow);
 }
 #tip .t-head{color:var(--ink3);margin-bottom:4px}
 #tip .t-row{display:flex;align-items:center;gap:7px;margin-top:2px}
@@ -91,17 +133,17 @@ section{padding-top:16px}
 #tip .t-val{font-weight:700;min-width:44px}
 #tip .t-name{color:var(--ink2)}
 /* 进度条 */
-.meter{height:10px;border-radius:99px;overflow:hidden;background:rgba(57,135,229,.16);margin:6px 0 2px}
+.meter{height:10px;border-radius:99px;overflow:hidden;background:color-mix(in srgb, var(--accent) 16%, transparent);margin:6px 0 2px}
 .meter i{display:block;height:100%;border-radius:99px;background:var(--accent);transition:width .3s}
 .meter-row{display:flex;justify-content:space-between;font-size:13px;color:var(--ink2);align-items:baseline}
 .mini-meters{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:12px}
 /* 按钮 */
 .btn{
-  border:1px solid var(--line2);background:transparent;color:var(--ink);
+  border:1px solid var(--line2);background:var(--surface);color:var(--ink);
   border-radius:12px;padding:9px 16px;font-size:14px;cursor:pointer;
 }
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
-.btn.danger{color:#ff7d7d;border-color:rgba(224,82,82,.4)}
+.btn.danger{color:var(--down);border-color:color-mix(in srgb, var(--down) 40%, transparent)}
 .btn.small{padding:5px 12px;font-size:13px;border-radius:9px}
 .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 /* 表单 */
@@ -109,7 +151,7 @@ section{padding-top:16px}
 .f-grid .full{grid-column:1/-1}
 label.f-label{display:block;font-size:12px;color:var(--ink3);margin:8px 0 4px}
 input.f-in,textarea.f-in{
-  width:100%;background:#10111a;border:1px solid var(--line);border-radius:10px;
+  width:100%;background:var(--field);border:1px solid var(--line);border-radius:10px;
   color:var(--ink);padding:9px 11px;font-size:15px;font-family:inherit;
 }
 input.f-in:focus,textarea.f-in:focus{outline:none;border-color:var(--accent)}
@@ -131,16 +173,14 @@ input.f-in:focus,textarea.f-in:focus{outline:none;border-color:var(--accent)}
 .item:hover{border-color:var(--line2)}
 .item .i-top{display:flex;align-items:center;gap:8px}
 .item .i-title{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.item .i-badge{font-size:11px;color:var(--accent);border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);border-radius:6px;padding:0 6px;flex:0 0 auto}
 .item .i-type{font-size:11px;color:var(--ink3);border:1px solid var(--line);border-radius:6px;padding:0 6px;flex:0 0 auto}
 .item .i-date{font-size:12px;color:var(--ink3);flex:0 0 auto}
 .item .i-metrics{font-size:12.5px;color:var(--ink2);margin-top:5px;font-variant-numeric:tabular-nums}
 .item .i-metrics em{font-style:normal;color:var(--ink3)}
 /* 清单 */
 .ck-group{margin-bottom:14px}
-.ck-task{
-  display:flex;align-items:center;gap:12px;padding:11px 4px;
-  border-bottom:1px solid var(--line);
-}
+.ck-task{display:flex;align-items:center;gap:12px;padding:11px 4px;border-bottom:1px solid var(--line)}
 .ck-task:last-child{border-bottom:none}
 .ck-box{
   width:22px;height:22px;border-radius:7px;border:1.5px solid var(--line2);
@@ -154,8 +194,10 @@ input.f-in:focus,textarea.f-in:focus{outline:none;border-color:var(--accent)}
 .ck-name.done{color:var(--ink3);text-decoration:line-through}
 .ck-sub{font-size:12px;color:var(--ink3)}
 .ck-prog{font-size:13px;color:var(--ink2);font-variant-numeric:tabular-nums;flex:0 0 auto}
-.ck-prog .ok{color:#2fbf2f;font-weight:600}
+.ck-prog .ok{color:var(--up);font-weight:600}
 .followers-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.page-summary{cursor:pointer}
+.page-summary:hover{border-color:var(--line2)}
 /* 周报 */
 .rp table{width:100%;border-collapse:collapse;font-size:13.5px;margin:8px 0;font-variant-numeric:tabular-nums}
 .rp th,.rp td{padding:7px 8px;text-align:right;border-bottom:1px solid var(--line)}
@@ -172,18 +214,19 @@ ol.steps li{margin:6px 0}
 details.gs{margin-top:10px}
 details.gs summary{cursor:pointer;color:var(--accent);font-size:14px}
 pre.gs-pre{
-  margin-top:8px;background:#10111a;border:1px solid var(--line);border-radius:10px;
+  margin-top:8px;background:var(--field);border:1px solid var(--line);border-radius:10px;
   padding:12px;font-size:11.5px;line-height:1.5;overflow:auto;max-height:340px;color:var(--ink2);
 }
 .sync-info{font-size:13px;color:var(--ink2);margin-top:10px}
 a.link{color:var(--accent);text-decoration:none}
 .empty{color:var(--ink3);font-size:14px;text-align:center;padding:30px 0}
+.pg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
 /* toast */
 #toast{
   position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);
-  background:#20222e;border:1px solid var(--line2);color:var(--ink);
+  background:var(--pop);border:1px solid var(--line2);color:var(--ink);
   padding:10px 18px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;
-  transition:all .25s;z-index:99;max-width:86vw;text-align:center;
+  transition:all .25s;z-index:99;max-width:86vw;text-align:center;box-shadow:var(--shadow);
 }
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
@@ -192,19 +235,22 @@ a.link{color:var(--accent);text-decoration:none}
 <div class="wrap">
 
 <header class="top">
-  <div class="eyebrow">FANG · Social Content</div>
+  <div class="eyebrow">Social Content · 3 Pages</div>
   <h1>内容追踪中心</h1>
-  <div class="sub">Facebook · Instagram · 小红书 · 抖音 — 内容记录 / 互动监控 / 必做清单 / 周报</div>
+  <div class="sub">3 个主页 × Facebook · Instagram · 小红书 · 抖音 — 内容记录 / 互动监控 / 必做清单 / 周报</div>
   <div id="chips"></div>
 </header>
 
-<nav class="tabs" id="tabs">
-  <button data-scr="overview" class="active">总览</button>
-  <button data-scr="content">内容</button>
-  <button data-scr="check">清单</button>
-  <button data-scr="report">周报</button>
-  <button data-scr="sync">设置</button>
-</nav>
+<div class="stickybar">
+  <nav class="tabs" id="tabs">
+    <button data-scr="overview" class="active">总览</button>
+    <button data-scr="content">内容</button>
+    <button data-scr="check">清单</button>
+    <button data-scr="report">周报</button>
+    <button data-scr="sync">设置</button>
+  </nav>
+  <div class="pagesel" id="pagesel"></div>
+</div>
 
 <!-- ============ 总览 ============ -->
 <section id="scr-overview">
@@ -217,7 +263,7 @@ a.link{color:var(--accent);text-decoration:none}
   </div>
 
   <div class="card">
-    <div class="mini-label">本周总互动（点赞 + 评论 + 分享 + 收藏）</div>
+    <div class="mini-label" id="hero-label">本周总互动（点赞 + 评论 + 分享 + 收藏）</div>
     <div class="hero-num" id="hero-num">0</div>
     <div class="hero-line" id="hero-line"></div>
   </div>
@@ -225,7 +271,7 @@ a.link{color:var(--accent);text-decoration:none}
   <div class="grid-cards" id="plat-cards"></div>
 
   <div class="card">
-    <div class="mini-label">近 8 周互动趋势</div>
+    <div class="mini-label" id="trend-title">近 8 周互动趋势</div>
     <div class="legend" id="trend-legend"></div>
     <div id="trend-wrap">
       <svg id="trend-svg"></svg>
@@ -234,7 +280,7 @@ a.link{color:var(--accent);text-decoration:none}
   </div>
 
   <div class="card">
-    <div class="mini-label">本周必做清单进度</div>
+    <div class="mini-label" id="ov-ck-title">本周必做清单进度</div>
     <div class="meter-row"><span id="ov-ck-text"></span><b id="ov-ck-pct"></b></div>
     <div class="meter"><i id="ov-ck-bar" style="width:0%"></i></div>
     <div class="mini-meters" id="ov-ck-plats"></div>
@@ -252,6 +298,10 @@ a.link{color:var(--accent);text-decoration:none}
   <div class="card" id="content-form" hidden>
     <div class="mini-label" id="form-title">记录内容</div>
     <div class="f-grid">
+      <div class="full">
+        <label class="f-label">主页</label>
+        <div class="chips-row" id="f-page"></div>
+      </div>
       <div>
         <label class="f-label">发布日期</label>
         <input class="f-in" type="date" id="f-date">
@@ -308,28 +358,7 @@ a.link{color:var(--accent);text-decoration:none}
     <button class="wk-btn" id="ck-next">›</button>
     <button class="wk-today" id="ck-today">回到本周</button>
   </div>
-
-  <div class="card">
-    <div class="meter-row"><span id="ck-overall-text"></span><b id="ck-overall-pct"></b></div>
-    <div class="meter"><i id="ck-overall-bar" style="width:0%"></i></div>
-  </div>
-
-  <div id="ck-groups"></div>
-
-  <div class="card">
-    <div class="mini-label">本周粉丝数（每周记录一次，自动同步到「每周数据」表）</div>
-    <div class="followers-grid" id="fol-grid"></div>
-    <div class="btn-row"><button class="btn primary small" id="fol-save">保存粉丝数</button></div>
-  </div>
-
-  <div class="card">
-    <div class="mini-label">修改清单</div>
-    <div style="font-size:13px;color:var(--ink2)">
-      必做任务在 Google Sheet 的「必做清单」工作表里设置（平台 / 任务 / 每周目标 / 统计方式）。改完在
-      <a class="link" href="javascript:void(0)" id="ck-pull">这里拉取</a> 即可生效。
-      统计方式为「自动」的任务按当周内容记录自动算进度，「手动」的任务在上方打勾。
-    </div>
-  </div>
+  <div id="ck-body"></div>
 </section>
 
 <!-- ============ 周报 ============ -->
@@ -351,6 +380,15 @@ a.link{color:var(--accent);text-decoration:none}
 <!-- ============ 设置 ============ -->
 <section id="scr-sync" hidden>
   <div class="card">
+    <div class="mini-label">主页管理（3 个主页的名称）</div>
+    <div class="pg-grid" id="pg-grid"></div>
+    <div class="btn-row"><button class="btn primary small" id="pg-save">保存主页名称</button></div>
+    <div style="font-size:12.5px;color:var(--ink3);margin-top:8px">
+      改名后所有记录会自动迁移并同步到表格。如果你在「必做清单」工作表里为某个主页单独加过任务，改名后记得把那几行的「主页」列也改掉。
+    </div>
+  </div>
+
+  <div class="card">
     <div class="mini-label">Google Sheet · 数据库</div>
     <div style="font-size:14px;color:var(--ink2)">
       所有数据都同步到你的表格：<br>
@@ -358,7 +396,7 @@ a.link{color:var(--accent);text-decoration:none}
          href="https://docs.google.com/spreadsheets/d/1PYXxGnVHAEyhiLf18xcLYxOplHmEp-d7S_RdIAKxxME/edit">
         FANG 社媒内容追踪 Content Tracker ↗
       </a><br>
-      <span style="font-size:12.5px;color:var(--ink3)">首次「测试连接」成功后，表格会自动建好：内容记录 / 每周数据 / 必做清单 / 打卡记录 / 使用说明。</span>
+      <span style="font-size:12.5px;color:var(--ink3)">首次「测试连接」成功后，表格会自动建好：内容记录 / 每周数据 / 必做清单 / 打卡记录 / 主页设置 / 使用说明。</span>
     </div>
   </div>
 
@@ -411,35 +449,40 @@ var TABS = {
   weekly:   '每周数据',
   checkoff: '打卡记录',
   checklist:'必做清单',
+  pages:    '主页设置',
   help:     '使用说明'
 };
 var HEADERS = {
-  '内容记录': ['id','日期','平台','标题','类型','链接','浏览量','点赞','评论','分享','收藏','备注','创建时间'],
-  '每周数据': ['id','周一日期','平台','粉丝数','备注','创建时间'],
-  '打卡记录': ['id','周一日期','平台','任务','完成','完成时间'],
-  '必做清单': ['平台','任务','每周目标','统计方式','类型筛选','备注']
+  '内容记录': ['id','日期','主页','平台','标题','类型','链接','浏览量','点赞','评论','分享','收藏','备注','创建时间'],
+  '每周数据': ['id','周一日期','主页','平台','粉丝数','备注','创建时间'],
+  '打卡记录': ['id','周一日期','主页','平台','任务','完成','完成时间'],
+  '必做清单': ['主页','平台','任务','每周目标','统计方式','类型筛选','备注'],
+  '主页设置': ['编号','名称']
 };
 var DEFAULT_CHECKLIST = [
-  ['Facebook','发布内容',3,'自动','','按「内容记录」自动统计'],
-  ['Facebook','回复评论和私信',1,'手动','','完成后在 App 里打勾'],
-  ['Instagram','发布帖子',3,'自动','',''],
-  ['Instagram','发布 Reels',2,'自动','Reels,视频','只统计 Reels/视频类型'],
-  ['Instagram','更新 Story',1,'手动','',''],
-  ['小红书','发布笔记',3,'自动','',''],
-  ['小红书','回复评论',1,'手动','',''],
-  ['抖音','发布视频',3,'自动','视频',''],
-  ['抖音','回复评论',1,'手动','',''],
-  ['全平台','记录本周粉丝数',1,'手动','','在 App「清单」页填写'],
-  ['全平台','周复盘（看周报）',1,'手动','','']
+  ['全部主页','Facebook','发布内容',3,'自动','','按「内容记录」自动统计'],
+  ['全部主页','Facebook','回复评论和私信',1,'手动','','完成后在 App 里打勾'],
+  ['全部主页','Instagram','发布帖子',3,'自动','',''],
+  ['全部主页','Instagram','发布 Reels',2,'自动','Reels,视频','只统计 Reels/视频类型'],
+  ['全部主页','Instagram','更新 Story',1,'手动','',''],
+  ['全部主页','小红书','发布笔记',3,'自动','',''],
+  ['全部主页','小红书','回复评论',1,'手动','',''],
+  ['全部主页','抖音','发布视频',3,'自动','视频',''],
+  ['全部主页','抖音','回复评论',1,'手动','',''],
+  ['全部主页','全平台','记录本周粉丝数',1,'手动','','在 App「清单」页填写'],
+  ['全部主页','全平台','周复盘（看周报）',1,'手动','','']
 ];
+var DEFAULT_PAGES = [['P1','主页 1'],['P2','主页 2'],['P3','主页 3']];
 var HELP_LINES = [
-  'FANG 社媒内容追踪 · 使用说明',
+  '社媒内容追踪 · 使用说明',
   '',
   '这个表格是「内容追踪中心」网页 App 的数据库，两边自动同步。',
   '',
+  '主页设置：3 个主页的名称，可在 App「设置」里改。',
   '内容记录：每发一条内容记一行；浏览/点赞/评论/分享/收藏 可随时更新（在表格或 App 里都行）。',
-  '每周数据：每周记录一次各平台粉丝数，周一日期 = 那一周的星期一。',
-  '必做清单：每周必做任务设置。统计方式=自动 按内容记录算进度；=手动 在 App 里打勾。',
+  '每周数据：每周记录一次各主页各平台粉丝数，周一日期 = 那一周的星期一。',
+  '必做清单：每周必做任务设置。「主页」列填 全部主页 表示每个主页都要做；填具体主页名称则只属于那个主页。',
+  '  统计方式=自动 按内容记录算进度；=手动 在 App 里打勾。',
   '打卡记录：App 打勾后自动写入，一般不用手动改。',
   '',
   '平台名称必须写成：Facebook / Instagram / 小红书 / 抖音',
@@ -453,7 +496,7 @@ function doPost(e) {
     var body = JSON.parse(e.postData.contents);
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     ensureSetup(ss);
-    if (body.action === 'ping')        out = { ok:true, ver:1, name:ss.getName() };
+    if (body.action === 'ping')        out = { ok:true, ver:2, name:ss.getName() };
     else if (body.action === 'push')   out = doPush(ss, body);
     else if (body.action === 'pull')   out = doPull(ss);
     else if (body.action === 'delete') out = doDelete(ss, body);
@@ -466,20 +509,22 @@ function doPost(e) {
 }
 
 function ensureSetup(ss) {
-  [TABS.content, TABS.weekly, TABS.checkoff, TABS.checklist].forEach(function(name){
+  [TABS.content, TABS.weekly, TABS.checkoff, TABS.checklist, TABS.pages].forEach(function(name){
     var sh = ss.getSheetByName(name) || ss.insertSheet(name);
     if (sh.getLastRow() === 0) { sh.appendRow(HEADERS[name]); sh.setFrozenRows(1); }
     if (name === TABS.checklist && sh.getLastRow() === 1) {
       DEFAULT_CHECKLIST.forEach(function(r){ sh.appendRow(r); });
     }
+    if (name === TABS.pages && sh.getLastRow() === 1) {
+      DEFAULT_PAGES.forEach(function(r){ sh.appendRow(r); });
+    }
   });
   if (!ss.getSheetByName(TABS.help)) {
     var h = ss.insertSheet(TABS.help);
     HELP_LINES.forEach(function(t){ h.appendRow([t]); });
-    h.setColumnWidth(1, 640);
+    h.setColumnWidth(1, 680);
   }
-  // 删掉新表默认的空白工作表
-  var names = [TABS.content, TABS.weekly, TABS.checkoff, TABS.checklist, TABS.help];
+  var names = [TABS.content, TABS.weekly, TABS.checkoff, TABS.checklist, TABS.pages, TABS.help];
   ss.getSheets().forEach(function(sh){
     if (names.indexOf(sh.getName()) === -1 && sh.getLastRow() === 0 && ss.getSheets().length > names.length) {
       try { ss.deleteSheet(sh); } catch (e) {}
@@ -506,16 +551,22 @@ function upsertRows(sh, recs, toRow) {
 function doPush(ss, body) {
   var saved = {};
   saved.contents = upsertRows(ss.getSheetByName(TABS.content), body.contents, function(r){
-    return [r.id, r.date, r.platform, r.title || '', r.type || '', r.link || '',
+    return [r.id, r.date, r.page || '', r.platform, r.title || '', r.type || '', r.link || '',
             num(r.views), num(r.likes), num(r.comments), num(r.shares), num(r.saves),
             r.note || '', r.createdAt || ''];
   });
   saved.weekly = upsertRows(ss.getSheetByName(TABS.weekly), body.weekly, function(r){
-    return [r.id, r.weekStart, r.platform, num(r.followers), r.note || '', r.createdAt || ''];
+    return [r.id, r.weekStart, r.page || '', r.platform, num(r.followers), r.note || '', r.createdAt || ''];
   });
   saved.checkoffs = upsertRows(ss.getSheetByName(TABS.checkoff), body.checkoffs, function(r){
-    return [r.id, r.weekStart, r.platform, r.task, r.done ? 'TRUE' : 'FALSE', r.doneAt || ''];
+    return [r.id, r.weekStart, r.page || '', r.platform, r.task, r.done ? 'TRUE' : 'FALSE', r.doneAt || ''];
   });
+  if (body.pages && body.pages.length) {
+    var psh = ss.getSheetByName(TABS.pages);
+    upsertRows(psh, body.pages.map(function(p){ return { id:p.key, name:p.name }; }), function(r){
+      return [r.id, r.name];
+    });
+  }
   return { ok:true, saved:saved };
 }
 
@@ -523,23 +574,28 @@ function doPull(ss) {
   return {
     ok: true,
     contents: readRows(ss, TABS.content, function(r){
-      return { id:String(r[0]), date:fmtD(r[1]), platform:String(r[2]||''), title:String(r[3]||''),
-               type:String(r[4]||''), link:String(r[5]||''), views:num(r[6]), likes:num(r[7]),
-               comments:num(r[8]), shares:num(r[9]), saves:num(r[10]), note:String(r[11]||''),
-               createdAt:String(r[12]||'') };
+      return { id:String(r[0]), date:fmtD(r[1]), page:String(r[2]||''), platform:String(r[3]||''),
+               title:String(r[4]||''), type:String(r[5]||''), link:String(r[6]||''),
+               views:num(r[7]), likes:num(r[8]), comments:num(r[9]), shares:num(r[10]), saves:num(r[11]),
+               note:String(r[12]||''), createdAt:String(r[13]||'') };
     }),
     weekly: readRows(ss, TABS.weekly, function(r){
-      return { id:String(r[0]), weekStart:fmtD(r[1]), platform:String(r[2]||''),
-               followers:num(r[3]), note:String(r[4]||''), createdAt:String(r[5]||'') };
+      return { id:String(r[0]), weekStart:fmtD(r[1]), page:String(r[2]||''), platform:String(r[3]||''),
+               followers:num(r[4]), note:String(r[5]||''), createdAt:String(r[6]||'') };
     }),
     checkoffs: readRows(ss, TABS.checkoff, function(r){
-      return { id:String(r[0]), weekStart:fmtD(r[1]), platform:String(r[2]||''), task:String(r[3]||''),
-               done:(r[4] === true || String(r[4]).toUpperCase() === 'TRUE'), doneAt:String(r[5]||'') };
+      return { id:String(r[0]), weekStart:fmtD(r[1]), page:String(r[2]||''), platform:String(r[3]||''),
+               task:String(r[4]||''), done:(r[5] === true || String(r[5]).toUpperCase() === 'TRUE'),
+               doneAt:String(r[6]||'') };
     }),
     checklist: readRows(ss, TABS.checklist, function(r){
-      return { platform:String(r[0]||''), task:String(r[1]||''), target:num(r[2]) || 1,
-               mode:String(r[3]||'手动'), typeFilter:String(r[4]||''), note:String(r[5]||'') };
-    }, true)
+      return { page:String(r[0]||'全部主页'), platform:String(r[1]||''), task:String(r[2]||''),
+               target:num(r[3]) || 1, mode:String(r[4]||'手动'), typeFilter:String(r[5]||''),
+               note:String(r[6]||'') };
+    }, true),
+    pages: readRows(ss, TABS.pages, function(r){
+      return { key:String(r[0]), name:String(r[1]||'') };
+    })
   };
 }
 
@@ -549,7 +605,7 @@ function readRows(ss, tab, mapper, noIdCheck) {
   var rows = sh.getDataRange().getValues(), out = [];
   for (var i = 1; i < rows.length; i++) {
     if (!noIdCheck && !rows[i][0]) continue;
-    if (noIdCheck && !rows[i][0] && !rows[i][1]) continue;
+    if (noIdCheck && !rows[i][0] && !rows[i][1] && !rows[i][2]) continue;
     out.push(mapper(rows[i]));
   }
   return out;
@@ -576,25 +632,37 @@ function fmtD(v) {
 /* ================= 基础 ================= */
 const $ = s => document.querySelector(s);
 const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1PYXxGnVHAEyhiLf18xcLYxOplHmEp-d7S_RdIAKxxME/edit';
+const darkMQ = window.matchMedia('(prefers-color-scheme: dark)');
+const isDark = () => darkMQ.matches;
 const PLATFORMS = [
-  { name:'Facebook',  short:'FB', color:'var(--fb)',  hex:'#3987e5' },
-  { name:'Instagram', short:'IG', color:'var(--ig)',  hex:'#d55181' },
-  { name:'小红书',     short:'小红书', color:'var(--xhs)', hex:'#e66767' },
-  { name:'抖音',       short:'抖音', color:'var(--dy)',  hex:'#199e70' },
+  { name:'Facebook',  short:'FB',    cssVar:'var(--fb)',  light:'#2a78d6', dark:'#3987e5' },
+  { name:'Instagram', short:'IG',    cssVar:'var(--ig)',  light:'#e87ba4', dark:'#d55181' },
+  { name:'小红书',     short:'小红书', cssVar:'var(--xhs)', light:'#e34948', dark:'#e66767' },
+  { name:'抖音',       short:'抖音',   cssVar:'var(--dy)',  light:'#1baf7a', dark:'#199e70' },
 ];
+const hexOf = p => isDark() ? p.dark : p.light;
+const surfaceHex = () => isDark() ? '#171821' : '#ffffff';
+const inkFaint = () => isDark() ? 'rgba(235,238,248,.42)' : 'rgba(23,26,34,.46)';
+const inkSoft  = () => isDark() ? 'rgba(235,238,248,.66)' : 'rgba(23,26,34,.68)';
 const TYPES = ['图文','视频','Reels','Story','直播','笔记'];
+const ALL_PAGES = '全部主页';
 const DEFAULT_CHECKLIST = [
-  { platform:'Facebook',  task:'发布内容',        target:3, mode:'自动', typeFilter:'', note:'' },
-  { platform:'Facebook',  task:'回复评论和私信',   target:1, mode:'手动', typeFilter:'', note:'' },
-  { platform:'Instagram', task:'发布帖子',        target:3, mode:'自动', typeFilter:'', note:'' },
-  { platform:'Instagram', task:'发布 Reels',      target:2, mode:'自动', typeFilter:'Reels,视频', note:'' },
-  { platform:'Instagram', task:'更新 Story',      target:1, mode:'手动', typeFilter:'', note:'' },
-  { platform:'小红书',     task:'发布笔记',        target:3, mode:'自动', typeFilter:'', note:'' },
-  { platform:'小红书',     task:'回复评论',        target:1, mode:'手动', typeFilter:'', note:'' },
-  { platform:'抖音',       task:'发布视频',        target:3, mode:'自动', typeFilter:'视频', note:'' },
-  { platform:'抖音',       task:'回复评论',        target:1, mode:'手动', typeFilter:'', note:'' },
-  { platform:'全平台',     task:'记录本周粉丝数',   target:1, mode:'手动', typeFilter:'', note:'在「清单」页下方填写' },
-  { platform:'全平台',     task:'周复盘（看周报）', target:1, mode:'手动', typeFilter:'', note:'' },
+  { page:ALL_PAGES, platform:'Facebook',  task:'发布内容',        target:3, mode:'自动', typeFilter:'', note:'' },
+  { page:ALL_PAGES, platform:'Facebook',  task:'回复评论和私信',   target:1, mode:'手动', typeFilter:'', note:'' },
+  { page:ALL_PAGES, platform:'Instagram', task:'发布帖子',        target:3, mode:'自动', typeFilter:'', note:'' },
+  { page:ALL_PAGES, platform:'Instagram', task:'发布 Reels',      target:2, mode:'自动', typeFilter:'Reels,视频', note:'' },
+  { page:ALL_PAGES, platform:'Instagram', task:'更新 Story',      target:1, mode:'手动', typeFilter:'', note:'' },
+  { page:ALL_PAGES, platform:'小红书',     task:'发布笔记',        target:3, mode:'自动', typeFilter:'', note:'' },
+  { page:ALL_PAGES, platform:'小红书',     task:'回复评论',        target:1, mode:'手动', typeFilter:'', note:'' },
+  { page:ALL_PAGES, platform:'抖音',       task:'发布视频',        target:3, mode:'自动', typeFilter:'视频', note:'' },
+  { page:ALL_PAGES, platform:'抖音',       task:'回复评论',        target:1, mode:'手动', typeFilter:'', note:'' },
+  { page:ALL_PAGES, platform:'全平台',     task:'记录本周粉丝数',   target:1, mode:'手动', typeFilter:'', note:'在「清单」页下方填写' },
+  { page:ALL_PAGES, platform:'全平台',     task:'周复盘（看周报）', target:1, mode:'手动', typeFilter:'', note:'' },
+];
+const DEFAULT_PAGES = [
+  { key:'P1', name:'主页 1' },
+  { key:'P2', name:'主页 2' },
+  { key:'P3', name:'主页 3' },
 ];
 
 const store = {
@@ -605,11 +673,14 @@ let contents  = store.get('contents', null);
 let weekly    = store.get('weekly', []);
 let checkoffs = store.get('checkoffs', []);
 let checklist = store.get('checklist', DEFAULT_CHECKLIST);
+let PAGES     = store.get('pages', DEFAULT_PAGES);
 const saveAll = () => { store.set('contents', contents); store.set('weekly', weekly);
-                        store.set('checkoffs', checkoffs); store.set('checklist', checklist); };
+                        store.set('checkoffs', checkoffs); store.set('checklist', checklist);
+                        store.set('pages', PAGES); };
 const getSyncUrl = () => store.get('syncurl', '');
 const tombs = () => new Set(store.get('tombs', []));
 const addTomb = id => { const t = store.get('tombs', []); t.push(String(id)); store.set('tombs', t); };
+const pageNames = () => PAGES.map(p => p.name);
 
 /* ---------- 日期 / 周 ---------- */
 function parseD(s){ const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); }
@@ -632,51 +703,77 @@ function fmtNum(n){
 function nowIso(){ return new Date().toISOString(); }
 function uid(){ return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7); }
 
+/* ---------- 旧数据迁移（v1 → v2：补主页字段） ---------- */
+function migrate(){
+  const p1 = PAGES[0].name;
+  let touched = false;
+  [contents, weekly, checkoffs].forEach(arr => (arr || []).forEach(r => {
+    if (!r.page) { r.page = p1; touched = true; }
+  }));
+  if (Array.isArray(checklist) && checklist.length && !checklist[0].page) {
+    checklist = DEFAULT_CHECKLIST; touched = true;
+  }
+  if (touched) saveAll();
+}
+
 /* ---------- 示例数据 ---------- */
 function seedDemo(){
   const t = thisMonday();
   const d = (w, dow) => iso(addDays(t, w*7 + dow));
-  const C = (w, dow, platform, title, type, m) => ({
-    id:'demo-'+uid(), date:d(w,dow), platform, title, type, link:'',
+  const P = pageNames();
+  const C = (w, dow, page, platform, title, type, m) => ({
+    id:'demo-'+uid(), date:d(w,dow), page, platform, title, type, link:'',
     views:m[0], likes:m[1], comments:m[2], shares:m[3], saves:m[4],
     note:'示例数据', createdAt:nowIso(), synced:true, demo:true
   });
   contents = [
-    C(-2,1,'Instagram','有一种状态，叫 FANG · 预告','Reels',[3200,210,18,12,35]),
-    C(-2,2,'小红书','如何选第一条木质手串','图文',[1850,96,22,5,88]),
-    C(-2,3,'Facebook','周年庆倒计时 · 门店预告','图文',[900,45,6,9,2]),
-    C(-2,4,'抖音','沉香线香点燃的 10 分钟','视频',[5400,320,41,28,66]),
-    C(-2,5,'Instagram','工作室日常 · 选料','图文',[1100,88,7,3,12]),
-    C(-1,0,'Instagram','730 天，我们走了多远（2周年品牌片）','视频',[4100,280,25,19,52]),
-    C(-1,1,'小红书','疤款手串：接受自己的不完美','图文',[2600,150,34,8,120]),
-    C(-1,2,'Facebook','7.15–8.15 周年庆活动预告','图文',[1200,60,10,14,3]),
-    C(-1,3,'抖音','选手串的三个问题','视频',[6800,410,55,33,90]),
-    C(-1,4,'Instagram','幕后花絮 · 拍摄日','Story',[800,60,4,2,1]),
-    C(-1,5,'小红书','沐浴露的 10 分钟仪式感','图文',[1900,120,19,6,75]),
-    C(0,0,'小红书','周年庆第一波上新预告','图文',[600,40,9,2,30]),
-    C(0,1,'抖音','打磨一颗珠子需要多久？','视频',[2100,150,21,9,25]),
+    // 主页 1（FANG 风格示例）
+    C(-2,1,P[0],'Instagram','有一种状态，叫 FANG · 预告','Reels',[3200,210,18,12,35]),
+    C(-2,2,P[0],'小红书','如何选第一条木质手串','图文',[1850,96,22,5,88]),
+    C(-2,3,P[0],'Facebook','周年庆倒计时 · 门店预告','图文',[900,45,6,9,2]),
+    C(-2,4,P[0],'抖音','沉香线香点燃的 10 分钟','视频',[5400,320,41,28,66]),
+    C(-1,0,P[0],'Instagram','730 天，我们走了多远（2周年品牌片）','视频',[4100,280,25,19,52]),
+    C(-1,1,P[0],'小红书','疤款手串：接受自己的不完美','图文',[2600,150,34,8,120]),
+    C(-1,2,P[0],'Facebook','7.15–8.15 周年庆活动预告','图文',[1200,60,10,14,3]),
+    C(-1,3,P[0],'抖音','选手串的三个问题','视频',[6800,410,55,33,90]),
+    C(0,0,P[0],'小红书','周年庆第一波上新预告','图文',[600,40,9,2,30]),
+    C(0,1,P[0],'抖音','打磨一颗珠子需要多久？','视频',[2100,150,21,9,25]),
+    // 主页 2
+    C(-2,2,P[1],'Instagram','新品开箱 · 幕后','图文',[900,70,6,2,10]),
+    C(-1,1,P[1],'Instagram','一周好物分享','Reels',[2300,180,14,9,26]),
+    C(-1,4,P[1],'抖音','门店日常 vlog','视频',[3100,240,28,15,33]),
+    C(0,1,P[1],'Instagram','客户回访小故事','图文',[500,38,5,1,6]),
+    // 主页 3
+    C(-1,2,P[2],'小红书','踩坑合集：新手避雷','图文',[1500,110,26,4,95]),
+    C(-1,5,P[2],'Facebook','周末活动回顾','图文',[700,42,8,6,2]),
+    C(0,0,P[2],'小红书','七月清单','图文',[400,30,7,1,22]),
   ];
-  const W = (w, platform, followers) => ({
-    id:'wk|'+d(w,0)+'|'+platform, weekStart:d(w,0), platform, followers,
+  const W = (w, page, platform, followers) => ({
+    id:'wk|'+d(w,0)+'|'+page+'|'+platform, weekStart:d(w,0), page, platform, followers,
     note:'示例数据', createdAt:nowIso(), synced:true, demo:true
   });
   weekly = [
-    W(-2,'Facebook',1850), W(-2,'Instagram',4460), W(-2,'小红书',2080), W(-2,'抖音',3260),
-    W(-1,'Facebook',1868), W(-1,'Instagram',4520), W(-1,'小红书',2130), W(-1,'抖音',3300),
-    W(0,'Facebook',1890),  W(0,'Instagram',4585),  W(0,'小红书',2210),  W(0,'抖音',3340),
+    W(-2,P[0],'Facebook',1850), W(-2,P[0],'Instagram',4460), W(-2,P[0],'小红书',2080), W(-2,P[0],'抖音',3260),
+    W(-1,P[0],'Facebook',1868), W(-1,P[0],'Instagram',4520), W(-1,P[0],'小红书',2130), W(-1,P[0],'抖音',3300),
+    W(0,P[0],'Facebook',1890),  W(0,P[0],'Instagram',4585),  W(0,P[0],'小红书',2210),  W(0,P[0],'抖音',3340),
+    W(-1,P[1],'Instagram',1260), W(-1,P[1],'抖音',880),
+    W(0,P[1],'Instagram',1305),  W(0,P[1],'抖音',910),
+    W(-1,P[2],'小红书',560), W(0,P[2],'小红书',595),
   ];
-  const K = (w, platform, task) => ({
-    id:'ck|'+d(w,0)+'|'+platform+'|'+task, weekStart:d(w,0), platform, task,
+  const K = (w, page, platform, task) => ({
+    id:'ck|'+d(w,0)+'|'+page+'|'+platform+'|'+task, weekStart:d(w,0), page, platform, task,
     done:true, doneAt:nowIso(), synced:true, demo:true
   });
   checkoffs = [
-    K(-1,'Facebook','回复评论和私信'), K(-1,'Instagram','更新 Story'),
-    K(-1,'小红书','回复评论'), K(-1,'抖音','回复评论'),
-    K(-1,'全平台','记录本周粉丝数'), K(-1,'全平台','周复盘（看周报）'),
+    K(-1,P[0],'Facebook','回复评论和私信'), K(-1,P[0],'Instagram','更新 Story'),
+    K(-1,P[0],'小红书','回复评论'), K(-1,P[0],'抖音','回复评论'),
+    K(-1,P[0],'全平台','记录本周粉丝数'), K(-1,P[0],'全平台','周复盘（看周报）'),
+    K(-1,P[1],'Instagram','更新 Story'), K(-1,P[1],'抖音','回复评论'),
+    K(-1,P[2],'小红书','回复评论'),
   ];
   saveAll();
 }
-if (contents === null) seedDemo();
+if (contents === null) seedDemo(); else migrate();
 const hasDemo = () => contents.some(c => c.demo) || weekly.some(w => w.demo) || checkoffs.some(k => k.demo);
 function clearDemo(){
   contents  = contents.filter(c => !c.demo);
@@ -685,26 +782,42 @@ function clearDemo(){
   saveAll(); renderAll(); toast('已清除示例数据');
 }
 
-/* ---------- 统计 ---------- */
+/* ---------- 统计（page = 具体主页名 或 '全部'） ---------- */
 const engage = c => (Number(c.likes)||0)+(Number(c.comments)||0)+(Number(c.shares)||0)+(Number(c.saves)||0);
 const inWeek = (c, wk) => weekOf(c.date) === wk;
-function weekStats(wk){
+const inPage = (r, page) => page === '全部' || r.page === page;
+function weekStats(wk, page){
   const per = {};
   PLATFORMS.forEach(p => per[p.name] = { count:0, views:0, engage:0 });
   let total = { count:0, views:0, engage:0 };
   contents.forEach(c => {
-    if (!inWeek(c, wk) || !per[c.platform]) return;
+    if (!inWeek(c, wk) || !inPage(c, page) || !per[c.platform]) return;
     per[c.platform].count++; per[c.platform].views += Number(c.views)||0; per[c.platform].engage += engage(c);
     total.count++; total.views += Number(c.views)||0; total.engage += engage(c);
   });
   return { per, total };
 }
-function followersInfo(platform, wk){
-  const recs = weekly.filter(w => w.platform === platform && w.weekStart <= wk)
-                     .sort((a,b) => a.weekStart < b.weekStart ? -1 : 1);
-  if (!recs.length) return null;
-  const cur = recs[recs.length-1], prev = recs.length > 1 ? recs[recs.length-2] : null;
-  return { followers:cur.followers, delta: prev ? cur.followers - prev.followers : null };
+function pageWeekTotal(wk, page){
+  let t = { count:0, views:0, engage:0 };
+  contents.forEach(c => {
+    if (!inWeek(c, wk) || c.page !== page) return;
+    t.count++; t.views += Number(c.views)||0; t.engage += engage(c);
+  });
+  return t;
+}
+function followersInfo(platform, wk, page){
+  const pages = page === '全部' ? pageNames() : [page];
+  let followers = 0, delta = 0, has = false, hasDelta = false;
+  pages.forEach(pg => {
+    const recs = weekly.filter(w => w.platform === platform && w.page === pg && w.weekStart <= wk)
+                       .sort((a,b) => a.weekStart < b.weekStart ? -1 : 1);
+    if (!recs.length) return;
+    has = true;
+    const cur = recs[recs.length-1];
+    followers += Number(cur.followers) || 0;
+    if (recs.length > 1) { hasDelta = true; delta += (Number(cur.followers)||0) - (Number(recs[recs.length-2].followers)||0); }
+  });
+  return has ? { followers, delta: hasDelta ? delta : null } : null;
 }
 function deltaEl(cur, prev, goodUp = true){
   const span = document.createElement('span'); span.className = 'delta';
@@ -718,24 +831,39 @@ function deltaEl(cur, prev, goodUp = true){
   span.textContent = (up ? '↑ ' : '↓ ') + Math.abs(pct) + '%';
   return span;
 }
-/* 清单进度：返回 [{platform, task, mode, target, n, done}] */
-function checklistStatus(wk){
-  return checklist.map(item => {
-    const target = Number(item.target) || 1;
-    if ((item.mode || '手动').indexOf('自动') > -1) {
-      const filters = (item.typeFilter || '').split(/[,，]/).map(s => s.trim()).filter(Boolean);
-      const n = contents.filter(c => inWeek(c, wk)
-        && (item.platform === '全平台' || c.platform === item.platform)
-        && (!filters.length || filters.includes(c.type))).length;
-      return { ...item, target, n, done: n >= target, auto:true };
-    }
-    const k = checkoffs.find(k => k.weekStart === wk && k.platform === item.platform && k.task === item.task);
-    return { ...item, target, n: (k && k.done) ? 1 : 0, done: !!(k && k.done), auto:false };
+/* 某主页某周的清单状态 */
+function checklistStatus(wk, page){
+  return checklist
+    .filter(item => (item.page || ALL_PAGES) === ALL_PAGES || item.page === page)
+    .map(item => {
+      const target = Number(item.target) || 1;
+      if ((item.mode || '手动').indexOf('自动') > -1) {
+        const filters = (item.typeFilter || '').split(/[,，]/).map(s => s.trim()).filter(Boolean);
+        const n = contents.filter(c => inWeek(c, wk) && c.page === page
+          && (item.platform === '全平台' || c.platform === item.platform)
+          && (!filters.length || filters.includes(c.type))).length;
+        return { ...item, target, n, done: n >= target, auto:true };
+      }
+      const k = checkoffs.find(k => k.weekStart === wk && k.page === page
+        && k.platform === item.platform && k.task === item.task);
+      return { ...item, target, n: (k && k.done) ? 1 : 0, done: !!(k && k.done), auto:false };
+    });
+}
+/* 汇总多个主页的清单完成度 */
+function checklistSummary(wk, page){
+  const pages = page === '全部' ? pageNames() : [page];
+  let done = 0, total = 0;
+  const perPage = pages.map(pg => {
+    const st = checklistStatus(wk, pg);
+    const d = st.filter(i => i.done).length;
+    done += d; total += st.length;
+    return { page:pg, done:d, total:st.length };
   });
+  return { done, total, perPage };
 }
 
 /* ================= 视图状态 ================= */
-const state = { ovWeek: thisMonday(), ckWeek: thisMonday(), rpWeek: thisMonday(), filter: '全部', editId: null };
+const state = { page:'全部', ovWeek: thisMonday(), ckWeek: thisMonday(), rpWeek: thisMonday(), filter:'全部', editId:null };
 
 function switchScr(name){
   document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('active', b.dataset.scr === name));
@@ -743,6 +871,19 @@ function switchScr(name){
   renderAll();
 }
 $('#tabs').addEventListener('click', e => { if (e.target.dataset.scr) switchScr(e.target.dataset.scr); });
+
+function renderPageSel(){
+  const el = $('#pagesel'); el.textContent = '';
+  const lab = document.createElement('span'); lab.className = 'ps-label'; lab.textContent = '主页';
+  el.append(lab);
+  ['全部', ...pageNames()].forEach(name => {
+    const b = document.createElement('button');
+    b.textContent = name;
+    b.classList.toggle('on', state.page === name);
+    b.onclick = () => { state.page = name; renderPageSel(); renderAll(); };
+    el.append(b);
+  });
+}
 
 function bindWeekNav(prefix, key, after){
   $('#'+prefix+'-prev').onclick  = () => { state[key] = addDays(state[key], -7); after(); };
@@ -754,13 +895,15 @@ function setWeekLabel(prefix, mon){
   const tag = weekTag(mon);
   $('#'+prefix+'-tag').textContent = tag; $('#'+prefix+'-tag').style.display = tag ? '' : 'none';
 }
+const scopeName = () => state.page === '全部' ? '全部主页' : state.page;
 
 /* ================= 总览 ================= */
 function renderOverview(){
   const wk = iso(state.ovWeek), prevWk = iso(addDays(state.ovWeek, -7));
   setWeekLabel('ov', state.ovWeek);
-  const cur = weekStats(wk), prev = weekStats(prevWk);
+  const cur = weekStats(wk, state.page), prev = weekStats(prevWk, state.page);
 
+  $('#hero-label').textContent = scopeName() + ' · 本周总互动（点赞 + 评论 + 分享 + 收藏）';
   $('#hero-num').textContent = fmtNum(cur.total.engage);
   const hl = $('#hero-line'); hl.textContent = '';
   hl.append('内容 '+cur.total.count+' 条 · 浏览 '+fmtNum(cur.total.views)+' · 对比上周 ');
@@ -771,7 +914,7 @@ function renderOverview(){
     const c = cur.per[p.name], pv = prev.per[p.name];
     const card = document.createElement('div'); card.className = 'pcard';
     const head = document.createElement('div'); head.className = 'phead';
-    const dot = document.createElement('span'); dot.className = 'dot'; dot.style.background = p.color;
+    const dot = document.createElement('span'); dot.className = 'dot'; dot.style.background = p.cssVar;
     head.append(dot, p.name); card.append(head);
     const nums = document.createElement('div'); nums.className = 'pnums';
     [['内容', c.count + ' 条'], ['互动', fmtNum(c.engage)], ['浏览', fmtNum(c.views)]].forEach(([k, v]) => {
@@ -783,7 +926,7 @@ function renderOverview(){
     card.append(nums);
     const foot = document.createElement('div'); foot.className = 'pfoot';
     foot.append('互动 '); foot.append(deltaEl(c.engage, pv.engage));
-    const fi = followersInfo(p.name, wk);
+    const fi = followersInfo(p.name, wk, state.page);
     if (fi) {
       foot.append(' · 粉丝 ' + fmtNum(fi.followers) + ' ');
       if (fi.delta !== null) {
@@ -797,32 +940,49 @@ function renderOverview(){
     cards.append(card);
   });
 
+  $('#trend-title').textContent = scopeName() + ' · 近 8 周互动趋势';
   renderTrend();
 
-  const st = checklistStatus(wk), done = st.filter(i => i.done).length;
-  const pct = st.length ? Math.round(done / st.length * 100) : 0;
-  $('#ov-ck-text').textContent = '完成 ' + done + ' / ' + st.length + ' 项';
+  // 清单进度
+  $('#ov-ck-title').textContent = scopeName() + ' · 本周必做清单进度';
+  const sum = checklistSummary(wk, state.page);
+  const pct = sum.total ? Math.round(sum.done / sum.total * 100) : 0;
+  $('#ov-ck-text').textContent = '完成 ' + sum.done + ' / ' + sum.total + ' 项';
   $('#ov-ck-pct').textContent = pct + '%';
   $('#ov-ck-bar').style.width = pct + '%';
   $('#ov-ck-bar').style.background = pct >= 100 ? 'var(--good)' : 'var(--accent)';
   const plats = $('#ov-ck-plats'); plats.textContent = '';
-  [...PLATFORMS.map(p => p.name), '全平台'].forEach(name => {
-    const items = st.filter(i => i.platform === name);
-    if (!items.length) return;
-    const d = items.filter(i => i.done).length;
-    const box = document.createElement('div');
-    const row = document.createElement('div'); row.className = 'meter-row';
-    const l = document.createElement('span'); l.textContent = name;
-    const r = document.createElement('b'); r.textContent = d + '/' + items.length;
-    row.append(l, r);
-    const m = document.createElement('div'); m.className = 'meter';
-    const p = PLATFORMS.find(p => p.name === name);
-    const hex = p ? p.hex : '#8a8fa3';
-    m.style.background = hex + '2b';
-    const i = document.createElement('i'); i.style.width = (items.length ? d / items.length * 100 : 0) + '%';
-    i.style.background = hex; m.append(i);
-    box.append(row, m); plats.append(box);
-  });
+  if (state.page === '全部') {
+    // 按主页
+    sum.perPage.forEach(pp => {
+      plats.append(miniMeter(pp.page, pp.done, pp.total, isDark() ? '#8a8fa3' : '#5a6072'));
+    });
+  } else {
+    // 按平台
+    const st = checklistStatus(wk, state.page);
+    [...PLATFORMS.map(p => p.name), '全平台'].forEach(name => {
+      const items = st.filter(i => i.platform === name);
+      if (!items.length) return;
+      const d = items.filter(i => i.done).length;
+      const p = PLATFORMS.find(p => p.name === name);
+      plats.append(miniMeter(name, d, items.length, p ? hexOf(p) : (isDark() ? '#8a8fa3' : '#5a6072')));
+    });
+  }
+}
+function miniMeter(label, done, total, hex){
+  const box = document.createElement('div');
+  const row = document.createElement('div'); row.className = 'meter-row';
+  const l = document.createElement('span'); l.textContent = label;
+  const r = document.createElement('b'); r.textContent = done + '/' + total;
+  row.append(l, r);
+  const m = document.createElement('div'); m.className = 'meter';
+  m.style.background = hex + '26';
+  const i = document.createElement('i');
+  i.style.width = (total ? done / total * 100 : 0) + '%';
+  i.style.background = hex;
+  m.append(i);
+  box.append(row, m);
+  return box;
 }
 $('#ov-goto-ck').onclick = () => { state.ckWeek = state.ovWeek; switchScr('check'); };
 
@@ -840,7 +1000,8 @@ function renderTrend(){
   svg.textContent = '';
   const weeks = []; for (let i = 7; i >= 0; i--) weeks.push(iso(addDays(state.ovWeek, -7*i)));
   const series = PLATFORMS.map(p => ({
-    ...p, vals: weeks.map(w => weekStats(w).per[p.name].engage)
+    name:p.name, short:p.short, hex:hexOf(p),
+    vals: weeks.map(w => weekStats(w, state.page).per[p.name].engage)
   }));
   const wrapW = $('#trend-wrap').clientWidth || 780;
   const W = Math.max(340, Math.min(780, wrapW));
@@ -852,18 +1013,20 @@ function renderTrend(){
   const Y = v => padT + (1 - v / maxV) * (H - padT - padB);
   const mk = (tag, attrs) => { const el = document.createElementNS(NS, tag);
     for (const k in attrs) el.setAttribute(k, attrs[k]); return el; };
+  const gridCol = isDark() ? 'rgba(255,255,255,.07)' : 'rgba(15,18,25,.08)';
+  const axisCol = isDark() ? 'rgba(255,255,255,.16)' : 'rgba(15,18,25,.22)';
   // 网格 + y 轴刻度
   for (let g = 0; g <= 4; g++) {
     const v = maxV * g / 4, y = Y(v);
-    svg.append(mk('line', { x1:padL, x2:W-padR, y1:y, y2:y, stroke: g === 0 ? 'rgba(255,255,255,.16)' : 'rgba(255,255,255,.07)', 'stroke-width':1 }));
-    const t = mk('text', { x:padL-8, y:y+4, 'text-anchor':'end', fill:'rgba(235,238,248,.42)', 'font-size':11 });
+    svg.append(mk('line', { x1:padL, x2:W-padR, y1:y, y2:y, stroke: g === 0 ? axisCol : gridCol, 'stroke-width':1 }));
+    const t = mk('text', { x:padL-8, y:y+4, 'text-anchor':'end', fill:inkFaint(), 'font-size':11 });
     t.textContent = fmtNum(v); svg.append(t);
   }
   // x 轴标签（窄屏隔周显示）
   weeks.forEach((w, i) => {
     if (narrow && i % 2 === 0) return;
     const d = parseD(w);
-    const t = mk('text', { x:X(i), y:H-8, 'text-anchor':'middle', fill:'rgba(235,238,248,.42)', 'font-size':11 });
+    const t = mk('text', { x:X(i), y:H-8, 'text-anchor':'middle', fill:inkFaint(), 'font-size':11 });
     t.textContent = (d.getMonth()+1)+'/'+d.getDate(); svg.append(t);
   });
   // 线 + 端点
@@ -871,18 +1034,19 @@ function renderTrend(){
     const dPath = s.vals.map((v, i) => (i ? 'L' : 'M') + X(i) + ' ' + Y(v)).join(' ');
     svg.append(mk('path', { d:dPath, fill:'none', stroke:s.hex, 'stroke-width':2, 'stroke-linejoin':'round', 'stroke-linecap':'round' }));
     const last = s.vals.length - 1;
-    svg.append(mk('circle', { cx:X(last), cy:Y(s.vals[last]), r:4, fill:s.hex, stroke:'#171821', 'stroke-width':2 }));
+    svg.append(mk('circle', { cx:X(last), cy:Y(s.vals[last]), r:4, fill:s.hex, stroke:surfaceHex(), 'stroke-width':2 }));
   });
-  // 末端直接标签（防重叠：按 y 排序后至少隔 14px）
+  // 末端直接标签（防重叠）
   const labs = series.map(s => ({ s, y: Y(s.vals[s.vals.length-1]) })).sort((a, b) => a.y - b.y);
   for (let i = 1; i < labs.length; i++) if (labs[i].y - labs[i-1].y < 14) labs[i].y = labs[i-1].y + 14;
   labs.forEach(l => {
-    const t = mk('text', { x:W-padR+10, y:l.y+4, fill:'rgba(235,238,248,.66)', 'font-size':11.5 });
+    const t = mk('text', { x:W-padR+10, y:l.y+4, fill:inkSoft(), 'font-size':11.5 });
     t.textContent = l.s.short; svg.append(t);
     svg.append(mk('line', { x1:W-padR+2, x2:W-padR+7, y1:l.y, y2:l.y, stroke:l.s.hex, 'stroke-width':3 }));
   });
   // 十字线
-  const cross = mk('line', { x1:0, x2:0, y1:padT, y2:H-padB, stroke:'rgba(255,255,255,.25)', 'stroke-width':1, visibility:'hidden' });
+  const cross = mk('line', { x1:0, x2:0, y1:padT, y2:H-padB,
+    stroke: isDark() ? 'rgba(255,255,255,.25)' : 'rgba(15,18,25,.30)', 'stroke-width':1, visibility:'hidden' });
   svg.append(cross);
   trendGeom = { weeks, series, X, Y, W, H, padL, padR, cross };
   // 图例
@@ -932,12 +1096,21 @@ function renderTrend(){
 })();
 
 /* ================= 内容 ================= */
-let fPlatform = 'Instagram', fType = '图文';
+let fPage = null, fPlatform = 'Instagram', fType = '图文';
 function renderPickers(){
+  if (!fPage || !pageNames().includes(fPage)) fPage = state.page !== '全部' ? state.page : pageNames()[0];
+  const gWrap = $('#f-page'); gWrap.textContent = '';
+  pageNames().forEach(name => {
+    const b = document.createElement('button'); b.type = 'button';
+    b.className = 'pick' + (fPage === name ? ' on' : '');
+    b.textContent = name;
+    b.onclick = () => { fPage = name; renderPickers(); };
+    gWrap.append(b);
+  });
   const pWrap = $('#f-platform'); pWrap.textContent = '';
   PLATFORMS.forEach(p => {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'pick' + (fPlatform === p.name ? ' on' : '');
-    const dot = document.createElement('span'); dot.className = 'dot'; dot.style.width = '8px'; dot.style.height = '8px'; dot.style.background = p.color;
+    const dot = document.createElement('span'); dot.className = 'dot'; dot.style.width = '8px'; dot.style.height = '8px'; dot.style.background = p.cssVar;
     b.append(dot, p.name);
     b.onclick = () => { fPlatform = p.name; renderPickers(); };
     pWrap.append(b);
@@ -958,8 +1131,8 @@ function openForm(rec){
   $('#f-link').value = rec ? rec.link : '';
   $('#f-note').value = rec ? (rec.note === '示例数据' ? '' : rec.note) : '';
   ['views','likes','comments','shares','saves'].forEach(k => $('#f-'+k).value = rec ? (rec[k] || '') : '');
-  fPlatform = rec ? rec.platform : fPlatform;
-  fType = rec ? rec.type : fType;
+  if (rec) { fPage = rec.page; fPlatform = rec.platform; fType = rec.type; }
+  else fPage = state.page !== '全部' ? state.page : fPage;
   renderPickers();
   $('#f-del').hidden = !rec;
   $('#content-form').hidden = false;
@@ -976,14 +1149,14 @@ $('#f-save').onclick = () => {
   if (state.editId) {
     const rec = contents.find(c => c.id === state.editId);
     if (rec) Object.assign(rec, {
-      date, platform:fPlatform, type:fType, title, link:$('#f-link').value.trim(),
+      date, page:fPage, platform:fPlatform, type:fType, title, link:$('#f-link').value.trim(),
       views:num('#f-views'), likes:num('#f-likes'), comments:num('#f-comments'),
       shares:num('#f-shares'), saves:num('#f-saves'), note:$('#f-note').value.trim(),
       synced:false, demo:false
     });
   } else {
     contents.push({
-      id:uid(), date, platform:fPlatform, type:fType, title, link:$('#f-link').value.trim(),
+      id:uid(), date, page:fPage, platform:fPlatform, type:fType, title, link:$('#f-link').value.trim(),
       views:num('#f-views'), likes:num('#f-likes'), comments:num('#f-comments'),
       shares:num('#f-shares'), saves:num('#f-saves'), note:$('#f-note').value.trim(),
       createdAt:nowIso(), synced:false
@@ -1006,13 +1179,12 @@ $('#f-del').onclick = () => {
 };
 
 function renderContentList(){
-  // 平台筛选 chips
   const fl = $('#c-filter'); fl.textContent = '';
   ['全部', ...PLATFORMS.map(p => p.name)].forEach(name => {
     const b = document.createElement('button'); b.className = 'pick' + (state.filter === name ? ' on' : '');
     if (name !== '全部') {
       const p = PLATFORMS.find(p => p.name === name);
-      const dot = document.createElement('span'); dot.className = 'dot'; dot.style.width = '8px'; dot.style.height = '8px'; dot.style.background = p.color;
+      const dot = document.createElement('span'); dot.className = 'dot'; dot.style.width = '8px'; dot.style.height = '8px'; dot.style.background = p.cssVar;
       b.append(dot);
     }
     b.append(name);
@@ -1021,6 +1193,7 @@ function renderContentList(){
   });
   const list = $('#content-list'); list.textContent = '';
   const rows = contents
+    .filter(c => inPage(c, state.page))
     .filter(c => state.filter === '全部' || c.platform === state.filter)
     .sort((a, b) => a.date < b.date ? 1 : a.date > b.date ? -1 : 0);
   if (!rows.length) {
@@ -1046,12 +1219,17 @@ function renderContentList(){
     const p = PLATFORMS.find(p => p.name === c.platform);
     const item = document.createElement('div'); item.className = 'item';
     const top = document.createElement('div'); top.className = 'i-top';
-    const dot = document.createElement('span'); dot.className = 'dot'; dot.style.background = p ? p.color : '#8a8fa3';
+    const dot = document.createElement('span'); dot.className = 'dot'; dot.style.background = p ? p.cssVar : 'var(--ink3)';
     const title = document.createElement('span'); title.className = 'i-title'; title.textContent = c.title;
+    top.append(dot, title);
+    if (state.page === '全部') {
+      const badge = document.createElement('span'); badge.className = 'i-badge'; badge.textContent = c.page;
+      top.append(badge);
+    }
     const type = document.createElement('span'); type.className = 'i-type'; type.textContent = c.type || '—';
     const date = document.createElement('span'); date.className = 'i-date';
     date.textContent = c.date.slice(5).replace('-', '/');
-    top.append(dot, title, type, date);
+    top.append(type, date);
     const met = document.createElement('div'); met.className = 'i-metrics';
     const parts = [['浏', c.views], ['赞', c.likes], ['评', c.comments], ['转', c.shares], ['藏', c.saves]];
     parts.forEach(([k, v], i) => {
@@ -1071,26 +1249,66 @@ function renderContentList(){
 function renderCheck(){
   const wk = iso(state.ckWeek);
   setWeekLabel('ck', state.ckWeek);
-  const st = checklistStatus(wk);
+  const body = $('#ck-body'); body.textContent = '';
+
+  if (state.page === '全部') {
+    // 各主页汇总卡：点进去打卡
+    const hint = document.createElement('div'); hint.className = 'card';
+    hint.style.fontSize = '13.5px'; hint.style.color = 'var(--ink2)';
+    hint.textContent = '每个主页都有自己的一份必做清单。点击一个主页开始打卡：';
+    body.append(hint);
+    pageNames().forEach(pg => {
+      const st = checklistStatus(wk, pg);
+      const done = st.filter(i => i.done).length;
+      const card = document.createElement('div'); card.className = 'card page-summary';
+      const row = document.createElement('div'); row.className = 'meter-row';
+      const l = document.createElement('span'); l.style.fontWeight = '600'; l.style.color = 'var(--ink)';
+      l.textContent = pg;
+      const r = document.createElement('b');
+      r.textContent = done + '/' + st.length + (st.length && done >= st.length ? ' ✓ 全部完成' : '');
+      row.append(l, r);
+      const m = document.createElement('div'); m.className = 'meter';
+      const i = document.createElement('i');
+      i.style.width = (st.length ? done / st.length * 100 : 0) + '%';
+      if (st.length && done >= st.length) i.style.background = 'var(--good)';
+      m.append(i);
+      const foot = document.createElement('div'); foot.style.cssText = 'font-size:12.5px;color:var(--ink3);margin-top:6px';
+      const undone = st.filter(i => !i.done).slice(0, 3).map(i => i.task);
+      foot.textContent = undone.length ? '待办：' + undone.join('、') + (st.filter(i=>!i.done).length > 3 ? ' …' : '') : '本周任务全部完成 🎉';
+      card.append(row, m, foot);
+      card.onclick = () => { state.page = pg; renderPageSel(); renderAll(); };
+      body.append(card);
+    });
+    return;
+  }
+
+  const page = state.page;
+  const st = checklistStatus(wk, page);
   const done = st.filter(i => i.done).length;
   const pct = st.length ? Math.round(done / st.length * 100) : 0;
-  $('#ck-overall-text').textContent = '本周完成 ' + done + ' / ' + st.length + ' 项';
-  $('#ck-overall-pct').textContent = pct + '%';
-  $('#ck-overall-bar').style.width = pct + '%';
-  $('#ck-overall-bar').style.background = pct >= 100 ? 'var(--good)' : 'var(--accent)';
+  const topCard = document.createElement('div'); topCard.className = 'card';
+  const row = document.createElement('div'); row.className = 'meter-row';
+  const l = document.createElement('span'); l.textContent = page + ' · 本周完成 ' + done + ' / ' + st.length + ' 项';
+  const r = document.createElement('b'); r.textContent = pct + '%';
+  row.append(l, r);
+  const m = document.createElement('div'); m.className = 'meter';
+  const bar = document.createElement('i'); bar.style.width = pct + '%';
+  if (pct >= 100) bar.style.background = 'var(--good)';
+  m.append(bar);
+  topCard.append(row, m);
+  body.append(topCard);
 
-  const groups = $('#ck-groups'); groups.textContent = '';
   [...PLATFORMS.map(p => p.name), '全平台'].forEach(name => {
     const items = st.filter(i => i.platform === name);
     if (!items.length) return;
     const card = document.createElement('div'); card.className = 'card ck-group';
     const head = document.createElement('div'); head.className = 'phead'; head.style.marginBottom = '4px';
     const p = PLATFORMS.find(p => p.name === name);
-    const dot = document.createElement('span'); dot.className = 'dot'; dot.style.background = p ? p.color : '#8a8fa3';
+    const dot = document.createElement('span'); dot.className = 'dot'; dot.style.background = p ? p.cssVar : 'var(--ink3)';
     head.append(dot, name);
     card.append(head);
     items.forEach(item => {
-      const row = document.createElement('div'); row.className = 'ck-task';
+      const rowEl = document.createElement('div'); rowEl.className = 'ck-task';
       const box = document.createElement('div');
       box.className = 'ck-box' + (item.done ? ' done' : '') + (item.auto ? ' auto' : '');
       box.textContent = item.done ? '✓' : '';
@@ -1111,65 +1329,88 @@ function renderCheck(){
         const ok = document.createElement('span'); ok.className = 'ok'; ok.textContent = '已完成'; prog.append(ok);
       }
       if (!item.auto) {
-        box.onclick = () => toggleCheckoff(wk, item.platform, item.task, !item.done);
-        row.style.cursor = 'pointer';
-        row.onclick = e => { if (e.target !== box) toggleCheckoff(wk, item.platform, item.task, !item.done); };
+        box.onclick = () => toggleCheckoff(wk, page, item.platform, item.task, !item.done);
+        rowEl.style.cursor = 'pointer';
+        rowEl.onclick = e => { if (e.target !== box) toggleCheckoff(wk, page, item.platform, item.task, !item.done); };
       }
-      row.append(box, main, prog);
-      card.append(row);
+      rowEl.append(box, main, prog);
+      card.append(rowEl);
     });
-    groups.append(card);
+    body.append(card);
   });
 
   // 粉丝数录入
-  const fg = $('#fol-grid'); fg.textContent = '';
+  const folCard = document.createElement('div'); folCard.className = 'card';
+  const folLab = document.createElement('div'); folLab.className = 'mini-label';
+  folLab.textContent = page + ' · 本周粉丝数（每周记录一次，自动同步到「每周数据」表）';
+  folCard.append(folLab);
+  const fg = document.createElement('div'); fg.className = 'followers-grid'; fg.id = 'fol-grid';
   PLATFORMS.forEach(p => {
-    const rec = weekly.find(w => w.weekStart === wk && w.platform === p.name);
+    const rec = weekly.find(w => w.weekStart === wk && w.page === page && w.platform === p.name);
     const box = document.createElement('div');
     const lab = document.createElement('label'); lab.className = 'f-label';
     const dot = document.createElement('span'); dot.className = 'dot';
-    dot.style.cssText = 'width:8px;height:8px;display:inline-block;margin-right:5px;background:' + p.hex;
+    dot.style.cssText = 'width:8px;height:8px;display:inline-block;margin-right:5px;background:' + hexOf(p);
     lab.append(dot, p.name);
     const inp = document.createElement('input'); inp.className = 'f-in'; inp.type = 'number'; inp.min = '0';
     inp.placeholder = '粉丝数'; inp.dataset.platform = p.name;
     if (rec) inp.value = rec.followers;
     box.append(lab, inp); fg.append(box);
   });
+  folCard.append(fg);
+  const folBtns = document.createElement('div'); folBtns.className = 'btn-row';
+  const folBtn = document.createElement('button'); folBtn.className = 'btn primary small'; folBtn.textContent = '保存粉丝数';
+  folBtn.onclick = () => saveFollowers(wk, page);
+  folBtns.append(folBtn); folCard.append(folBtns);
+  body.append(folCard);
+
+  // 修改清单提示
+  const tip = document.createElement('div'); tip.className = 'card';
+  tip.style.cssText = 'font-size:13px;color:var(--ink2)';
+  tip.append('必做任务在 Google Sheet 的「必做清单」工作表里设置：「主页」列填 全部主页 = 每个主页都要做，填具体主页名称 = 只属于那个主页。改完');
+  const a = document.createElement('a'); a.className = 'link'; a.href = 'javascript:void(0)'; a.textContent = ' 点这里拉取 ';
+  a.onclick = () => pullFromSheet(true);
+  tip.append(a, '即可生效。「自动」任务按当周内容记录算进度，「手动」任务在上方打勾。');
+  body.append(tip);
 }
-function toggleCheckoff(wk, platform, task, done){
-  const id = 'ck|' + wk + '|' + platform + '|' + task;
+function toggleCheckoff(wk, page, platform, task, done){
+  const id = 'ck|' + wk + '|' + page + '|' + platform + '|' + task;
   let rec = checkoffs.find(k => k.id === id);
-  if (!rec) { rec = { id, weekStart:wk, platform, task, done:false, doneAt:'', synced:false }; checkoffs.push(rec); }
+  if (!rec) { rec = { id, weekStart:wk, page, platform, task, done:false, doneAt:'', synced:false }; checkoffs.push(rec); }
   rec.done = done; rec.doneAt = done ? nowIso() : ''; rec.synced = false; rec.demo = false;
   saveAll(); renderCheck(); pushPending();
 }
-$('#fol-save').onclick = () => {
-  const wk = iso(state.ckWeek);
+function saveFollowers(wk, page){
   let saved = 0;
   document.querySelectorAll('#fol-grid input').forEach(inp => {
     const v = inp.value.trim();
     if (v === '') return;
     const platform = inp.dataset.platform;
-    const id = 'wk|' + wk + '|' + platform;
+    const id = 'wk|' + wk + '|' + page + '|' + platform;
     let rec = weekly.find(w => w.id === id);
-    if (!rec) { rec = { id, weekStart:wk, platform, followers:0, note:'', createdAt:nowIso(), synced:false }; weekly.push(rec); }
+    if (!rec) { rec = { id, weekStart:wk, page, platform, followers:0, note:'', createdAt:nowIso(), synced:false }; weekly.push(rec); }
     rec.followers = Number(v) || 0; rec.synced = false; rec.demo = false;
     saved++;
   });
   if (!saved) return toast('先填写至少一个平台的粉丝数');
   saveAll(); renderCheck(); pushPending();
-  toast('已保存本周粉丝数');
-};
-$('#ck-pull').onclick = () => pullFromSheet(true);
+  toast('已保存 ' + page + ' 本周粉丝数');
+}
 
 /* ================= 周报 ================= */
-function reportData(wk){
+function reportData(wk, page){
   const prevWk = iso(addDays(parseD(wk), -7));
-  const cur = weekStats(wk), prev = weekStats(prevWk);
-  const st = checklistStatus(wk);
-  const top = contents.filter(c => inWeek(c, wk)).sort((a, b) => engage(b) - engage(a)).slice(0, 3);
-  const undone = st.filter(i => !i.done);
-  return { wk, prevWk, cur, prev, st, top, undone };
+  const cur = weekStats(wk, page), prev = weekStats(prevWk, page);
+  const sum = checklistSummary(wk, page);
+  const top = contents.filter(c => inWeek(c, wk) && inPage(c, page))
+                      .sort((a, b) => engage(b) - engage(a)).slice(0, 3);
+  // 未完成任务（带主页名）
+  const pages = page === '全部' ? pageNames() : [page];
+  let undone = [];
+  pages.forEach(pg => {
+    checklistStatus(wk, pg).forEach(i => { if (!i.done) undone.push({ ...i, pageName:pg }); });
+  });
+  return { wk, prevWk, cur, prev, sum, top, undone, pages };
 }
 function pctTxt(cur, prev){
   if (prev === 0) return cur > 0 ? '新增' : '—';
@@ -1179,56 +1420,67 @@ function pctTxt(cur, prev){
 function renderReport(){
   const wk = iso(state.rpWeek);
   setWeekLabel('rp', state.rpWeek);
-  const R = reportData(wk);
+  const R = reportData(wk, state.page);
   const body = $('#rp-body'); body.textContent = '';
-  const h = (t) => { const e = document.createElement('h3'); e.textContent = t; return e; };
-  const line = (t) => { const e = document.createElement('div'); e.className = 'big-line'; e.textContent = t; return e; };
+  const h = t => { const e = document.createElement('h3'); e.textContent = t; return e; };
+  const line = t => { const e = document.createElement('div'); e.className = 'big-line'; e.textContent = t; return e; };
+  const table = (heads, rows) => {
+    const tbl = document.createElement('table');
+    const tr = document.createElement('tr');
+    heads.forEach(t => { const th = document.createElement('th'); th.textContent = t; tr.append(th); });
+    tbl.append(tr);
+    rows.forEach(cells => {
+      const tr2 = document.createElement('tr');
+      cells.forEach(v => { const td = document.createElement('td'); td.textContent = v; tr2.append(td); });
+      tbl.append(tr2);
+    });
+    return tbl;
+  };
 
-  body.append(h('📊 总览'));
+  body.append(h('📊 总览 · ' + scopeName()));
   body.append(line('发布内容：' + R.cur.total.count + ' 条（上周 ' + R.prev.total.count + ' 条，' + pctTxt(R.cur.total.count, R.prev.total.count) + '）'));
   body.append(line('总互动：' + fmtNum(R.cur.total.engage) + '（上周 ' + fmtNum(R.prev.total.engage) + '，' + pctTxt(R.cur.total.engage, R.prev.total.engage) + '）'));
   body.append(line('总浏览：' + fmtNum(R.cur.total.views) + '（上周 ' + fmtNum(R.prev.total.views) + '，' + pctTxt(R.cur.total.views, R.prev.total.views) + '）'));
-  const doneN = R.st.filter(i => i.done).length;
-  body.append(line('必做清单：完成 ' + doneN + ' / ' + R.st.length + ' 项（' + (R.st.length ? Math.round(doneN / R.st.length * 100) : 0) + '%）'));
+  body.append(line('必做清单：完成 ' + R.sum.done + ' / ' + R.sum.total + ' 项（' + (R.sum.total ? Math.round(R.sum.done / R.sum.total * 100) : 0) + '%）'));
+
+  if (state.page === '全部') {
+    body.append(h('🏠 各主页对比'));
+    body.append(table(['主页', '内容', '浏览', '互动', '互动环比', '清单'],
+      pageNames().map(pg => {
+        const c = pageWeekTotal(wk, pg), pv = pageWeekTotal(R.prevWk, pg);
+        const pp = R.sum.perPage.find(x => x.page === pg);
+        return [pg, c.count, fmtNum(c.views), fmtNum(c.engage), pctTxt(c.engage, pv.engage), pp.done + '/' + pp.total];
+      })));
+  }
 
   body.append(h('📱 各平台'));
-  const tbl = document.createElement('table');
-  const thead = document.createElement('tr');
-  ['平台', '内容', '浏览', '互动', '互动环比', '粉丝', '周增'].forEach(t => {
-    const th = document.createElement('th'); th.textContent = t; thead.append(th);
-  });
-  tbl.append(thead);
-  PLATFORMS.forEach(p => {
-    const c = R.cur.per[p.name], pv = R.prev.per[p.name], fi = followersInfo(p.name, wk);
-    const tr = document.createElement('tr');
-    [p.name, c.count, fmtNum(c.views), fmtNum(c.engage), pctTxt(c.engage, pv.engage),
-     fi ? fmtNum(fi.followers) : '—',
-     fi && fi.delta !== null ? (fi.delta >= 0 ? '+' : '') + fi.delta : '—'
-    ].forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.append(td); });
-    tbl.append(tr);
-  });
-  body.append(tbl);
+  body.append(table(['平台', '内容', '浏览', '互动', '互动环比', '粉丝', '周增'],
+    PLATFORMS.map(p => {
+      const c = R.cur.per[p.name], pv = R.prev.per[p.name], fi = followersInfo(p.name, wk, state.page);
+      return [p.name, c.count, fmtNum(c.views), fmtNum(c.engage), pctTxt(c.engage, pv.engage),
+        fi ? fmtNum(fi.followers) : '—',
+        fi && fi.delta !== null ? (fi.delta >= 0 ? '+' : '') + fi.delta : '—'];
+    })));
 
   body.append(h('🏆 本周 Top 3 内容'));
   if (R.top.length) {
     const ol = document.createElement('ol');
     R.top.forEach(c => {
       const li = document.createElement('li');
-      li.textContent = '「' + c.title + '」 · ' + c.platform + ' · 互动 ' + fmtNum(engage(c)) + ' / 浏览 ' + fmtNum(c.views);
+      li.textContent = '「' + c.title + '」 · ' + c.page + ' · ' + c.platform + ' · 互动 ' + fmtNum(engage(c)) + ' / 浏览 ' + fmtNum(c.views);
       ol.append(li);
     });
     body.append(ol);
-  } else {
-    const e = document.createElement('div'); e.className = 'big-line'; e.textContent = '本周还没有内容记录';
-    body.append(e);
-  }
+  } else body.append(line('本周还没有内容记录'));
 
   body.append(h('✅ 必做清单'));
   const ul = document.createElement('ul');
-  R.st.forEach(i => {
-    const li = document.createElement('li');
-    li.textContent = (i.done ? '✅ ' : '⬜ ') + i.platform + ' · ' + i.task + (i.auto ? '（' + i.n + '/' + i.target + '）' : '');
-    ul.append(li);
+  R.pages.forEach(pg => {
+    checklistStatus(wk, pg).forEach(i => {
+      const li = document.createElement('li');
+      li.textContent = (i.done ? '✅ ' : '⬜ ') + (R.pages.length > 1 ? pg + ' · ' : '') + i.platform + ' · ' + i.task + (i.auto ? '（' + i.n + '/' + i.target + '）' : '');
+      ul.append(li);
+    });
   });
   body.append(ul);
 
@@ -1237,44 +1489,58 @@ function renderReport(){
     const u2 = document.createElement('ul');
     R.undone.forEach(i => {
       const li = document.createElement('li');
-      li.textContent = i.platform + ' · ' + i.task + (i.auto ? '：只完成 ' + i.n + '/' + i.target : ' 未打勾');
+      li.textContent = (R.pages.length > 1 ? i.pageName + ' · ' : '') + i.platform + ' · ' + i.task + (i.auto ? '：只完成 ' + i.n + '/' + i.target : ' 未打勾');
       u2.append(li);
     });
     body.append(u2);
   }
 }
 function reportMarkdown(wk){
-  const R = reportData(wk);
-  const mon = parseD(wk), end = addDays(mon, 6);
+  const R = reportData(wk, state.page);
+  const end = addDays(parseD(wk), 6);
   const L = [];
-  L.push('# 内容周报 · ' + wk + ' ~ ' + iso(end));
+  L.push('# 内容周报 · ' + scopeName() + ' · ' + wk + ' ~ ' + iso(end));
   L.push('');
   L.push('## 总览');
   L.push('- 发布内容：' + R.cur.total.count + ' 条（上周 ' + R.prev.total.count + '，' + pctTxt(R.cur.total.count, R.prev.total.count) + '）');
   L.push('- 总互动：' + R.cur.total.engage + '（上周 ' + R.prev.total.engage + '，' + pctTxt(R.cur.total.engage, R.prev.total.engage) + '）');
   L.push('- 总浏览：' + R.cur.total.views + '（上周 ' + R.prev.total.views + '，' + pctTxt(R.cur.total.views, R.prev.total.views) + '）');
-  const doneN = R.st.filter(i => i.done).length;
-  L.push('- 必做清单：' + doneN + '/' + R.st.length + ' 项（' + (R.st.length ? Math.round(doneN / R.st.length * 100) : 0) + '%）');
+  L.push('- 必做清单：' + R.sum.done + '/' + R.sum.total + ' 项（' + (R.sum.total ? Math.round(R.sum.done / R.sum.total * 100) : 0) + '%）');
+  if (state.page === '全部') {
+    L.push('');
+    L.push('## 各主页对比');
+    L.push('| 主页 | 内容 | 浏览 | 互动 | 互动环比 | 清单 |');
+    L.push('|---|---|---|---|---|---|');
+    pageNames().forEach(pg => {
+      const c = pageWeekTotal(wk, pg), pv = pageWeekTotal(R.prevWk, pg);
+      const pp = R.sum.perPage.find(x => x.page === pg);
+      L.push('| ' + pg + ' | ' + c.count + ' | ' + c.views + ' | ' + c.engage + ' | ' + pctTxt(c.engage, pv.engage) + ' | ' + pp.done + '/' + pp.total + ' |');
+    });
+  }
   L.push('');
   L.push('## 各平台');
   L.push('| 平台 | 内容 | 浏览 | 互动 | 互动环比 | 粉丝 | 周增 |');
   L.push('|---|---|---|---|---|---|---|');
   PLATFORMS.forEach(p => {
-    const c = R.cur.per[p.name], pv = R.prev.per[p.name], fi = followersInfo(p.name, wk);
+    const c = R.cur.per[p.name], pv = R.prev.per[p.name], fi = followersInfo(p.name, wk, state.page);
     L.push('| ' + p.name + ' | ' + c.count + ' | ' + c.views + ' | ' + c.engage + ' | ' + pctTxt(c.engage, pv.engage)
       + ' | ' + (fi ? fi.followers : '—') + ' | ' + (fi && fi.delta !== null ? (fi.delta >= 0 ? '+' : '') + fi.delta : '—') + ' |');
   });
   L.push('');
   L.push('## 本周 Top 3 内容');
-  if (R.top.length) R.top.forEach((c, i) => L.push((i+1) + '. 「' + c.title + '」 · ' + c.platform + ' · 互动 ' + engage(c) + ' / 浏览 ' + c.views));
+  if (R.top.length) R.top.forEach((c, i) => L.push((i+1) + '. 「' + c.title + '」 · ' + c.page + ' · ' + c.platform + ' · 互动 ' + engage(c) + ' / 浏览 ' + c.views));
   else L.push('（本周没有内容记录）');
   L.push('');
   L.push('## 必做清单');
-  R.st.forEach(i => L.push('- ' + (i.done ? '[x]' : '[ ]') + ' ' + i.platform + ' · ' + i.task + (i.auto ? '（' + i.n + '/' + i.target + '）' : '')));
+  R.pages.forEach(pg => {
+    checklistStatus(wk, pg).forEach(i => {
+      L.push('- ' + (i.done ? '[x]' : '[ ]') + ' ' + (R.pages.length > 1 ? pg + ' · ' : '') + i.platform + ' · ' + i.task + (i.auto ? '（' + i.n + '/' + i.target + '）' : ''));
+    });
+  });
   if (R.undone.length) {
     L.push('');
     L.push('## 下周提醒');
-    R.undone.forEach(i => L.push('- ' + i.platform + ' · ' + i.task + (i.auto ? '：只完成 ' + i.n + '/' + i.target : ' 未打勾')));
+    R.undone.forEach(i => L.push('- ' + (R.pages.length > 1 ? i.pageName + ' · ' : '') + i.platform + ' · ' + i.task + (i.auto ? '：只完成 ' + i.n + '/' + i.target : ' 未打勾')));
   }
   return L.join('\n');
 }
@@ -1286,7 +1552,7 @@ $('#rp-dl').onclick = () => {
   const wk = iso(state.rpWeek);
   const blob = new Blob([reportMarkdown(wk)], { type:'text/markdown;charset=utf-8' });
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = '内容周报-' + wk + '.md';
+  a.href = URL.createObjectURL(blob); a.download = '内容周报-' + scopeName() + '-' + wk + '.md';
   a.click(); URL.revokeObjectURL(a.href);
 };
 
@@ -1317,7 +1583,7 @@ async function doPushNow(){
   if (!pc.length && !pw.length && !pk.length) { updateSyncChip(); return; }
   syncing = true;
   try {
-    const result = await postToSheet({ action:'push', contents:pc, weekly:pw, checkoffs:pk });
+    const result = await postToSheet({ action:'push', contents:pc, weekly:pw, checkoffs:pk, pages:PAGES });
     if (result.ok) {
       const mark = (arr, ids) => { const set = new Set((ids || []).map(String));
         arr.forEach(r => { if (set.has(String(r.id))) r.synced = true; }); };
@@ -1357,7 +1623,11 @@ async function pullFromSheet(showToast){
     weekly    = merge(weekly, res.weekly);
     checkoffs = merge(checkoffs, res.checkoffs);
     if (Array.isArray(res.checklist) && res.checklist.length) checklist = res.checklist;
-    saveAll(); renderAll();
+    if (Array.isArray(res.pages) && res.pages.length) {
+      PAGES = res.pages.slice(0, 3).map((p, i) => ({ key:p.key || 'P'+(i+1), name:p.name || '主页 '+(i+1) }));
+      if (!pageNames().includes(state.page) && state.page !== '全部') state.page = '全部';
+    }
+    saveAll(); renderPageSel(); renderAll();
     if (showToast) toast('已从 Sheet 拉取最新数据');
   } catch (err) {
     if (showToast) toast('拉取失败：' + err.message);
@@ -1390,9 +1660,41 @@ function renderSyncInfo(){
     ? '已配置同步 · 内容 ' + total + ' 条，已同步 ' + synced + ' 条，待同步 ' + (total - synced) + ' 条'
     : '尚未配置同步 URL — 按下方教程部署 Apps Script（2 分钟）';
   $('#demo-info').textContent = hasDemo()
-    ? '当前包含示例数据（FANG 主题的演示内容），方便你先看效果。正式使用前可以清除，或连接 Sheet 拉取后自动清除。'
+    ? '当前包含示例数据（3 个主页的演示内容），方便你先看效果。正式使用前可以清除，或连接 Sheet 拉取后自动清除。'
     : '示例数据已清除，当前全部是真实记录。';
+  // 主页管理
+  const pg = $('#pg-grid'); pg.textContent = '';
+  PAGES.forEach((p, i) => {
+    const box = document.createElement('div');
+    const lab = document.createElement('label'); lab.className = 'f-label'; lab.textContent = '主页 ' + (i+1) + '（' + p.key + '）';
+    const inp = document.createElement('input'); inp.className = 'f-in'; inp.type = 'text';
+    inp.value = p.name; inp.dataset.key = p.key;
+    box.append(lab, inp); pg.append(box);
+  });
 }
+$('#pg-save').onclick = () => {
+  const inputs = [...document.querySelectorAll('#pg-grid input')];
+  const names = inputs.map(i => i.value.trim());
+  if (names.some(n => !n)) return toast('主页名称不能为空');
+  if (new Set(names).size !== names.length) return toast('主页名称不能重复');
+  let renamed = 0;
+  inputs.forEach(inp => {
+    const p = PAGES.find(p => p.key === inp.dataset.key);
+    const newName = inp.value.trim();
+    if (p && p.name !== newName) {
+      const oldName = p.name;
+      [contents, weekly, checkoffs].forEach(arr => arr.forEach(r => {
+        if (r.page === oldName) { r.page = newName; if (!r.demo) r.synced = false; }
+      }));
+      checklist.forEach(item => { if (item.page === oldName) item.page = newName; });
+      if (state.page === oldName) state.page = newName;
+      p.name = newName; renamed++;
+    }
+  });
+  if (!renamed) return toast('名称没有变化');
+  saveAll(); renderPageSel(); renderAll(); pushPending();
+  toast('已更新主页名称，记录已迁移');
+};
 $('#btn-url-save').onclick = () => {
   store.set('syncurl', $('#sync-url').value.trim());
   renderSyncInfo(); updateSyncChip(); toast('已保存 URL');
@@ -1408,7 +1710,7 @@ $('#btn-push').onclick = () => { doPushNow(); toast('正在上传…'); };
 $('#btn-pull').onclick = () => pullFromSheet(true);
 $('#btn-demo-clear').onclick = clearDemo;
 $('#btn-export').onclick = () => {
-  const blob = new Blob([JSON.stringify({ contents, weekly, checkoffs, checklist }, null, 2)],
+  const blob = new Blob([JSON.stringify({ pages:PAGES, contents, weekly, checkoffs, checklist }, null, 2)],
     { type:'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = 'content-tracker-backup-' + iso(new Date()) + '.json';
@@ -1444,7 +1746,10 @@ window.addEventListener('resize', () => {
   clearTimeout(rsT);
   rsT = setTimeout(() => { if (!$('#scr-overview').hidden) renderTrend(); }, 200);
 });
+// 跟随 iOS / 系统深浅色切换，实时重绘
+if (darkMQ.addEventListener) darkMQ.addEventListener('change', () => renderAll());
 
+renderPageSel();
 renderPickers();
 renderAll();
 if (getSyncUrl()) pullFromSheet(false).then(() => doPushNow());
