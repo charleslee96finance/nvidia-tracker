@@ -128,6 +128,34 @@ canvas{display:block; width:100%}
 .af-btn:hover{filter:brightness(1.15)}
 .af-result{margin-top:10px; font-size:12px; color:var(--ink-dim); min-height:16px}
 
+/* ---------- duel (you vs Claude) ---------- */
+.duel-grid{display:grid; grid-template-columns:1.25fr 1fr; gap:26px; margin-bottom:6px}
+@media (max-width:760px){.duel-grid{grid-template-columns:1fr}}
+.duel-title{font-size:13.5px; font-weight:600; margin-bottom:10px; display:flex; align-items:center; gap:8px}
+.duel-title i{width:10px; height:10px; border-radius:50%; display:inline-block; flex:none}
+.w-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:6px}
+.w-cell{display:flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:4px; padding:5px 8px}
+.w-cell label{font-family:var(--font-mono); font-size:11px; font-weight:700; flex:1}
+.w-cell input{width:46px; font-family:var(--font-mono); font-size:11.5px; color:var(--ink); background:var(--bg3); border:1px solid var(--line-strong); border-radius:4px; padding:3px 4px; text-align:right}
+.w-sum{margin-top:10px; font-family:var(--font-mono); font-size:12px; color:var(--ink-dim)}
+.w-sum.err{color:var(--rust)}
+.duel-actions{margin-top:10px}
+.c-port{list-style:none}
+.c-port li{display:grid; grid-template-columns:58px 42px 1fr; gap:10px; padding:7px 0; border-bottom:1px solid var(--line); font-size:12.5px; color:var(--ink-dim); align-items:baseline}
+.c-port li:last-child{border-bottom:none}
+.c-port .tk{font-family:var(--font-mono); font-weight:700; color:var(--ink)}
+.c-port .wv{font-family:var(--font-mono); color:var(--strat); font-weight:700}
+.verdict{margin-top:14px; padding:12px 16px; border:1px solid var(--line-strong); border-radius:4px; font-size:13.5px; line-height:1.7}
+.verdict b{font-size:16px}
+.verdict small{display:block; color:var(--ink-faint); font-size:11.5px; margin-top:4px}
+.duel-kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-top:12px}
+.c-why{margin-top:22px; border-top:1px dashed var(--line-strong); padding-top:16px}
+.c-why h3{font-size:14px; font-weight:600; margin-bottom:8px}
+.c-why p{font-size:13px; color:var(--ink-dim); margin-bottom:9px}
+.c-why p b{color:var(--ink)}
+.honesty{margin-top:12px; border:1px solid var(--copper-soft); background:var(--copper-soft); border-radius:4px; padding:10px 14px; font-size:12px; color:var(--ink-dim); line-height:1.7}
+.honesty b{color:var(--copper)}
+
 /* ---------- control bar ---------- */
 .control-bar{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:16px}
 .seg{display:inline-flex; border:1px solid var(--line-strong); border-radius:24px; overflow:hidden; background:var(--bg2)}
@@ -336,6 +364,44 @@ footer b{color:var(--copper)}
         <thead><tr><th>日期</th><th>操作</th><th>标的</th><th style="text-align:right">金额</th><th>触发原因</th></tr></thead>
         <tbody id="logBody"></tbody>
       </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>人机对决 / 你的选择 vs Claude 的选择</h2>
+    <div class="desc">同一段真实行情(2026-01-13 → 2026-07-15)、同样 $100,000 买入持有、现金按 4% 年化计息 -- 唯一的变量是选股与配置。给你想持有的股票填权重(0-100,留白为 0),剩余部分自动算作现金。</div>
+    <div class="duel-grid">
+      <div>
+        <div class="duel-title"><i style="background:var(--mu)"></i>你的组合</div>
+        <div class="w-grid" id="userWeights"></div>
+        <div class="w-sum" id="wSum">股票 0% / 现金 100%</div>
+        <div class="duel-actions"><button type="button" class="af-btn" id="duelRun">回测我的组合,和 Claude 比</button></div>
+      </div>
+      <div>
+        <div class="duel-title"><i style="background:var(--strat)"></i>Claude 的组合(2026-01 视角锁定)</div>
+        <ul class="c-port" id="claudePort"></ul>
+      </div>
+    </div>
+    <div id="duelResult" hidden>
+      <canvas id="duelChart" height="240"></canvas>
+      <div class="legend">
+        <span><i style="background:var(--mu)"></i>你的组合</span>
+        <span><i style="background:var(--strat)"></i>Claude 的组合</span>
+      </div>
+      <div class="verdict" id="verdictLine"></div>
+      <div class="duel-kpis" id="duelKpis"></div>
+    </div>
+    <div class="c-why">
+      <h3>Claude 为什么这样配(以 2026 年 1 月可得的信息)</h3>
+      <p><b>MU 18%</b> -- 2025 年四季度 DRAM 合约价大涨,HBM 2026 年产能在 2025 年底前已基本被客户预订一空;存储是当时整条产业链供需最紧的环节,而周期股在紧缺期的利润弹性远大于平台股。这是整个组合里最激进的一注。</p>
+      <p><b>NVDA 20%</b> -- 链主地位无可替代,但增速在高基数上换挡,估值已充分计入共识乐观;给核心仓而非超配,超额收益预期让位给确定性。</p>
+      <p><b>TSM 15%</b> -- 不管最后谁的芯片赢,都得从它的产线出来;"卖水人"逻辑加上相对温和的估值,是组合里性价比最高的一只。</p>
+      <p><b>AVGO 12%</b> -- 定制 ASIC 是 GPU 平台垄断之外的第二增长极,2025 年 10 月公开的 OpenAI 合作确认了这条曲线的斜率。</p>
+      <p><b>GOOGL 10%</b> -- 2025 年 12 月 Gemini 3 发布扭转了市场对其 AI 叙事的长期怀疑,TPU 自供给它全行业最低的算力成本;作为组合里唯一的应用层敞口。</p>
+      <p><b>SPY 10% + 现金 15%</b> -- 对"我可能整体看错 AI 交易"的对冲。前六个仓位全是同一个宏观叙事,SPY 和现金是承认这一点的认知谦逊仓位。</p>
+      <h3 style="margin-top:16px">2026-07 今日视角补记(据当前新闻)</h3>
+      <p>七月初 AI 芯片股因估值担忧集体回调(MU 曾单日 -13%),SK 海力士 7 月 10 日登陆纳斯达克改变存储板块的供给与资金格局,联储在新主席任内转鹰。MU 的 HBM 虽已卖空至 2027,但股价半年翻近三倍后利好计入充分;AMD 年内 +130% 后风险回报同样变差。<b>如果今天重新决策,我会降低股票总仓位、提高现金与 SPY 比重</b> -- 注意这个判断无法被本页回测验证,它面对的是真正的未知。</p>
+      <div class="honesty"><b>诚实声明:</b>这个对比有一个无法完全消除的缺陷 -- Claude 的组合虽然以 2026 年 1 月的公开信息为依据撰写理由,但构建它的这个 AI 在本次会话中已经见过这半年的行情结果,后见之明的污染无法自证清白。请把 Claude 的成绩当作"一个有纪律的叙事组合的示范",而不是选股能力的证据;同理,单一 6 个月窗口里你和 Claude 谁赢,大部分是运气。</div>
     </div>
   </section>
 
@@ -912,7 +978,140 @@ footer b{color:var(--copper)}
     if(!sim) return;
     renderKPIs(upTo); renderLog(upTo);
     drawEquity(upTo); drawAlloc(upTo);
-    if(!playing) drawCone();
+    if(!playing){
+      drawCone();
+      if(duelU) drawDuel();
+    }
+  }
+
+  /* ---------- duel: user picks vs Claude picks ---------- */
+  var CLAUDE_PORT = [
+    {t:'NVDA', w:20, note:'链主核心仓'},
+    {t:'MU',   w:18, note:'存储紧缺最大弹性'},
+    {t:'TSM',  w:15, note:'代工卖水人'},
+    {t:'AVGO', w:12, note:'定制 ASIC 第二曲线'},
+    {t:'GOOGL',w:10, note:'Gemini 3 + TPU 自供'},
+    {t:'SPY',  w:10, note:'认知谦逊对冲'}
+  ]; /* + 15% cash */
+  var duelU = null, duelC = null;
+
+  function bhSim(pairs){
+    var cash = 100000, sh = {};
+    pairs.forEach(function(p){
+      if(!MARKET.series[p.t] || p.w <= 0) return;
+      var amt = 100000 * p.w / 100;
+      sh[p.t] = amt / MARKET.series[p.t][0];
+      cash -= amt;
+    });
+    var dr = Math.pow(1.04, 1/252) - 1, eq = [];
+    for(var i=0;i<N;i++){
+      if(i>0) cash *= (1+dr);
+      var tot = cash;
+      for(var t in sh) tot += sh[t]*MARKET.series[t][i];
+      eq.push(tot);
+    }
+    var dd = 0, peak = eq[0];
+    eq.forEach(function(v){ if(v>peak) peak=v; dd=Math.max(dd,(peak-v)/peak); });
+    return {eq:eq, ret:(eq[N-1]/100000-1)*100, dd:dd*100, final:eq[N-1]};
+  }
+
+  function drawDuel(){
+    var cv = document.getElementById('duelChart');
+    var g = setupCanvas(cv), ctx=g.ctx, w=g.w, h=g.h;
+    var padL=4, padR=4, padT=14, padB=22;
+    var plotW=w-padL-padR, plotH=h-padT-padB;
+    ctx.clearRect(0,0,w,h);
+    var all = duelU.eq.concat(duelC.eq);
+    var min = Math.min.apply(null, all), max = Math.max.apply(null, all);
+    var pad=(max-min)*0.07 || 1; min-=pad; max+=pad;
+    function x(i){ return padL+(i/(N-1))*plotW; }
+    function y(v){ return padT+plotH-((v-min)/(max-min))*plotH; }
+    var lineC=cssVar('--line'), faint=cssVar('--ink-faint');
+    ctx.strokeStyle=lineC; ctx.lineWidth=1;
+    ctx.font='10px '+cssVar('--font-mono'); ctx.fillStyle=faint;
+    for(var gi=0;gi<=3;gi++){
+      var gy=padT+(plotH/3)*gi;
+      ctx.beginPath(); ctx.moveTo(padL,gy); ctx.lineTo(padL+plotW,gy); ctx.stroke();
+      ctx.fillText('$'+Math.round((max-(max-min)*(gi/3))/1000)+'k', padL+2, gy-3);
+    }
+    var lastMonth=null;
+    for(var mi=0; mi<N; mi++){
+      var m = CAL[mi].d.getMonth();
+      if(m!==lastMonth){ ctx.fillText(CAL[mi].d.toLocaleDateString('en-US',{month:'short'}), x(mi), h-6); lastMonth=m; }
+    }
+    function line(eq, color, width){
+      ctx.beginPath();
+      eq.forEach(function(v,i){ var xx=x(i), yy=y(v); if(i===0) ctx.moveTo(xx,yy); else ctx.lineTo(xx,yy); });
+      ctx.strokeStyle=color; ctx.lineWidth=width; ctx.lineJoin='round'; ctx.stroke();
+    }
+    line(duelC.eq, cssVar('--strat'), 1.9);
+    line(duelU.eq, cssVar('--mu'), 1.9);
+  }
+
+  function renderClaudePort(){
+    document.getElementById('claudePort').innerHTML = CLAUDE_PORT.map(function(p){
+      return '<li><span class="tk">'+p.t+'</span><span class="wv">'+p.w+'%</span><span>'+p.note+'</span></li>';
+    }).join('') + '<li><span class="tk">现金</span><span class="wv">15%</span><span>4% 年化货基,等待波动</span></li>';
+  }
+
+  function duelTickers(){
+    var builtin = ['NVDA','MU','TSM','AVGO','AMD','INTC'];
+    var rest = Object.keys(MARKET.series).filter(function(t){ return builtin.indexOf(t)<0; }).sort();
+    return builtin.concat(rest);
+  }
+
+  function buildDuelGrid(){
+    var el = document.getElementById('userWeights');
+    el.innerHTML = duelTickers().map(function(t){
+      return '<div class="w-cell"><label for="uw-'+t+'">'+t+'</label>'+
+        '<input id="uw-'+t+'" type="number" min="0" max="100" step="5" placeholder="0" aria-label="'+t+' 权重"></div>';
+    }).join('');
+    el.addEventListener('input', updateWSum);
+  }
+
+  function readUserWeights(){
+    return duelTickers().map(function(t){
+      var v = parseFloat(document.getElementById('uw-'+t).value);
+      return {t:t, w: isNaN(v) ? 0 : Math.max(0, v)};
+    }).filter(function(p){ return p.w > 0; });
+  }
+
+  function updateWSum(){
+    var sum = readUserWeights().reduce(function(s,p){ return s+p.w; },0);
+    var el = document.getElementById('wSum');
+    if(sum > 100){
+      el.textContent = '股票 '+sum.toFixed(0)+'% -- 超过 100%,请调低';
+      el.className = 'w-sum err';
+    } else {
+      el.textContent = '股票 '+sum.toFixed(0)+'% / 现金 '+(100-sum).toFixed(0)+'%';
+      el.className = 'w-sum';
+    }
+    return sum;
+  }
+
+  function runDuel(){
+    var sum = updateWSum();
+    if(sum <= 0 || sum > 100) return;
+    duelU = bhSim(readUserWeights());
+    duelC = bhSim(CLAUDE_PORT);
+    document.getElementById('duelResult').hidden = false;
+    drawDuel();
+    var spy = bhSim([{t:'SPY', w:100}]);
+    var diff = duelU.ret - duelC.ret;
+    var who = diff > 0.05 ? '<b>你赢了</b>' : diff < -0.05 ? '<b>Claude 赢了</b>' : '<b>平手</b>';
+    document.getElementById('verdictLine').innerHTML =
+      '你的组合 <b>'+(duelU.ret>=0?'+':'')+duelU.ret.toFixed(1)+'%</b> vs Claude <b>'+
+      (duelC.ret>=0?'+':'')+duelC.ret.toFixed(1)+'%</b> -- '+who+
+      '(差 '+(diff>=0?'+':'')+diff.toFixed(1)+'pp)。同期 100% SPY '+(spy.ret>=0?'+':'')+spy.ret.toFixed(1)+
+      '%,本页规则策略 '+(portfolioReturn()>=0?'+':'')+portfolioReturn().toFixed(1)+'%(含定投口径)。'+
+      '<small>单一 6 个月窗口的胜负大部分是运气,不是能力的证据;换个窗口结论随时可能反转。</small>';
+    document.getElementById('duelKpis').innerHTML = [
+      {lbl:'你的期末净值', val:fmt$(duelU.final), sub:'最大回撤 -'+duelU.dd.toFixed(1)+'%'},
+      {lbl:'Claude 期末净值', val:fmt$(duelC.final), sub:'最大回撤 -'+duelC.dd.toFixed(1)+'%'}
+    ].map(function(c){
+      return '<div class="die"><div class="lbl">'+c.lbl+'</div><div class="val mono">'+c.val+'</div><div class="sub">'+c.sub+'</div></div>';
+    }).join('');
+    document.getElementById('duelResult').scrollIntoView({behavior:'smooth', block:'nearest'});
   }
 
   /* ---------- playback ---------- */
@@ -1056,6 +1255,9 @@ footer b{color:var(--copper)}
   renderChips();
   rerun();
   wireEquityTooltip();
+  renderClaudePort();
+  buildDuelGrid();
+  document.getElementById('duelRun').addEventListener('click', runDuel);
 
   var resizeT;
   window.addEventListener('resize', function(){
