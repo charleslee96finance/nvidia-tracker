@@ -310,6 +310,18 @@ footer b{color:var(--copper)}
   <div class="die-grid" id="kpiGrid"></div>
 
   <section class="panel">
+    <h2>未来 3 个月可能性锥 / 这不是预测</h2>
+    <div class="desc">用当前组合过去 126 个交易日的真实日收益分布,蒙特卡洛模拟 400 条未来 63 个交易日的路径。注意:锥体的上倾只是把过去半年(恰好是上涨行情)的平均日收益机械外推,并不可靠 -- <b>宽度才是重点</b>:即便按乐观外推,5% 分位仍低于当前净值。真实结果可以落在锥外。</div>
+    <canvas id="coneChart" height="240"></canvas>
+    <div class="legend">
+      <span><i style="background:var(--strat)"></i>中位数路径</span>
+      <span><i style="background:var(--strat); opacity:.4"></i>25-75 分位</span>
+      <span><i style="background:var(--strat); opacity:.18"></i>5-95 分位</span>
+      <span><i class="dash"></i>随机样本路径</span>
+    </div>
+  </section>
+
+  <section class="panel">
     <h2>持仓权重变化</h2>
     <div class="desc">策略每周检查一次,权重随再平衡、趋势风控与定投自动调整</div>
     <canvas id="allocChart" height="180"></canvas>
@@ -386,6 +398,13 @@ footer b{color:var(--copper)}
         <div>
           <h3>为什么快照外的公司要选"走势假设"</h3>
           <p>快照是静态嵌入的真实历史数据(截至 2026-07-15),不会自动更新;快照外的代码页面拿不到行情,只能用<b>情景假设</b>回测。同一家公司可以用"强势上涨"和"趋势阴跌"各加一次,看组合回报差多少 -- 这也提醒你:任何回测的结论都被喂进去的数据支配,真实历史同样只是众多可能路径中已经发生的那一条。</p>
+        </div>
+      </div>
+      <div class="rule">
+        <div class="tag">R8</div>
+        <div>
+          <h3>为什么没有"预测未来"按钮</h3>
+          <p>股价短期走势非常接近随机游走,<b>没有任何模型能可靠预测方向</b> -- 能被稳定预测的规律会立刻被套利消灭。严肃的量化系统赚的不是"预知",而是纪律、成本控制和风险定价。上面的可能性锥就是本页最诚实的"预测":它只回答"以当前组合的波动特征,三个月后净值大概率落在哪个区间",对涨跌方向不做任何判断。任何向你保证能预测股价的产品,都值得直接拉黑。</p>
         </div>
       </div>
     </div>
@@ -740,6 +759,90 @@ footer b{color:var(--copper)}
     }
   }
 
+  /* ---------- Monte Carlo cone (uncertainty, not prediction) ---------- */
+  function drawCone(){
+    var cv = document.getElementById('coneChart');
+    var g = setupCanvas(cv), ctx=g.ctx, w=g.w, h=g.h;
+    var padL=4, padR=52, padT=14, padB=22;
+    var plotW=w-padL-padR, plotH=h-padT-padB;
+    ctx.clearRect(0,0,w,h);
+
+    /* daily log returns of the portfolio, net of DCA deposits */
+    var rets=[];
+    for(var i=1;i<N;i++){
+      var dep = sim.contrib[i]-sim.contrib[i-1];
+      var r = (sim.equity[i]-dep)/sim.equity[i-1];
+      if(r>0) rets.push(Math.log(r));
+    }
+    var mu=0; rets.forEach(function(r){mu+=r;}); mu/=rets.length;
+    var s2=0; rets.forEach(function(r){s2+=(r-mu)*(r-mu);});
+    var sd=Math.sqrt(s2/(rets.length-1));
+
+    var H=63, P=400, start=sim.equity[N-1];
+    var rand=mulberry32(777001);
+    function gauss(){
+      var u=0,v=0;
+      while(u===0) u=rand();
+      while(v===0) v=rand();
+      return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+    }
+    var paths=[];
+    for(var p=0;p<P;p++){
+      var val=start, path=[start];
+      for(var t=0;t<H;t++){ val*=Math.exp(mu + sd*gauss()); path.push(val); }
+      paths.push(path);
+    }
+    function pct(arr,q){ var a=arr.slice().sort(function(x,y){return x-y;}); return a[Math.floor(q*(a.length-1))]; }
+    var q05=[],q25=[],q50=[],q75=[],q95=[];
+    for(var t2=0;t2<=H;t2++){
+      var col=paths.map(function(pp){return pp[t2];});
+      q05.push(pct(col,0.05)); q25.push(pct(col,0.25)); q50.push(pct(col,0.5));
+      q75.push(pct(col,0.75)); q95.push(pct(col,0.95));
+    }
+    var min=Math.min.apply(null,q05), max=Math.max.apply(null,q95);
+    var pad=(max-min)*0.06 || 1; min-=pad; max+=pad;
+    function x(t){ return padL+(t/H)*plotW; }
+    function y(v){ return padT+plotH-((v-min)/(max-min))*plotH; }
+
+    var strat=cssVar('--strat'), faint=cssVar('--ink-faint'), lineC=cssVar('--line');
+    ctx.strokeStyle=lineC; ctx.lineWidth=1;
+    ctx.font='10px '+cssVar('--font-mono'); ctx.fillStyle=faint;
+    for(var gi=0;gi<=3;gi++){
+      var gy=padT+(plotH/3)*gi;
+      ctx.beginPath(); ctx.moveTo(padL,gy); ctx.lineTo(padL+plotW,gy); ctx.stroke();
+      ctx.fillText('$'+Math.round((max-(max-min)*(gi/3))/1000)+'k', padL+2, gy-3);
+    }
+    [[21,'+1月'],[42,'+2月'],[63,'+3月']].forEach(function(m){
+      ctx.fillText(m[1], x(m[0])-12, h-6);
+    });
+
+    function band(lo,hi,color){
+      ctx.beginPath();
+      hi.forEach(function(v,t){ var xx=x(t), yy=y(v); if(t===0) ctx.moveTo(xx,yy); else ctx.lineTo(xx,yy); });
+      for(var t3=H;t3>=0;t3--){ ctx.lineTo(x(t3), y(lo[t3])); }
+      ctx.closePath(); ctx.fillStyle=color; ctx.fill();
+    }
+    band(q05,q95, strat+'1c');
+    band(q25,q75, strat+'33');
+
+    ctx.strokeStyle=faint; ctx.lineWidth=0.7; ctx.globalAlpha=0.55;
+    [3,77,199].forEach(function(pi){
+      ctx.beginPath();
+      paths[pi].forEach(function(v,t){ var xx=x(t), yy=y(v); if(t===0) ctx.moveTo(xx,yy); else ctx.lineTo(xx,yy); });
+      ctx.stroke();
+    });
+    ctx.globalAlpha=1;
+
+    ctx.beginPath();
+    q50.forEach(function(v,t){ var xx=x(t), yy=y(v); if(t===0) ctx.moveTo(xx,yy); else ctx.lineTo(xx,yy); });
+    ctx.strokeStyle=strat; ctx.lineWidth=1.8; ctx.lineJoin='round'; ctx.stroke();
+
+    ctx.fillStyle=strat; ctx.fillText(fmt$(q50[H]), padL+plotW+4, y(q50[H])+3);
+    ctx.fillStyle=faint;
+    ctx.fillText(fmt$(q95[H]), padL+plotW+4, y(q95[H])+3);
+    ctx.fillText(fmt$(q05[H]), padL+plotW+4, y(q05[H])+3);
+  }
+
   function renderAllocLegend(){
     var html = sim.list.map(function(a){
       return '<span><i style="background:'+assetColorCSS(a)+'"></i>'+a.t+'</span>';
@@ -809,6 +912,7 @@ footer b{color:var(--copper)}
     if(!sim) return;
     renderKPIs(upTo); renderLog(upTo);
     drawEquity(upTo); drawAlloc(upTo);
+    if(!playing) drawCone();
   }
 
   /* ---------- playback ---------- */
