@@ -230,6 +230,19 @@ pre.gs-pre{
 a.link{color:var(--accent);text-decoration:none}
 .empty{color:var(--ink3);font-size:14px;text-align:center;padding:30px 0}
 .pg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+/* 进度（选题制作进度）*/
+.stage-group{margin-bottom:16px}
+.stage-head{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink3);margin:0 0 8px}
+.stage-head b{color:var(--ink);font-weight:600;font-size:14px}
+.stage-pill{font-size:11px;border:1px solid var(--line);border-radius:99px;padding:1px 9px;color:var(--ink3)}
+.pcard-item{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:8px}
+.pcard-item .pi-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pcard-item .pi-title{font-weight:600;font-size:14px}
+.pcard-item .pi-cat{font-size:11px;color:var(--ink3);border:1px solid var(--line);border-radius:6px;padding:0 6px}
+.pcard-item .pi-meta{font-size:12.5px;color:var(--ink2);margin-top:5px}
+.pcard-item .pi-metrics{font-size:12.5px;color:var(--ink2);margin-top:4px;font-variant-numeric:tabular-nums}
+.pcard-item .pi-note{font-size:12.5px;color:var(--ink3);margin-top:5px}
+.pcard-item .pi-link{font-size:12.5px;color:var(--accent);text-decoration:none;margin-top:4px;display:inline-block}
 /* toast */
 #toast{
   position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);
@@ -246,7 +259,7 @@ a.link{color:var(--accent);text-decoration:none}
 <header class="top">
   <div class="eyebrow">Social Content · 3 Pages</div>
   <h1>内容追踪中心</h1>
-  <div class="sub">3 个主页 × Facebook · Instagram · 小红书 · 抖音 — 内容记录 / 互动监控 / 必做清单 / 周报</div>
+  <div class="sub">3 个主页 × Facebook · Instagram · 小红书 · 抖音 — 内容记录 / 选题进度 / 互动监控 / 必做清单 / 周报</div>
   <div id="chips"></div>
 </header>
 
@@ -254,6 +267,7 @@ a.link{color:var(--accent);text-decoration:none}
   <nav class="tabs" id="tabs">
     <button data-scr="overview" class="active">总览</button>
     <button data-scr="content">内容</button>
+    <button data-scr="progress">进度</button>
     <button data-scr="check">清单</button>
     <button data-scr="report">周报</button>
     <button data-scr="sync">设置</button>
@@ -369,6 +383,21 @@ a.link{color:var(--accent);text-decoration:none}
   <div id="content-list"></div>
 </section>
 
+<!-- ============ 进度（选题制作进度，读取 Sheet1） ============ -->
+<section id="scr-progress" hidden>
+  <div class="card">
+    <div class="mini-label">选题进度 · 来自 Google Sheet 的「Sheet1」</div>
+    <div style="font-size:13px;color:var(--ink2)">
+      这一页只读，团队照旧直接在 Google Sheet 里维护选题、状态、负责人、发布数据 — App 定时拉取显示，不会反过来改表格。
+    </div>
+    <div class="btn-row">
+      <button class="btn small" id="prog-refresh">↻ 刷新</button>
+      <a class="btn small" target="_blank" rel="noopener" id="prog-open-sheet" href="#">在 Sheet 中编辑 ↗</a>
+    </div>
+  </div>
+  <div id="progress-body"></div>
+</section>
+
 <!-- ============ 清单 ============ -->
 <section id="scr-check" hidden>
   <div class="weeknav">
@@ -413,10 +442,10 @@ a.link{color:var(--accent);text-decoration:none}
     <div style="font-size:14px;color:var(--ink2)">
       所有数据都同步到你的表格：<br>
       <a class="link" target="_blank" rel="noopener" id="sheet-link"
-         href="https://docs.google.com/spreadsheets/d/1PYXxGnVHAEyhiLf18xcLYxOplHmEp-d7S_RdIAKxxME/edit">
-        FANG 社媒内容追踪 Content Tracker ↗
+         href="https://docs.google.com/spreadsheets/d/1CxG76Rw43OaQsKA1TZ3kZiFGgCNKlohP18GwIdQjNRo/edit">
+        Content Status ↗
       </a><br>
-      <span style="font-size:12.5px;color:var(--ink3)">首次「测试连接」成功后，表格会自动建好：内容记录 / 每周数据 / 必做清单 / 打卡记录 / 主页设置 / 使用说明。</span>
+      <span style="font-size:12.5px;color:var(--ink3)">首次「测试连接」成功后，会在这张表里自动新增几个工作表：内容记录 / 每周数据 / 必做清单 / 打卡记录 / 主页设置 / 使用说明——你现有的「Sheet1」选题进度表不会被动到，只会被「进度」页读取显示。</span>
     </div>
   </div>
 
@@ -502,7 +531,8 @@ var TABS = {
   checkoff: '打卡记录',
   checklist:'必做清单',
   pages:    '主页设置',
-  help:     '使用说明'
+  help:     '使用说明',
+  pipeline: 'Sheet1'   // 现有的选题制作进度表：App 只读取显示，绝不新建/清空/改写
 };
 var HEADERS = {
   '内容记录': ['id','日期','主页','平台','标题','类型','链接','浏览量','点赞','评论','分享','收藏','备注','创建时间'],
@@ -536,6 +566,8 @@ var HELP_LINES = [
   '必做清单：每周必做任务设置。「主页」列填 全部主页 表示每个主页都要做；填具体主页名称则只属于那个主页。',
   '  统计方式=自动 按内容记录算进度；=手动 在 App 里打勾。',
   '打卡记录：App 打勾后自动写入，一般不用手动改。',
+  'Sheet1：选题制作进度表（原有的表，App 不会新建也不会清空）。App「进度」页只读取显示，',
+  '  照旧直接在这张表里维护选题、当前状态、负责人、发布数据 — 改完 App 刷新就能看到。',
   '',
   '平台名称必须写成：Facebook / Instagram / 小红书 / 抖音',
   '类型建议用：图文 / 视频 / Reels / Story / 直播 / 笔记',
@@ -548,7 +580,7 @@ function doPost(e) {
     var body = JSON.parse(e.postData.contents);
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     ensureSetup(ss);
-    if (body.action === 'ping')        out = { ok:true, ver:3, name:ss.getName() };
+    if (body.action === 'ping')        out = { ok:true, ver:4, name:ss.getName() };
     else if (body.action === 'push')   out = doPush(ss, body);
     else if (body.action === 'pull')   out = doPull(ss);
     else if (body.action === 'delete') out = doDelete(ss, body);
@@ -578,7 +610,7 @@ function ensureSetup(ss) {
     HELP_LINES.forEach(function(t){ h.appendRow([t]); });
     h.setColumnWidth(1, 680);
   }
-  var names = [TABS.content, TABS.weekly, TABS.checkoff, TABS.checklist, TABS.pages, TABS.help];
+  var names = [TABS.content, TABS.weekly, TABS.checkoff, TABS.checklist, TABS.pages, TABS.help, TABS.pipeline];
   ss.getSheets().forEach(function(sh){
     if (names.indexOf(sh.getName()) === -1 && sh.getLastRow() === 0 && ss.getSheets().length > names.length) {
       try { ss.deleteSheet(sh); } catch (e) {}
@@ -649,6 +681,13 @@ function doPull(ss) {
     }, true),
     pages: readRows(ss, TABS.pages, function(r){
       return { key:String(r[0]), name:String(r[1]||'') };
+    }),
+    pipeline: readRows(ss, TABS.pipeline, function(r){
+      return { id:String(r[0]), title:String(r[1]||''), category:String(r[2]||''),
+               owner:String(r[4]||''), stage:String(r[5]||''),
+               plannedDate:fmtD(r[6]), actualDate:fmtD(r[7]), channel:String(r[8]||''),
+               link:String(r[9]||''), viewsMetric:String(r[10]||''), engageMetric:String(r[11]||''),
+               note:String(r[12]||'') };
     })
   };
 }
@@ -816,7 +855,7 @@ function normLink(u) {
 <script>
 /* ================= 基础 ================= */
 const $ = s => document.querySelector(s);
-const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1PYXxGnVHAEyhiLf18xcLYxOplHmEp-d7S_RdIAKxxME/edit';
+const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1CxG76Rw43OaQsKA1TZ3kZiFGgCNKlohP18GwIdQjNRo/edit';
 const darkMQ = window.matchMedia('(prefers-color-scheme: dark)');
 const isDark = () => darkMQ.matches;
 const PLATFORMS = [
@@ -859,9 +898,10 @@ let weekly    = store.get('weekly', []);
 let checkoffs = store.get('checkoffs', []);
 let checklist = store.get('checklist', DEFAULT_CHECKLIST);
 let PAGES     = store.get('pages', DEFAULT_PAGES);
+let pipeline  = store.get('pipeline', []);  // 选题制作进度，只读，来自 Sheet1
 const saveAll = () => { store.set('contents', contents); store.set('weekly', weekly);
                         store.set('checkoffs', checkoffs); store.set('checklist', checklist);
-                        store.set('pages', PAGES); };
+                        store.set('pages', PAGES); store.set('pipeline', pipeline); };
 const getSyncUrl = () => store.get('syncurl', '');
 const tombs = () => new Set(store.get('tombs', []));
 const addTomb = id => { const t = store.get('tombs', []); t.push(String(id)); store.set('tombs', t); };
@@ -956,14 +996,25 @@ function seedDemo(){
     K(-1,P[1],'Instagram','更新 Story'), K(-1,P[1],'抖音','回复评论'),
     K(-1,P[2],'小红书','回复评论'),
   ];
+  pipeline = [
+    { id:'demo-1', title:'2周年品牌片幕后花絮', category:'品牌故事', owner:'Charles', stage:'5-已发布',
+      plannedDate:d(-1,0), actualDate:d(-1,0), channel:'Instagram/抖音', link:'',
+      viewsMetric:'4,100', engageMetric:'376 / 导流 52', note:'反馈很好，考虑做成系列。', demo:true },
+    { id:'demo-2', title:'如何辨别沉香真假', category:'干货科普', owner:'Ashley', stage:'3-制作中',
+      plannedDate:d(1,2), actualDate:'', channel:'小红书', link:'',
+      viewsMetric:'', engageMetric:'', note:'脚本已定稿，等拍摄。', demo:true },
+    { id:'demo-3', title:'客户开箱反应合集', category:'用户见证', owner:'', stage:'1-选题池',
+      plannedDate:'', actualDate:'', channel:'', link:'', viewsMetric:'', engageMetric:'', note:'', demo:true },
+  ];
   saveAll();
 }
 if (contents === null) seedDemo(); else migrate();
-const hasDemo = () => contents.some(c => c.demo) || weekly.some(w => w.demo) || checkoffs.some(k => k.demo);
+const hasDemo = () => contents.some(c => c.demo) || weekly.some(w => w.demo) || checkoffs.some(k => k.demo) || pipeline.some(p => p.demo);
 function clearDemo(){
   contents  = contents.filter(c => !c.demo);
   weekly    = weekly.filter(w => !w.demo);
   checkoffs = checkoffs.filter(k => !k.demo);
+  pipeline  = pipeline.filter(p => !p.demo);
   saveAll(); renderAll(); toast('已清除示例数据');
 }
 
@@ -1052,7 +1103,7 @@ const state = { page:'全部', ovWeek: thisMonday(), ckWeek: thisMonday(), rpWee
 
 function switchScr(name){
   document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('active', b.dataset.scr === name));
-  ['overview','content','check','report','sync'].forEach(s => $('#scr-'+s).hidden = s !== name);
+  ['overview','content','progress','check','report','sync'].forEach(s => $('#scr-'+s).hidden = s !== name);
   renderAll();
 }
 $('#tabs').addEventListener('click', e => { if (e.target.dataset.scr) switchScr(e.target.dataset.scr); });
@@ -1468,6 +1519,94 @@ function renderContentList(){
   });
 }
 
+/* ================= 进度（选题制作进度，只读镜像 Sheet1） ================= */
+function stageSortKey(stage){
+  const m = /^(\d+)/.exec(stage || '');
+  return m ? parseInt(m[1], 10) : 999;
+}
+const stageLabel = stage => (stage || '').replace(/^\d+-/, '').trim() || '未分类';
+function renderProgress(){
+  $('#prog-open-sheet').href = SHEET_URL;
+  const body = $('#progress-body'); body.textContent = '';
+  const items = pipeline.filter(p => p.title && p.title.trim());
+
+  if (!items.length) {
+    const e = document.createElement('div'); e.className = 'empty';
+    e.textContent = getSyncUrl()
+      ? 'Sheet1 里还没有选题 — 直接在 Google Sheet 里加一行，回来点「↻ 刷新」就能看到。'
+      : '还没连接 Google Sheet — 去「设置」配置好同步，这里会显示 Sheet1 里的选题进度。';
+    body.append(e);
+    return;
+  }
+
+  const groups = new Map();
+  items.forEach(p => {
+    const key = p.stage || '';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(p);
+  });
+  const stages = [...groups.keys()].sort((a, b) => stageSortKey(a) - stageSortKey(b) || a.localeCompare(b));
+
+  stages.forEach(stage => {
+    const list = groups.get(stage);
+    const group = document.createElement('div'); group.className = 'stage-group';
+    const head = document.createElement('div'); head.className = 'stage-head';
+    const b = document.createElement('b'); b.textContent = stageLabel(stage);
+    const pill = document.createElement('span'); pill.className = 'stage-pill'; pill.textContent = list.length + ' 个';
+    head.append(b, pill);
+    group.append(head);
+
+    list.forEach(p => {
+      const card = document.createElement('div'); card.className = 'pcard-item';
+      const top = document.createElement('div'); top.className = 'pi-top';
+      const title = document.createElement('span'); title.className = 'pi-title'; title.textContent = p.title;
+      top.append(title);
+      if (p.category) { const cat = document.createElement('span'); cat.className = 'pi-cat'; cat.textContent = p.category; top.append(cat); }
+      card.append(top);
+
+      const metaParts = [];
+      if (p.owner) metaParts.push(p.owner);
+      if (p.plannedDate) metaParts.push('计划 ' + p.plannedDate);
+      if (p.actualDate) metaParts.push('实际 ' + p.actualDate);
+      if (p.channel) metaParts.push(p.channel);
+      if (metaParts.length) {
+        const meta = document.createElement('div'); meta.className = 'pi-meta';
+        meta.textContent = metaParts.join(' · ');
+        card.append(meta);
+      }
+
+      if (p.viewsMetric || p.engageMetric) {
+        const met = document.createElement('div'); met.className = 'pi-metrics';
+        const bits = [];
+        if (p.viewsMetric) bits.push('播放/阅读 ' + p.viewsMetric);
+        if (p.engageMetric) bits.push('互动 ' + p.engageMetric);
+        met.textContent = bits.join(' · ');
+        card.append(met);
+      }
+
+      if (p.link) {
+        if (/^https?:\/\//i.test(p.link.trim())) {
+          const a = document.createElement('a'); a.className = 'pi-link'; a.target = '_blank'; a.rel = 'noopener';
+          a.href = p.link.trim(); a.textContent = '查看素材 →';
+          card.append(a);
+        } else {
+          const span = document.createElement('div'); span.className = 'pi-meta'; span.textContent = '素材：' + p.link;
+          card.append(span);
+        }
+      }
+
+      if (p.note) {
+        const note = document.createElement('div'); note.className = 'pi-note'; note.textContent = p.note;
+        card.append(note);
+      }
+
+      group.append(card);
+    });
+    body.append(group);
+  });
+}
+$('#prog-refresh').onclick = () => pullFromSheet(true);
+
 /* ================= 清单 ================= */
 function renderCheck(){
   const wk = iso(state.ckWeek);
@@ -1850,6 +1989,7 @@ async function pullFromSheet(showToast){
       PAGES = res.pages.slice(0, 3).map((p, i) => ({ key:p.key || 'P'+(i+1), name:p.name || '主页 '+(i+1) }));
       if (!pageNames().includes(state.page) && state.page !== '全部') state.page = '全部';
     }
+    if (Array.isArray(res.pipeline)) pipeline = res.pipeline;  // 只读镜像，整份覆盖即可
     saveAll(); renderPageSel(); renderAll();
     if (showToast) toast('已从 Sheet 拉取最新数据');
   } catch (err) {
@@ -2049,6 +2189,7 @@ $('#gs-copy').onclick = async () => {
 function renderAll(){
   if (!$('#scr-overview').hidden) renderOverview();
   if (!$('#scr-content').hidden) renderContentList();
+  if (!$('#scr-progress').hidden) renderProgress();
   if (!$('#scr-check').hidden) renderCheck();
   if (!$('#scr-report').hidden) renderReport();
   if (!$('#scr-sync').hidden) renderSyncInfo();
