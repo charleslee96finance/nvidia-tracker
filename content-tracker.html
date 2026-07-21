@@ -198,6 +198,15 @@ input.f-in:focus,textarea.f-in:focus{outline:none;border-color:var(--accent)}
 .followers-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
 .page-summary{cursor:pointer}
 .page-summary:hover{border-color:var(--line2)}
+/* 每周互动数据表 */
+.wk-table{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums}
+.wk-table th,.wk-table td{padding:7px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+.wk-table th:first-child,.wk-table td:first-child{text-align:left}
+.wk-table th{color:var(--ink3);font-weight:500;font-size:12px}
+.wk-table td.wk-name{display:flex;align-items:center;gap:6px}
+.wk-table tr.wk-cur td{color:var(--ink);font-weight:600}
+.wk-table tr:last-child td{border-bottom:none}
+.wk-table .wk-tagpill{font-size:10.5px;font-weight:500;color:var(--accent);border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);border-radius:99px;padding:0 6px}
 /* 周报 */
 .rp table{width:100%;border-collapse:collapse;font-size:13.5px;margin:8px 0;font-variant-numeric:tabular-nums}
 .rp th,.rp td{padding:7px 8px;text-align:right;border-bottom:1px solid var(--line)}
@@ -276,6 +285,13 @@ a.link{color:var(--accent);text-decoration:none}
     <div id="trend-wrap">
       <svg id="trend-svg"></svg>
       <div id="tip"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="mini-label" id="wk-table-title">每周互动数据</div>
+    <div style="overflow-x:auto">
+      <table class="wk-table" id="wk-table"></table>
     </div>
   </div>
 
@@ -1112,6 +1128,9 @@ function renderOverview(){
   $('#trend-title').textContent = scopeName() + ' · 近 8 周互动趋势';
   renderTrend();
 
+  $('#wk-table-title').textContent = scopeName() + ' · 每周互动数据';
+  renderWeeklyTable();
+
   // 清单进度
   $('#ov-ck-title').textContent = scopeName() + ' · 本周必做清单进度';
   const sum = checklistSummary(wk, state.page);
@@ -1263,6 +1282,41 @@ function renderTrend(){
     if (trendGeom) trendGeom.cross.setAttribute('visibility', 'hidden');
   });
 })();
+
+/* ---------- 每周互动数据表（近 8 周，最新一周在最上面） ---------- */
+function renderWeeklyTable(){
+  const tbl = $('#wk-table'); tbl.textContent = '';
+  const thead = document.createElement('tr');
+  ['周', '内容', '浏览', '互动', '环比'].forEach(t => {
+    const th = document.createElement('th'); th.textContent = t; thead.append(th);
+  });
+  tbl.append(thead);
+  for (let i = 0; i <= 7; i++) {
+    const mon = addDays(state.ovWeek, -7 * i);
+    const wk = iso(mon), prevWk = iso(addDays(mon, -7));
+    const cur = weekStats(wk, state.page).total;
+    const prev = weekStats(prevWk, state.page).total;
+    const tr = document.createElement('tr');
+    if (i === 0) tr.className = 'wk-cur';
+
+    const tdWeek = document.createElement('td'); tdWeek.className = 'wk-name';
+    const label = document.createElement('span'); label.textContent = weekLabel(mon);
+    tdWeek.append(label);
+    const tag = weekTag(mon);
+    if (tag) {
+      const pill = document.createElement('span'); pill.className = 'wk-tagpill'; pill.textContent = tag;
+      tdWeek.append(pill);
+    }
+
+    const tdCount = document.createElement('td'); tdCount.textContent = cur.count;
+    const tdViews = document.createElement('td'); tdViews.textContent = fmtNum(cur.views);
+    const tdEngage = document.createElement('td'); tdEngage.textContent = fmtNum(cur.engage);
+    const tdDelta = document.createElement('td'); tdDelta.append(deltaEl(cur.engage, prev.engage));
+
+    tr.append(tdWeek, tdCount, tdViews, tdEngage, tdDelta);
+    tbl.append(tr);
+  }
+}
 
 /* ================= 内容 ================= */
 let fPage = null, fPlatform = 'Instagram', fType = '图文';
