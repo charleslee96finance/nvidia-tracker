@@ -472,6 +472,8 @@ a.link{color:var(--accent);text-decoration:none}
     </ol>
     <details class="gs">
       <summary>📋 Apps Script 代码（点开复制）</summary>
+      <div class="chips-row" id="gs-variant" style="margin:6px 0 2px"></div>
+      <div style="font-size:12.5px;color:var(--ink3)" id="gs-variant-note"></div>
       <div class="btn-row"><button class="btn small" id="gs-copy">复制代码</button></div>
       <pre class="gs-pre" id="gs-pre"></pre>
     </details>
@@ -2180,8 +2182,41 @@ $('#btn-export').onclick = () => {
   a.href = URL.createObjectURL(blob); a.download = 'content-tracker-backup-' + iso(new Date()) + '.json';
   a.click(); URL.revokeObjectURL(a.href);
 };
+/* ---------- Apps Script 代码：完整版 / 简化版 ---------- */
+const GS_META_MARK = '/* ============ Meta（Facebook / Instagram）自动读取 · 可选 ============ */';
+let gsSimple = store.get('gssimple', false);
+
+function gsCode(){
+  const full = $('#gs-code').textContent.trim();
+  if (!gsSimple) return full;
+  const cut = full.indexOf(GS_META_MARK);
+  let code = cut === -1 ? full : full.slice(0, cut).trimEnd();
+  // FB/IG 两个 action 的实现被移除了，回一句友好提示，避免 App 里点到时报 ReferenceError
+  code = code
+    .replace("else if (body.action === 'meta_status') out = metaStatus();",
+             "else if (body.action === 'meta_status') out = { ok:true, fb:false, ig:false };")
+    .replace("else if (body.action === 'meta_fetch')  out = metaFetch();",
+             "else if (body.action === 'meta_fetch')  out = { ok:false, error:'这份是简化版代码，没有 FB/IG 自动读取' };");
+  return code;
+}
+
+function renderGsVariant(){
+  const wrap = $('#gs-variant'); wrap.textContent = '';
+  [['完整版', false], ['简化版（不含 FB/IG）', true]].forEach(([label, simple]) => {
+    const b = document.createElement('button'); b.type = 'button';
+    b.className = 'pick' + (gsSimple === simple ? ' on' : '');
+    b.textContent = label;
+    b.onclick = () => { gsSimple = simple; store.set('gssimple', gsSimple); renderGsVariant(); };
+    wrap.append(b);
+  });
+  $('#gs-variant-note').textContent = gsSimple
+    ? '去掉了 Facebook / Instagram 自动读取那一段 — 原样粘贴，一个字都不用改。内容记录、清单、周报、Sheet1 进度都正常。'
+    : '含 Facebook / Instagram 自动读取，需要额外填 App ID / Secret / token 并运行一次 RUN_SETUP。';
+  $('#gs-pre').textContent = gsCode();
+}
+
 $('#gs-copy').onclick = async () => {
-  try { await navigator.clipboard.writeText($('#gs-code').textContent.trim()); toast('代码已复制，去 Apps Script 粘贴'); }
+  try { await navigator.clipboard.writeText(gsCode()); toast('代码已复制，去 Apps Script 粘贴'); }
   catch (e) { toast('复制失败，请手动全选代码'); }
 };
 
@@ -2198,7 +2233,7 @@ function renderAll(){
 bindWeekNav('ov', 'ovWeek', renderOverview);
 bindWeekNav('ck', 'ckWeek', renderCheck);
 bindWeekNav('rp', 'rpWeek', renderReport);
-$('#gs-pre').textContent = $('#gs-code').textContent.trim();
+renderGsVariant();
 
 function toast(msg){
   const t = $('#toast'); t.textContent = msg;
