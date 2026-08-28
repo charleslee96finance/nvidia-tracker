@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>页面互动分析 · 周对比 / 完播率 / 占比</title>
+<title>社交平台数据分析 · 周对比 / 完播率 / 占比</title>
 <style>
-/* ===== 深色为主，跟随系统自动切换浅色 ===== */
+/* ===== 深色为主；系统浅色或宿主显式 data-theme 都能正确解析 ===== */
 :root{
   --bg:#050810; --bg2:#0b0f1e; --card:#0e1424;
   --border:rgba(255,255,255,.09); --border2:rgba(255,255,255,.18);
@@ -17,7 +17,6 @@
   --other:#5b6b88;
   --shadow:0 8px 30px rgba(0,0,0,.45);
 }
-/* 深色是默认；系统浅色、或宿主显式标记 data-theme="light" 时切浅色 */
 @media (prefers-color-scheme: light){
   :root:not([data-theme="dark"]){
     --bg:#f4f6fb; --bg2:#ffffff; --card:#ffffff;
@@ -31,15 +30,15 @@
   }
 }
 :root[data-theme="light"]{
-    --bg:#f4f6fb; --bg2:#ffffff; --card:#ffffff;
-    --border:rgba(0,0,0,.09); --border2:rgba(0,0,0,.18);
-    --text:#0a1428; --text2:#4c5c78; --text3:#8a97ad;
-    --grid:rgba(0,0,0,.10);
-    --good:#00845a; --bad:#c93636; --neutral:#6b7a93;
-    --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#4a3aa7;
-    --other:#8a97ad;
-    --shadow:0 6px 20px rgba(20,30,50,.10);
-  }
+  --bg:#f4f6fb; --bg2:#ffffff; --card:#ffffff;
+  --border:rgba(0,0,0,.09); --border2:rgba(0,0,0,.18);
+  --text:#0a1428; --text2:#4c5c78; --text3:#8a97ad;
+  --grid:rgba(0,0,0,.10);
+  --good:#00845a; --bad:#c93636; --neutral:#6b7a93;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#4a3aa7;
+  --other:#8a97ad;
+  --shadow:0 6px 20px rgba(20,30,50,.10);
+}
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{
@@ -49,13 +48,11 @@ body{
 }
 .wrap{max-width:1180px; margin:0 auto; padding:24px 18px 60px}
 
-/* ---- 头部 ---- */
 header{display:flex; flex-wrap:wrap; align-items:flex-end; gap:12px; margin-bottom:18px}
 h1{font-size:22px; margin:0; letter-spacing:.5px}
 header .sub{color:var(--text2); font-size:13px; margin-top:4px}
 .spacer{flex:1 1 auto}
 
-/* ---- 控件 ---- */
 .toolbar{display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;
   background:var(--card); border:1px solid var(--border); border-radius:14px;
   padding:12px 14px; margin-bottom:18px; box-shadow:var(--shadow)}
@@ -64,29 +61,27 @@ header .sub{color:var(--text2); font-size:13px; margin-top:4px}
 select,input,textarea{
   font:inherit; color:var(--text); background:var(--bg2);
   border:1px solid var(--border2); border-radius:9px; padding:7px 9px; min-width:0}
-select:focus,input:focus,textarea:focus{outline:2px solid var(--s1); outline-offset:1px}
+select:focus,input:focus,textarea:focus,button:focus-visible{outline:2px solid var(--s1); outline-offset:1px}
 button{font:inherit; cursor:pointer; color:var(--text); background:var(--bg2);
   border:1px solid var(--border2); border-radius:9px; padding:7px 12px; transition:transform .06s}
 button:active{transform:scale(.97)}
 button.primary{background:var(--s1); border-color:transparent; color:#fff; font-weight:600}
 button.ghost{background:transparent}
 button.danger{color:var(--bad)}
+button[disabled]{opacity:.45; cursor:not-allowed}
 .btns{display:flex; flex-wrap:wrap; gap:8px}
 .seg{display:inline-flex; border:1px solid var(--border2); border-radius:9px; overflow:hidden}
 .seg button{border:0; border-radius:0; background:transparent; padding:7px 11px; color:var(--text2)}
 .seg button[aria-pressed="true"]{background:var(--s1); color:#fff; font-weight:600}
 
-/* ---- KPI ---- */
-.kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; margin-bottom:18px}
+.kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:18px}
 .kpi{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px 16px; box-shadow:var(--shadow)}
 .kpi .k-label{font-size:12px; color:var(--text2)}
-.kpi .k-value{font-size:26px; font-weight:700; letter-spacing:-.5px; margin-top:2px;
-  font-variant-numeric:tabular-nums}
+.kpi .k-value{font-size:25px; font-weight:700; letter-spacing:-.5px; margin-top:2px; font-variant-numeric:tabular-nums}
 .kpi .k-delta{font-size:12px; margin-top:4px; color:var(--text2); font-variant-numeric:tabular-nums}
 .up{color:var(--good)} .down{color:var(--bad)} .flat{color:var(--neutral)}
 
-/* ---- 卡片 / 图表 ---- */
-.grid{display:grid; grid-template-columns:repeat(12,1fr); gap:14px}
+.grid{display:grid; grid-template-columns:repeat(12,1fr); gap:14px; align-items:start}
 .card{background:var(--card); border:1px solid var(--border); border-radius:14px;
   padding:14px 16px 16px; box-shadow:var(--shadow); min-width:0}
 .c-12{grid-column:span 12} .c-7{grid-column:span 7} .c-5{grid-column:span 5} .c-6{grid-column:span 6}
@@ -102,9 +97,8 @@ text{font-family:inherit}
 .legend .sw.line{width:14px; height:2px; border-radius:2px}
 .empty{color:var(--text3); font-size:13px; padding:26px 0; text-align:center}
 
-/* ---- 表格 ---- */
 .tablewrap{overflow-x:auto; margin-top:6px}
-table{border-collapse:collapse; width:100%; font-size:13px; min-width:720px}
+table{border-collapse:collapse; width:100%; font-size:13px; min-width:820px}
 th,td{padding:8px 10px; text-align:right; white-space:nowrap; border-bottom:1px solid var(--border)}
 th{color:var(--text2); font-weight:600; font-size:12px; position:sticky; top:0; background:var(--card)}
 th:first-child,td:first-child{text-align:left}
@@ -113,33 +107,47 @@ tbody tr:hover{background:rgba(127,127,127,.07)}
 tfoot td{font-weight:700; border-top:1px solid var(--border2); border-bottom:0}
 .dot{display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:7px; vertical-align:-1px}
 .rowbtn{padding:3px 8px; font-size:12px}
+.sub2{color:var(--text3); font-size:11px}
 
-/* ---- 弹窗 ---- */
 .backdrop{position:fixed; inset:0; background:rgba(4,8,16,.62); backdrop-filter:blur(3px);
   display:none; align-items:center; justify-content:center; padding:18px; z-index:50}
 .backdrop.on{display:flex}
 .modal{background:var(--card); border:1px solid var(--border2); border-radius:16px;
   width:min(560px,100%); max-height:88dvh; overflow:auto; padding:18px 20px 20px; box-shadow:var(--shadow)}
+.modal.wide{width:min(940px,100%)}
 .modal h3{margin:0 0 12px; font-size:17px}
 .form{display:grid; grid-template-columns:1fr 1fr; gap:12px}
 .form .full{grid-column:span 2}
 .form label{display:block; font-size:12px; color:var(--text2); margin-bottom:4px}
 .form input{width:100%}
 .modal .foot{display:flex; gap:8px; justify-content:flex-end; margin-top:16px; flex-wrap:wrap}
-.modal textarea{width:100%; min-height:170px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px}
+.modal textarea{width:100%; min-height:150px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px}
 .note{font-size:12px; color:var(--text3); margin-top:8px; line-height:1.6}
+.note.warn{color:var(--bad)}
+details{margin-top:10px} summary{cursor:pointer; font-size:12px; color:var(--text2)}
 
-/* ---- 提示气泡 ---- */
+/* PDF 导入：列映射 + 预览 */
+.maprow{display:flex; flex-wrap:wrap; gap:8px 12px; margin:10px 0 4px}
+.maprow .m{display:flex; flex-direction:column; gap:3px; font-size:11px; color:var(--text3)}
+.maprow select{padding:4px 6px; font-size:12px}
+.pv{overflow:auto; max-height:44dvh; margin-top:8px; border:1px solid var(--border); border-radius:10px}
+.pv table{min-width:760px; font-size:12px}
+.pv th{background:var(--card)}
+.pv td{padding:4px 6px}
+.pv input[type=text]{width:150px; padding:4px 6px; font-size:12px}
+.pv input[type=number]{width:84px; padding:4px 6px; font-size:12px; text-align:right}
+.pv .raw{color:var(--text3); font-size:11px; max-width:280px; overflow:hidden; text-overflow:ellipsis}
+
 #tip{position:fixed; z-index:80; pointer-events:none; opacity:0; transition:opacity .1s;
   background:var(--bg2); color:var(--text); border:1px solid var(--border2); border-radius:10px;
-  padding:8px 10px; font-size:12px; box-shadow:var(--shadow); max-width:260px; line-height:1.6}
+  padding:8px 10px; font-size:12px; box-shadow:var(--shadow); max-width:280px; line-height:1.6}
 #tip.on{opacity:1}
 #tip .t-title{font-weight:700; margin-bottom:4px}
 #tip .t-row{display:flex; align-items:center; gap:7px; white-space:nowrap; font-variant-numeric:tabular-nums}
 #tip .t-row .sw{width:9px; height:9px; border-radius:3px; flex:0 0 auto}
 #tip .t-row .v{margin-left:auto; font-weight:600}
 footer{margin-top:28px; color:var(--text3); font-size:12px; line-height:1.8}
-footer a{color:var(--s1)}
+@media (prefers-reduced-motion: reduce){ *{transition:none !important} }
 </style>
 </head>
 <body>
@@ -147,12 +155,13 @@ footer a{color:var(--s1)}
 
 <header>
   <div>
-    <h1>📊 页面互动分析</h1>
-    <div class="sub">按页面记录浏览 / 互动 / 完播，做每周数据对比与占比拆解 · 数据保存在本机浏览器</div>
+    <h1>📱 社交平台数据分析</h1>
+    <div class="sub">各平台 / 各条内容的曝光 · 播放 · 完播率 · 互动 · 涨粉，按周对比 · 数据保存在本机浏览器</div>
   </div>
   <div class="spacer"></div>
   <div class="btns">
     <button class="primary" id="btn-add">+ 录入数据</button>
+    <button class="ghost" id="btn-pdf">导入 PDF</button>
     <button class="ghost" id="btn-import">导入 CSV</button>
     <button class="ghost" id="btn-export">导出 CSV</button>
     <button class="ghost" id="btn-demo">载入示例</button>
@@ -170,17 +179,25 @@ footer a{color:var(--s1)}
     <select id="sel-b"></select>
   </div>
   <div class="field">
+    <label>对比维度</label>
+    <div class="seg" id="seg-dim">
+      <button data-dim="platform" aria-pressed="true">按平台</button>
+      <button data-dim="content" aria-pressed="false">按内容</button>
+    </div>
+  </div>
+  <div class="field">
     <label>对比指标</label>
     <div class="seg" id="seg-metric">
-      <button data-metric="views" aria-pressed="true">浏览量</button>
+      <button data-metric="views" aria-pressed="true">播放量</button>
+      <button data-metric="impressions" aria-pressed="false">曝光量</button>
       <button data-metric="eng" aria-pressed="false">互动数</button>
       <button data-metric="completions" aria-pressed="false">完播数</button>
     </div>
   </div>
   <div class="spacer"></div>
   <div class="field">
-    <label for="sel-page">页面筛选</label>
-    <select id="sel-page"><option value="">全部页面</option></select>
+    <label for="sel-plat">平台筛选</label>
+    <select id="sel-plat"><option value="">全部平台</option></select>
   </div>
 </div>
 
@@ -189,15 +206,15 @@ footer a{color:var(--s1)}
 <div class="grid">
 
   <section class="card c-7">
-    <h2>各页面周对比 <span id="cmp-metric-name" style="color:var(--text2);font-weight:400"></span></h2>
-    <p class="hint" id="cmp-hint">本期 vs 对比周，按本期数值排序</p>
+    <h2>周对比 <span id="cmp-metric-name" style="color:var(--text2);font-weight:400"></span></h2>
+    <p class="hint" id="cmp-hint">本期 vs 对比周</p>
     <div class="chart" id="ch-compare"></div>
     <div class="legend" id="lg-compare"></div>
   </section>
 
   <section class="card c-5">
-    <h2>各页面占比</h2>
-    <p class="hint" id="donut-hint">本期各页面占总量的比例</p>
+    <h2>占比</h2>
+    <p class="hint" id="donut-hint">本期各平台占总量的比例</p>
     <div class="chart" id="ch-donut"></div>
     <div class="legend" id="lg-donut"></div>
   </section>
@@ -211,25 +228,25 @@ footer a{color:var(--s1)}
 
   <section class="card c-6">
     <h2>完播率排行</h2>
-    <p class="hint">完播率 = 完播数 ÷ 浏览量；灰色竖线是对比周的水平</p>
+    <p class="hint">完播率 = 完播数 ÷ 播放量；灰色竖线是对比周的水平</p>
     <div class="chart" id="ch-comp"></div>
     <div class="legend" id="lg-comp"></div>
   </section>
 
   <section class="card c-6">
     <h2>每周趋势 <span id="trend-metric-name" style="color:var(--text2);font-weight:400"></span></h2>
-    <p class="hint">全部周次的走势（最多显示 5 个页面，其余合并为「其他」）</p>
+    <p class="hint">全部周次的走势（最多显示 5 项，其余合并为「其他」）</p>
     <div class="chart" id="ch-trend"></div>
     <div class="legend" id="lg-trend"></div>
   </section>
 
   <section class="card c-12">
     <h2>明细数据</h2>
-    <p class="hint" id="table-hint">本期各页面汇总，括号内为对比周变化</p>
+    <p class="hint">本期汇总，小字是相对对比周的变化。互动率 = 互动数 ÷ 曝光量（没填曝光量时用播放量）</p>
     <div class="tablewrap"><table id="tbl">
       <thead><tr>
-        <th>页面</th><th>浏览量</th><th>互动数</th><th>互动率</th>
-        <th>完播数</th><th>完播率</th><th>浏览量占比</th><th>操作</th>
+        <th id="th-dim">平台</th><th>曝光量</th><th>播放量</th><th>完播率</th>
+        <th>互动数</th><th>互动率</th><th>涨粉</th><th>占比</th><th>操作</th>
       </tr></thead>
       <tbody></tbody><tfoot></tfoot>
     </table></div>
@@ -239,7 +256,7 @@ footer a{color:var(--s1)}
 
 <footer>
   数据只保存在你当前这台设备的浏览器里（localStorage），不会上传。换设备请用「导出 CSV / 导入 CSV」搬运。<br>
-  完播率的口径可自定义：视频类可填「播放完成次数」，图文页可填「读完页面的人数」。
+  完播率口径：视频类填「完整播放次数」，图文类可填「读完 / 看完的人数」。曝光量留空时，互动率自动改用播放量作分母。
 </footer>
 </div>
 
@@ -254,17 +271,24 @@ footer a{color:var(--s1)}
         <div class="note" id="f-week-hint"></div>
       </div>
       <div>
-        <label for="f-page">页面名称</label>
-        <input type="text" id="f-page" list="dl-pages" placeholder="例：首页 / NVDA 追踪" required>
-        <datalist id="dl-pages"></datalist>
+        <label for="f-platform">平台</label>
+        <input type="text" id="f-platform" list="dl-plat" placeholder="例：Instagram / 抖音 / 小红书" required>
+        <datalist id="dl-plat"></datalist>
       </div>
-      <div><label for="f-views">浏览量</label><input type="number" id="f-views" min="0" step="1" required></div>
-      <div><label for="f-completions">完播数（完整播放 / 读完）</label><input type="number" id="f-completions" min="0" step="1" value="0"></div>
+      <div class="full">
+        <label for="f-content">内容 / 帖子（留空表示该平台整体）</label>
+        <input type="text" id="f-content" list="dl-content" placeholder="例：开箱短片 8/25">
+        <datalist id="dl-content"></datalist>
+      </div>
+      <div><label for="f-impressions">曝光量 / 触达</label><input type="number" id="f-impressions" min="0" step="1" value="0"></div>
+      <div><label for="f-views">播放量</label><input type="number" id="f-views" min="0" step="1" required></div>
+      <div><label for="f-completions">完播数</label><input type="number" id="f-completions" min="0" step="1" value="0"></div>
+      <div><label for="f-follows">涨粉</label><input type="number" id="f-follows" step="1" value="0"></div>
       <div><label for="f-likes">点赞</label><input type="number" id="f-likes" min="0" step="1" value="0"></div>
       <div><label for="f-comments">评论</label><input type="number" id="f-comments" min="0" step="1" value="0"></div>
       <div><label for="f-shares">分享</label><input type="number" id="f-shares" min="0" step="1" value="0"></div>
       <div><label for="f-saves">收藏</label><input type="number" id="f-saves" min="0" step="1" value="0"></div>
-      <div class="note full" id="f-warn" style="color:var(--bad); display:none"></div>
+      <div class="note warn full" id="f-warn" style="display:none"></div>
       <div class="foot full">
         <button type="button" class="ghost" data-close>取消</button>
         <button type="submit" class="primary">保存</button>
@@ -273,7 +297,7 @@ footer a{color:var(--s1)}
   </div>
 </div>
 
-<!-- 导入 / 导出 -->
+<!-- 导入 / 导出 CSV -->
 <div class="backdrop" id="md-csv">
   <div class="modal">
     <h3 id="csv-title">导入 CSV</h3>
@@ -292,6 +316,33 @@ footer a{color:var(--s1)}
   </div>
 </div>
 
+<!-- 导入 PDF -->
+<div class="backdrop" id="md-pdf">
+  <div class="modal wide">
+    <h3>从 PDF 导入</h3>
+    <p class="note" style="margin-top:0">
+      选一份平台后台导出的 PDF，页面会把里面的文字读出来、按行找出数字，你确认每一列对应哪个指标后再导入。
+      解析得不对也没关系：预览表里的名称和每个数字都能直接改。
+    </p>
+    <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end">
+      <div class="field"><label for="f-pdf">PDF 文件</label><input type="file" id="f-pdf" accept="application/pdf,.pdf"></div>
+      <div class="field"><label for="f-pdf-plat">这份数据属于哪个平台</label><input type="text" id="f-pdf-plat" list="dl-plat" placeholder="例：Instagram"></div>
+      <div class="field"><label for="f-pdf-date">日期（归入所在周）</label><input type="date" id="f-pdf-date"></div>
+    </div>
+    <div class="note" id="pdf-status">还没有选择文件。</div>
+    <div class="maprow" id="pdf-map" style="display:none"></div>
+    <div class="pv" id="pdf-preview" style="display:none"></div>
+    <details id="pdf-raw-wrap" style="display:none">
+      <summary>看不出来？展开 PDF 原始文字（可以复制出来交给别人处理）</summary>
+      <textarea id="pdf-raw" spellcheck="false" readonly></textarea>
+    </details>
+    <div class="foot">
+      <button type="button" class="ghost" data-close>关闭</button>
+      <button type="button" class="primary" id="btn-pdf-do" disabled>导入选中的行</button>
+    </div>
+  </div>
+</div>
+
 <div id="tip"></div>
 
 <script>
@@ -299,22 +350,36 @@ footer a{color:var(--s1)}
 'use strict';
 
 /* ============================== 数据层 ============================== */
-const KEY = 'pageEngagement.v1';
-const FIELDS = ['views','likes','comments','shares','saves','completions'];
+const KEY = 'socialEngagement.v2';
+const OLD_KEY = 'pageEngagement.v1';
+const FIELDS = ['impressions','views','completions','likes','comments','shares','saves','follows'];
+const FIELD_CN = {impressions:'曝光量', views:'播放量', completions:'完播数',
+  likes:'点赞', comments:'评论', shares:'分享', saves:'收藏', follows:'涨粉'};
 const METRICS = {
-  views:       {name:'浏览量', get:a=>a.views,       fmt:fmtInt},
-  eng:         {name:'互动数', get:a=>a.eng,         fmt:fmtInt},
-  completions: {name:'完播数', get:a=>a.completions, fmt:fmtInt}
+  views:       {name:'播放量', get:a=>a.views},
+  impressions: {name:'曝光量', get:a=>a.impressions},
+  eng:         {name:'互动数', get:a=>a.eng},
+  completions: {name:'完播数', get:a=>a.completions}
 };
 
-let state = { records: [], weekA:'', weekB:null, metric:'views', page:'', editId:null };
+let state = { records: [], weekA:'', weekB:null, metric:'views', dim:'platform', platform:'', editId:null };
 
 function load(){
   try{
     const raw = localStorage.getItem(KEY);
     state.records = raw ? JSON.parse(raw) : [];
     if(!Array.isArray(state.records)) state.records = [];
+    if(!state.records.length) state.records = migrateOld();
   }catch(e){ state.records = []; }
+}
+function migrateOld(){                      // v1 是「网页」维度，搬成 平台=网站 的记录
+  try{
+    const old = JSON.parse(localStorage.getItem(OLD_KEY) || '[]');
+    if(!Array.isArray(old) || !old.length) return [];
+    return old.map((r, i) => ({id:'mig-' + i, week:r.week, platform:'网站', content:r.page || '',
+      impressions:0, views:+r.views || 0, completions:+r.completions || 0,
+      likes:+r.likes || 0, comments:+r.comments || 0, shares:+r.shares || 0, saves:+r.saves || 0, follows:0}));
+  }catch(e){ return []; }
 }
 function save(){
   try{ localStorage.setItem(KEY, JSON.stringify(state.records)); }
@@ -351,38 +416,42 @@ function weekLabel(key){
 }
 function weekShort(key){ return key ? key.split('-W')[1] + '周' : '—'; }
 function weekName(key){ return key ? weekLabel(key) : '无对比'; }
-function prevWeekOf(key){                     // 数据里紧邻的上一周
+function prevWeekOf(key){
   const ws = allWeeks(), i = ws.indexOf(key);
   return i > 0 ? ws[i - 1] : '';
 }
 
 /* --------- 聚合 --------- */
-function allWeeks(){
-  return [...new Set(state.records.map(r => r.week))].sort();
-}
-function allPages(){
+function allWeeks(){ return [...new Set(state.records.map(r => r.week))].sort(); }
+function allPlatforms(){
   const seen = [];
-  state.records.forEach(r => { if(!seen.includes(r.page)) seen.push(r.page); });
-  return seen;             // 首次出现顺序 —— 颜色跟着页面走，不跟着排名走
+  state.records.forEach(r => { if(!seen.includes(r.platform)) seen.push(r.platform); });
+  return seen;                 // 首次出现顺序 —— 颜色跟着平台走，不跟着排名走
 }
+function keyOf(r){
+  return state.dim === 'platform' ? r.platform
+    : (r.content ? r.platform + ' · ' + r.content : r.platform);
+}
+function platformOfKey(k){ return k.split(' · ')[0]; }
 function blank(){
   const o = {}; FIELDS.forEach(f => o[f] = 0);
   o.eng = 0; o.engRate = 0; o.compRate = 0; return o;
 }
 function derive(a){
   a.eng = a.likes + a.comments + a.shares + a.saves;
-  a.engRate  = a.views > 0 ? a.eng / a.views : 0;
+  const base = a.impressions > 0 ? a.impressions : a.views;
+  a.engRate  = base > 0 ? a.eng / base : 0;
   a.compRate = a.views > 0 ? a.completions / a.views : 0;
   return a;
 }
-/** 某一周按页面汇总 → Map<page, agg> */
 function aggWeek(week){
   const map = new Map();
   state.records.forEach(r => {
     if(r.week !== week) return;
-    if(state.page && r.page !== state.page) return;
-    if(!map.has(r.page)) map.set(r.page, blank());
-    const a = map.get(r.page);
+    if(state.platform && r.platform !== state.platform) return;
+    const k = keyOf(r);
+    if(!map.has(k)) map.set(k, blank());
+    const a = map.get(k);
     FIELDS.forEach(f => a[f] += (+r[f] || 0));
   });
   map.forEach(derive);
@@ -396,14 +465,14 @@ function totalOf(map){
 
 /* --------- 格式化 --------- */
 function fmtInt(n){ return Math.round(n || 0).toLocaleString('en-US'); }
+function fmtSigned(n){ return (n > 0 ? '+' : '') + fmtInt(n); }
 function fmtPct(x, d){ return ((x || 0) * 100).toFixed(d === undefined ? 1 : d) + '%'; }
 function pctChange(cur, prev){
-  if(!prev) return cur ? null : 0;      // null = 上期为 0，无法计算倍数
+  if(!prev) return cur ? null : 0;
   return (cur - prev) / prev;
 }
 function deltaHTML(cur, prev, kind){
-  // kind: 'num' 用百分比变化；'rate' 用百分点变化
-  if(prev === undefined || prev === null) return '<span class="flat">对比周无数据</span>';
+  if(prev === undefined || prev === null) return '<span class="flat">—</span>';
   if(kind === 'rate'){
     const pp = (cur - prev) * 100;
     const cls = pp > 0.05 ? 'up' : pp < -0.05 ? 'down' : 'flat';
@@ -423,11 +492,10 @@ const SLOTS = ['--s1','--s2','--s3','--s4','--s5','--s6'];
 let colorMap = new Map();
 function buildColors(){
   colorMap = new Map();
-  // 颜色跟着页面走（首次出现顺序），色板用尽后一律用中性灰 —— 不循环、不生成新色
-  allPages().forEach((p, i) => colorMap.set(p, i < SLOTS.length ? cssVar(SLOTS[i]) : cssVar('--other')));
+  // 颜色跟着平台走，色板用尽后一律中性灰 —— 不循环、不生成新色
+  allPlatforms().forEach((p, i) => colorMap.set(p, i < SLOTS.length ? cssVar(SLOTS[i]) : cssVar('--other')));
 }
-function pageColor(p){ return colorMap.get(p) || cssVar('--other'); }
-/** 填色块里的文字：按填色亮度选白字或深字，保证对比度 */
+function keyColor(k){ return colorMap.get(platformOfKey(k)) || cssVar('--other'); }
 function inkOn(hex){
   const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
   if(!m) return '#fff';
@@ -448,7 +516,7 @@ function label(x, y, s, opt){
   opt = opt || {};
   const t = el('text', {x:x, y:y, 'font-size':opt.size || 11,
     'text-anchor':opt.anchor || 'start', fill:opt.fill || cssVar('--text2'),
-    'font-weight':opt.weight || 400, 'dominant-baseline':opt.baseline || 'auto'});
+    'font-weight':opt.weight || 400});
   t.textContent = s;
   return t;
 }
@@ -465,13 +533,13 @@ function niceMax(v){
   const s = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10;
   return s * p;
 }
-function barV(x, y, w, h, r){          // 顶端 4px 圆角，底部贴基线
+function barV(x, y, w, h, r){
   r = Math.max(0, Math.min(r, w / 2, h));
   return 'M' + x + ',' + (y + h) + 'L' + x + ',' + (y + r) + 'Q' + x + ',' + y + ' ' + (x + r) + ',' + y +
          'L' + (x + w - r) + ',' + y + 'Q' + (x + w) + ',' + y + ' ' + (x + w) + ',' + (y + r) +
          'L' + (x + w) + ',' + (y + h) + 'Z';
 }
-function barH(x, y, w, h, r){          // 右端 4px 圆角，左侧贴基线
+function barH(x, y, w, h, r){
   r = Math.max(0, Math.min(r, h / 2, w));
   return 'M' + x + ',' + y + 'L' + (x + w - r) + ',' + y + 'Q' + (x + w) + ',' + y + ' ' + (x + w) + ',' + (y + r) +
          'L' + (x + w) + ',' + (y + h - r) + 'Q' + (x + w) + ',' + (y + h) + ' ' + (x + w - r) + ',' + (y + h) +
@@ -484,7 +552,7 @@ function arc(cx, cy, r0, r1, a0, a1){
   return 'M' + x0 + ',' + y0 + 'A' + r1 + ',' + r1 + ' 0 ' + large + ' 1 ' + x1 + ',' + y1 +
          'L' + x2 + ',' + y2 + 'A' + r0 + ',' + r0 + ' 0 ' + large + ' 0 ' + x3 + ',' + y3 + 'Z';
 }
-function ellip(s, maxW, size){         // 粗略按字宽截断（中文按 1em，西文按 0.55em）
+function ellip(s, maxW, size){
   let w = 0, out = '';
   for(const ch of String(s)){
     w += /[一-龥＀-￯]/.test(ch) ? size : size * 0.58;
@@ -495,7 +563,6 @@ function ellip(s, maxW, size){         // 粗略按字宽截断（中文按 1em�
 }
 function hostWidth(host){ return Math.max(280, Math.floor(host.getBoundingClientRect().width || 320)); }
 
-/* --------- 提示气泡 --------- */
 const tip = document.getElementById('tip');
 function tipShow(html, ev){
   tip.innerHTML = html; tip.classList.add('on');
@@ -522,9 +589,7 @@ function legend(host, items, shape){
     esc(i.label) + (i.extra ? ' <span style="color:var(--text3)">' + esc(i.extra) + '</span>' : '') + '</span>'
   ).join('');
 }
-function emptyChart(host, msg){
-  host.innerHTML = '<div class="empty">' + esc(msg) + '</div>';
-}
+function emptyChart(host, msg){ host.innerHTML = '<div class="empty">' + esc(msg) + '</div>'; }
 
 /* ============================== 图表 ============================== */
 
@@ -533,7 +598,7 @@ function drawCompare(rows){
   const host = document.getElementById('ch-compare'), lg = document.getElementById('lg-compare');
   if(!rows.length){ emptyChart(host, '本期还没有数据'); lg.innerHTML = ''; return; }
   const W = hostWidth(host), H = 300;
-  const m = {t:14, r:14, b:44, l:56};
+  const m = {t:14, r:14, b:44, l:60};
   const iw = W - m.l - m.r, ih = H - m.t - m.b;
   const svg = newSVG(host, W, H);
   const cA = cssVar('--s1'), cB = cssVar('--s2');
@@ -570,7 +635,7 @@ function drawCompare(rows){
   legend(lg, hasB ? [{color:cA, label:'本期 ' + weekName(state.weekA)}, {color:cB, label:'对比周 ' + weekName(state.weekB)}] : []);
 }
 
-/* 2) 环形图：本期各页面占比 */
+/* 2) 环形图：占比 */
 function drawDonut(items, totalVal, metricName){
   const host = document.getElementById('ch-donut'), lg = document.getElementById('lg-donut');
   if(!items.length || totalVal <= 0){ emptyChart(host, '本期还没有数据'); lg.innerHTML = ''; return; }
@@ -596,7 +661,7 @@ function drawDonut(items, totalVal, metricName){
   legend(lg, items.map(i => ({color:i.color, label:i.label, extra:fmtPct(i.value / totalVal)})));
 }
 
-/* 3) 100% 堆叠条：互动构成占比 */
+/* 3) 100% 堆叠条：互动构成 */
 function drawMix(t){
   const host = document.getElementById('ch-mix'), lg = document.getElementById('lg-mix');
   const parts = [
@@ -644,9 +709,9 @@ function barRounded(x, y, w, h, r, left, right){
 /* 4) 横向条：完播率排行 */
 function drawCompletion(rows){
   const host = document.getElementById('ch-comp'), lg = document.getElementById('lg-comp');
-  if(!rows.length){ emptyChart(host, '本期还没有数据'); lg.innerHTML = ''; return; }
+  if(!rows.length){ emptyChart(host, '本期还没有播放数据'); lg.innerHTML = ''; return; }
   const W = hostWidth(host);
-  const rowH = 34, m = {t:10, r:56, b:26, l:Math.min(110, Math.max(70, W * 0.26))};
+  const rowH = 34, m = {t:10, r:64, b:26, l:Math.min(150, Math.max(70, W * 0.32))};
   const H = m.t + rows.length * rowH + m.b;
   const svg = newSVG(host, W, H);
   const iw = W - m.l - m.r;
@@ -666,19 +731,20 @@ function drawCompletion(rows){
     const hasPrev = r.prevRate !== null && r.prevRate !== undefined && r.prevRate > 0;
     const labX = Math.max(m.l + w, hasPrev ? x(r.prevRate) : 0) + 9;   // 让开对比周的竖线，不叠字
     const vlab = label(labX, by + bh / 2 + 4, fmtPct(r.rate), {size:11, weight:600, fill:cssVar('--text')});
-    vlab.setAttribute('stroke', cssVar('--card'));            // 面板色描边当作留白，压住底下的网格线
+    vlab.setAttribute('stroke', cssVar('--card'));                     // 面板色描边当留白，压住网格线
     vlab.setAttribute('stroke-width', 3);
     vlab.setAttribute('paint-order', 'stroke');
     svg.appendChild(vlab);
     if(hasPrev){
       const px = x(r.prevRate);
-      svg.appendChild(el('line', {x1:px, x2:px, y1:by - 3, y2:by + bh + 3, stroke:cssVar('--neutral'), 'stroke-width':2, 'stroke-linecap':'round'}));
+      svg.appendChild(el('line', {x1:px, x2:px, y1:by - 3, y2:by + bh + 3,
+        stroke:cssVar('--neutral'), 'stroke-width':2, 'stroke-linecap':'round'}));
     }
     const hit = el('rect', {x:0, y:y, width:W, height:rowH, fill:'transparent'});
     bindTip(hit, '<div class="t-title">' + esc(r.label) + '</div>' +
       tipRow(r.color, '本期完播率', fmtPct(r.rate)) +
       tipRow(cssVar('--neutral'), '对比周', r.prevRate === null ? '—' : fmtPct(r.prevRate)) +
-      tipRow(null, '完播 / 浏览', fmtInt(r.completions) + ' / ' + fmtInt(r.views)) +
+      tipRow(null, '完播 / 播放', fmtInt(r.completions) + ' / ' + fmtInt(r.views)) +
       '<div class="t-row" style="margin-top:3px"><span>变化</span><span class="v">' +
         deltaHTML(r.rate, r.prevRate === null ? null : r.prevRate, 'rate') + '</span></div>');
     svg.appendChild(hit);
@@ -694,7 +760,7 @@ function drawTrend(weeks, series, metricName){
     emptyChart(host, weeks.length < 2 ? '至少需要两周数据才能画趋势' : '暂无数据'); lg.innerHTML = ''; return;
   }
   const W = hostWidth(host), H = 300;
-  const m = {t:14, r:16, b:40, l:56};
+  const m = {t:14, r:16, b:40, l:60};
   const iw = W - m.l - m.r, ih = H - m.t - m.b;
   const svg = newSVG(host, W, H);
   const max = niceMax(Math.max(1, ...series.flatMap(s => s.values)));
@@ -721,13 +787,12 @@ function drawTrend(weeks, series, metricName){
     svg.appendChild(el('circle', {cx:x(last), cy:y(s.values[last]), r:4, fill:s.color,
       stroke:cssVar('--card'), 'stroke-width':2}));      // 2px 面板色描边环
   });
-  // 悬浮：竖向准星 + 该周全部系列
   weeks.forEach((w, i) => {
     const half = weeks.length === 1 ? iw : iw / (weeks.length - 1) / 2;
     const hit = el('rect', {x:Math.max(m.l, x(i) - half), y:m.t,
       width:Math.min(half * 2, iw), height:ih, fill:'transparent'});
     const html = '<div class="t-title">' + weekLabel(w) + '</div>' +
-      series.map(s => tipRow(s.color, s.label, METRICS[state.metric].fmt(s.values[i]))).join('');
+      series.map(s => tipRow(s.color, s.label, fmtInt(s.values[i]))).join('');
     hit.addEventListener('mousemove', e => {
       cross.setAttribute('x1', x(i)); cross.setAttribute('x2', x(i)); cross.setAttribute('opacity', 1);
       tipShow(html, e);
@@ -741,9 +806,11 @@ function drawTrend(weeks, series, metricName){
 }
 
 /* ============================== 渲染 ============================== */
-function renderWeekPickers(){
+const F = id => document.getElementById(id);
+
+function renderPickers(){
   const weeks = allWeeks();
-  const a = document.getElementById('sel-a'), b = document.getElementById('sel-b');
+  const a = F('sel-a'), b = F('sel-b');
   if(!weeks.includes(state.weekA)) state.weekA = weeks[weeks.length - 1] || '';
   // weekB: null = 还没定（自动取上一周）；'' = 用户明确选了「无对比」
   if(state.weekB === null || state.weekB === state.weekA ||
@@ -751,113 +818,118 @@ function renderWeekPickers(){
   const opts = sel => weeks.map(w => '<option value="' + w + '"' + (sel === w ? ' selected' : '') + '>' + esc(weekLabel(w)) + '</option>').join('');
   a.innerHTML = opts(state.weekA);
   b.innerHTML = '<option value=""' + (state.weekB ? '' : ' selected') + '>— 无对比 —</option>' + opts(state.weekB);
-  const ps = allPages();
-  document.getElementById('sel-page').innerHTML =
-    '<option value="">全部页面</option>' +
-    ps.map(p => '<option value="' + esc(p) + '"' + (state.page === p ? ' selected' : '') + '>' + esc(p) + '</option>').join('');
-  document.getElementById('dl-pages').innerHTML = ps.map(p => '<option value="' + esc(p) + '">').join('');
+
+  const ps = allPlatforms();
+  F('sel-plat').innerHTML = '<option value="">全部平台</option>' +
+    ps.map(p => '<option value="' + esc(p) + '"' + (state.platform === p ? ' selected' : '') + '>' + esc(p) + '</option>').join('');
+  F('dl-plat').innerHTML = ps.map(p => '<option value="' + esc(p) + '">').join('');
+  F('dl-content').innerHTML =
+    [...new Set(state.records.map(r => r.content).filter(Boolean))].map(c => '<option value="' + esc(c) + '">').join('');
 }
 
 function renderKPIs(A, B){
   const ta = totalOf(A), tb = totalOf(B);
-  const hasB = B.size > 0;
+  const hasB = B.size > 0 && !!state.weekB;
   const cards = [
-    {label:'总浏览量', value:fmtInt(ta.views), d:deltaHTML(ta.views, hasB ? tb.views : null, 'num')},
-    {label:'总互动数', value:fmtInt(ta.eng),   d:deltaHTML(ta.eng,   hasB ? tb.eng   : null, 'num')},
-    {label:'平均互动率', value:fmtPct(ta.engRate),  d:deltaHTML(ta.engRate,  hasB ? tb.engRate  : null, 'rate')},
-    {label:'平均完播率', value:fmtPct(ta.compRate), d:deltaHTML(ta.compRate, hasB ? tb.compRate : null, 'rate')}
+    {label:'总曝光量', value:fmtInt(ta.impressions), d:deltaHTML(ta.impressions, hasB ? tb.impressions : null, 'num')},
+    {label:'总播放量', value:fmtInt(ta.views),       d:deltaHTML(ta.views,       hasB ? tb.views       : null, 'num')},
+    {label:'平均完播率', value:fmtPct(ta.compRate),  d:deltaHTML(ta.compRate, hasB ? tb.compRate : null, 'rate')},
+    {label:'平均互动率', value:fmtPct(ta.engRate),   d:deltaHTML(ta.engRate,  hasB ? tb.engRate  : null, 'rate')},
+    {label:'净涨粉', value:fmtSigned(ta.follows),    d:deltaHTML(ta.follows,  hasB ? tb.follows  : null, 'num')}
   ];
-  document.getElementById('kpis').innerHTML = cards.map(c =>
+  F('kpis').innerHTML = cards.map(c =>
     '<div class="kpi"><div class="k-label">' + c.label + '</div><div class="k-value">' + c.value +
     '</div><div class="k-delta">' + (state.weekB ? c.d + ' vs ' + esc(weekLabel(state.weekB))
                                                  : '<span class="flat">未选对比周</span>') +
     '</div></div>').join('');
 }
 
-function renderTable(A, B, metricTotal){
+function renderTable(A, B){
   const tb = document.querySelector('#tbl tbody'), tf = document.querySelector('#tbl tfoot');
+  F('th-dim').textContent = state.dim === 'platform' ? '平台' : '平台 · 内容';
   const rows = [...A.entries()].sort((p, q) => q[1].views - p[1].views);
   if(!rows.length){
-    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:22px">本期没有数据，点右上角「录入数据」或「载入示例」。</td></tr>';
+    tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:22px">' +
+      '本期没有数据。用右上角「录入数据 / 导入 PDF / 导入 CSV」加进来，或点「载入示例」先看看长什么样。</td></tr>';
     tf.innerHTML = ''; return;
   }
   const tot = totalOf(A);
-  tb.innerHTML = rows.map(([page, a]) => {
-    const b = B.get(page);
-    const rec = state.records.find(r => r.week === state.weekA && r.page === page);
+  tb.innerHTML = rows.map(([k, a]) => {
+    const b = B.get(k);
+    const recs = state.records.filter(r => r.week === state.weekA && keyOf(r) === k);
+    const editable = recs.length === 1 ? recs[0].id : '';
     return '<tr>' +
-      '<td><span class="dot" style="background:' + pageColor(page) + '"></span>' + esc(page) + '</td>' +
+      '<td><span class="dot" style="background:' + keyColor(k) + '"></span>' + esc(k) +
+        (recs.length > 1 ? ' <span class="sub2">(' + recs.length + ' 条)</span>' : '') + '</td>' +
+      '<td>' + fmtInt(a.impressions) + ' <small>' + deltaHTML(a.impressions, b ? b.impressions : null, 'num') + '</small></td>' +
       '<td>' + fmtInt(a.views) + ' <small>' + deltaHTML(a.views, b ? b.views : null, 'num') + '</small></td>' +
+      '<td>' + fmtPct(a.compRate) + ' <small>' + deltaHTML(a.compRate, b ? b.compRate : null, 'rate') + '</small></td>' +
       '<td>' + fmtInt(a.eng) + ' <small>' + deltaHTML(a.eng, b ? b.eng : null, 'num') + '</small></td>' +
       '<td>' + fmtPct(a.engRate) + ' <small>' + deltaHTML(a.engRate, b ? b.engRate : null, 'rate') + '</small></td>' +
-      '<td>' + fmtInt(a.completions) + '</td>' +
-      '<td>' + fmtPct(a.compRate) + ' <small>' + deltaHTML(a.compRate, b ? b.compRate : null, 'rate') + '</small></td>' +
+      '<td>' + fmtSigned(a.follows) + '</td>' +
       '<td>' + (tot.views ? fmtPct(a.views / tot.views) : '—') + '</td>' +
-      '<td><button class="rowbtn ghost" data-edit="' + esc(rec ? rec.id : '') + '">编辑</button> ' +
-          '<button class="rowbtn ghost danger" data-del="' + esc(page) + '">删除</button></td>' +
+      '<td>' + (editable ? '<button class="rowbtn ghost" data-edit="' + esc(editable) + '">编辑</button> ' : '') +
+          '<button class="rowbtn ghost danger" data-del="' + esc(k) + '">删除</button></td>' +
     '</tr>';
   }).join('');
-  tf.innerHTML = '<tr><td>合计</td><td>' + fmtInt(tot.views) + '</td><td>' + fmtInt(tot.eng) + '</td><td>' +
-    fmtPct(tot.engRate) + '</td><td>' + fmtInt(tot.completions) + '</td><td>' + fmtPct(tot.compRate) +
-    '</td><td>100.0%</td><td></td></tr>';
+  tf.innerHTML = '<tr><td>合计</td><td>' + fmtInt(tot.impressions) + '</td><td>' + fmtInt(tot.views) + '</td><td>' +
+    fmtPct(tot.compRate) + '</td><td>' + fmtInt(tot.eng) + '</td><td>' + fmtPct(tot.engRate) + '</td><td>' +
+    fmtSigned(tot.follows) + '</td><td>100.0%</td><td></td></tr>';
 }
 
 function render(){
   buildColors();
-  renderWeekPickers();
+  renderPickers();
   const M = METRICS[state.metric];
-  document.getElementById('cmp-metric-name').textContent = '· ' + M.name;
-  document.getElementById('trend-metric-name').textContent = '· ' + M.name;
-  document.getElementById('donut-hint').textContent = '本期各页面' + M.name + '占总量的比例';
-  document.getElementById('cmp-hint').textContent = state.weekB
-    ? '本期 vs 对比周，按本期数值排序（最多 8 个页面）' : '本期各页面数值，按大小排序（当前未选对比周）';
+  const dimName = state.dim === 'platform' ? '平台' : '内容';
+  F('cmp-metric-name').textContent = '· ' + M.name;
+  F('trend-metric-name').textContent = '· ' + M.name;
+  F('donut-hint').textContent = '本期各' + dimName + M.name + '占总量的比例';
+  F('cmp-hint').textContent = state.weekB
+    ? '本期 vs 对比周，按本期数值排序（最多 8 个' + dimName + '）'
+    : '本期各' + dimName + '数值，按大小排序（当前未选对比周）';
 
   const A = aggWeek(state.weekA), B = aggWeek(state.weekB);
   renderKPIs(A, B);
 
-  // 周对比
-  const cmp = [...A.keys()].map(p => ({label:p, a:M.get(A.get(p)), b:B.has(p) ? M.get(B.get(p)) : 0}))
+  const cmp = [...A.keys()].map(k => ({label:k, a:M.get(A.get(k)), b:B.has(k) ? M.get(B.get(k)) : 0}))
     .sort((x, y) => y.a - x.a).slice(0, 8);
   drawCompare(cmp);
 
-  // 占比（前 5 + 其他）
-  const share = [...A.entries()].map(([p, a]) => ({label:p, value:M.get(a), color:pageColor(p)}))
+  const share = [...A.entries()].map(([k, a]) => ({label:k, value:M.get(a), color:keyColor(k)}))
     .filter(i => i.value > 0).sort((x, y) => y.value - x.value);
   let items = share;
   if(share.length > 5){
     const rest = share.slice(5).reduce((s, i) => s + i.value, 0);
-    items = share.slice(0, 5).concat([{label:'其他 (' + (share.length - 5) + ' 个页面)', value:rest, color:cssVar('--other')}]);
+    items = share.slice(0, 5).concat([{label:'其他 (' + (share.length - 5) + ' 项)', value:rest, color:cssVar('--other')}]);
   }
   drawDonut(items, items.reduce((s, i) => s + i.value, 0), M.name);
 
-  // 互动构成
   drawMix(totalOf(A));
 
-  // 完播率
   const comp = [...A.entries()].filter(([, a]) => a.views > 0)
-    .map(([p, a]) => ({label:p, rate:a.compRate, views:a.views, completions:a.completions,
-      color:pageColor(p), prevRate:B.has(p) ? B.get(p).compRate : null}))
+    .map(([k, a]) => ({label:k, rate:a.compRate, views:a.views, completions:a.completions,
+      color:keyColor(k), prevRate:B.has(k) ? B.get(k).compRate : null}))
     .sort((x, y) => y.rate - x.rate).slice(0, 8);
   drawCompletion(comp);
 
-  // 趋势
   const weeks = allWeeks();
-  const rank = [...A.entries()].map(([p, a]) => [p, M.get(a)]).sort((x, y) => y[1] - x[1]).map(x => x[0]);
-  const pages = (rank.length ? rank : allPages());
-  const top = pages.slice(0, 5), rest = pages.slice(5);
   const byWeek = weeks.map(w => aggWeek(w));
-  const series = top.map(p => ({label:p, color:pageColor(p),
-    values:byWeek.map(mp => mp.has(p) ? M.get(mp.get(p)) : 0)}));
-  if(rest.length) series.push({label:'其他 (' + rest.length + ' 个页面)', color:cssVar('--other'),
-    values:byWeek.map(mp => rest.reduce((s, p) => s + (mp.has(p) ? M.get(mp.get(p)) : 0), 0))});
+  const rank = [...A.entries()].map(([k, a]) => [k, M.get(a)]).sort((x, y) => y[1] - x[1]).map(x => x[0]);
+  const known = [...new Set(rank.concat(...byWeek.map(mp => [...mp.keys()])))];
+  const top = known.slice(0, 5), rest = known.slice(5);
+  const series = top.map(k => ({label:k, color:keyColor(k),
+    values:byWeek.map(mp => mp.has(k) ? M.get(mp.get(k)) : 0)}));
+  if(rest.length) series.push({label:'其他 (' + rest.length + ' 项)', color:cssVar('--other'),
+    values:byWeek.map(mp => rest.reduce((s, k) => s + (mp.has(k) ? M.get(mp.get(k)) : 0), 0))});
   drawTrend(weeks, series, M.name);
 
   renderTable(A, B);
 }
 
 /* ============================== 交互 ============================== */
-function openModal(id){ document.getElementById(id).classList.add('on'); }
-function closeModal(id){ document.getElementById(id).classList.remove('on'); }
+function openModal(id){ F(id).classList.add('on'); }
+function closeModal(id){ F(id).classList.remove('on'); }
 document.querySelectorAll('[data-close]').forEach(b =>
   b.addEventListener('click', () => b.closest('.backdrop').classList.remove('on')));
 document.querySelectorAll('.backdrop').forEach(b =>
@@ -866,90 +938,102 @@ document.addEventListener('keydown', e => {
   if(e.key === 'Escape') document.querySelectorAll('.backdrop.on').forEach(b => b.classList.remove('on'));
 });
 
-document.getElementById('sel-a').addEventListener('change', e => { state.weekA = e.target.value; state.weekB = null; render(); });
-document.getElementById('sel-b').addEventListener('change', e => { state.weekB = e.target.value; render(); });
-document.getElementById('sel-page').addEventListener('change', e => { state.page = e.target.value; render(); });
-document.getElementById('seg-metric').addEventListener('click', e => {
+F('sel-a').addEventListener('change', e => { state.weekA = e.target.value; state.weekB = null; render(); });
+F('sel-b').addEventListener('change', e => { state.weekB = e.target.value; render(); });
+F('sel-plat').addEventListener('change', e => { state.platform = e.target.value; render(); });
+F('seg-metric').addEventListener('click', e => {
   const b = e.target.closest('button'); if(!b) return;
   state.metric = b.dataset.metric;
   [...e.currentTarget.children].forEach(c => c.setAttribute('aria-pressed', c === b ? 'true' : 'false'));
   render();
 });
+F('seg-dim').addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  state.dim = b.dataset.dim;
+  [...e.currentTarget.children].forEach(c => c.setAttribute('aria-pressed', c === b ? 'true' : 'false'));
+  render();
+});
 
 /* --------- 录入 / 编辑 --------- */
-const F = id => document.getElementById(id);
+function uid(){ return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7); }
 function openEntry(rec){
   state.editId = rec ? rec.id : null;
   F('entry-title').textContent = rec ? '编辑数据' : '录入数据';
-  const mon = rec ? weekMonday(rec.week) : new Date();
-  F('f-date').value = rec ? mon.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
-  F('f-page').value = rec ? rec.page : '';
+  const mon = rec ? weekMonday(rec.week) : null;
+  F('f-date').value = mon ? mon.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
+  F('f-platform').value = rec ? rec.platform : '';
+  F('f-content').value  = rec ? (rec.content || '') : '';
   FIELDS.forEach(f => F('f-' + f).value = rec ? (rec[f] || 0) : (f === 'views' ? '' : 0));
   F('f-warn').style.display = 'none';
   updateWeekHint();
   openModal('md-entry');
-  setTimeout(() => F('f-page').focus(), 30);
+  setTimeout(() => F('f-platform').focus(), 30);
 }
 function updateWeekHint(){
   const v = F('f-date').value;
   F('f-week-hint').textContent = v ? '归入：' + weekLabel(isoWeekKey(new Date(v + 'T00:00:00'))) : '';
 }
 F('f-date').addEventListener('change', updateWeekHint);
-document.getElementById('btn-add').addEventListener('click', () => openEntry(null));
+F('btn-add').addEventListener('click', () => openEntry(null));
 
-document.getElementById('form-entry').addEventListener('submit', e => {
+F('form-entry').addEventListener('submit', e => {
   e.preventDefault();
   const week = isoWeekKey(new Date(F('f-date').value + 'T00:00:00'));
-  const page = F('f-page').value.trim();
-  if(!page) return;
-  const rec = {id:state.editId || (Date.now() + '-' + Math.random().toString(36).slice(2, 7)), week:week, page:page};
-  FIELDS.forEach(f => rec[f] = Math.max(0, Math.round(+F('f-' + f).value || 0)));
+  const platform = F('f-platform').value.trim();
+  const content = F('f-content').value.trim();
+  if(!platform) return;
+  const rec = {id:state.editId || uid(), week:week, platform:platform, content:content};
+  FIELDS.forEach(f => rec[f] = Math.round(+F('f-' + f).value || 0));
+  FIELDS.filter(f => f !== 'follows').forEach(f => rec[f] = Math.max(0, rec[f]));
   if(rec.completions > rec.views){
-    F('f-warn').textContent = '完播数不能大于浏览量（完播率会超过 100%）。'; F('f-warn').style.display = 'block'; return;
+    F('f-warn').textContent = '完播数不能大于播放量（完播率会超过 100%）。'; F('f-warn').style.display = 'block'; return;
   }
   if(state.editId){
     const i = state.records.findIndex(r => r.id === state.editId);
     if(i >= 0) state.records[i] = rec; else state.records.push(rec);
   }else{
-    // 同一周同一页面已存在 → 直接覆盖，避免重复计数
-    const i = state.records.findIndex(r => r.week === week && r.page === page);
-    if(i >= 0 && !confirm('「' + page + '」在 ' + weekLabel(week) + ' 已有数据，覆盖它吗？（取消则作为新增一条累加）')){
-      state.records.push(rec);
-    }else if(i >= 0){
+    const i = state.records.findIndex(r => r.week === week && r.platform === platform && (r.content || '') === content);
+    if(i >= 0 && confirm('「' + platform + (content ? ' · ' + content : '') + '」在 ' + weekLabel(week) +
+                         ' 已有数据。\n确定 = 覆盖，取消 = 另存一条（会累加）。')){
       rec.id = state.records[i].id; state.records[i] = rec;
     }else{
       state.records.push(rec);
     }
   }
   save();
-  state.weekA = week;
+  state.weekA = week; state.weekB = null;
   closeModal('md-entry');
   render();
 });
 
-document.querySelector('#tbl').addEventListener('click', e => {
+F('tbl').addEventListener('click', e => {
   const ed = e.target.closest('[data-edit]'), dl = e.target.closest('[data-del]');
   if(ed){
     const rec = state.records.find(r => r.id === ed.dataset.edit);
     if(rec) openEntry(rec);
-    else alert('这一行由多条记录汇总而来，请在下方 CSV 导出中查看或删除后重录。');
   }
   if(dl){
-    const page = dl.dataset.del;
-    if(!confirm('删除「' + page + '」在 ' + weekLabel(state.weekA) + ' 的全部记录？')) return;
-    state.records = state.records.filter(r => !(r.week === state.weekA && r.page === page));
+    const k = dl.dataset.del;
+    if(!confirm('删除「' + k + '」在 ' + weekLabel(state.weekA) + ' 的全部记录？')) return;
+    state.records = state.records.filter(r => !(r.week === state.weekA && keyOf(r) === k));
     save(); render();
   }
 });
 
 /* --------- CSV --------- */
-const CSV_HEAD = ['week','page','views','likes','comments','shares','saves','completions'];
-const CSV_CN = {'周次':'week','周':'week','页面':'page','页面名称':'page','浏览量':'views','浏览':'views',
-  '点赞':'likes','评论':'comments','分享':'shares','收藏':'saves','完播数':'completions','完播':'completions'};
+const CSV_HEAD = ['week','platform','content','impressions','views','completions','likes','comments','shares','saves','follows'];
+const CSV_CN = {'周次':'week','周':'week','日期':'week','平台':'platform','渠道':'platform',
+  '内容':'content','帖子':'content','标题':'content','作品':'content',
+  '曝光量':'impressions','曝光':'impressions','触达':'impressions','展示':'impressions',
+  '播放量':'views','播放':'views','观看':'views','浏览量':'views',
+  '完播数':'completions','完播':'completions','点赞':'likes','评论':'comments',
+  '分享':'shares','转发':'shares','收藏':'saves','涨粉':'follows','新增粉丝':'follows'};
 function toCSV(){
   const head = CSV_HEAD.join(',');
   const body = state.records.slice()
-    .sort((a, b) => a.week === b.week ? a.page.localeCompare(b.page) : a.week.localeCompare(b.week))
+    .sort((a, b) => a.week === b.week
+      ? (a.platform + a.content).localeCompare(b.platform + b.content)
+      : a.week.localeCompare(b.week))
     .map(r => CSV_HEAD.map(k => {
       const v = r[k] === undefined ? '' : r[k];
       return /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : v;
@@ -974,21 +1058,24 @@ function parseCSV(text){
   if(cell.length || row.length){ row.push(cell); rows.push(row); }
   return rows.filter(r => r.some(c => String(c).trim() !== ''));
 }
+function normWeek(v){
+  if(!v) return '';
+  if(/^\d{4}-\d{2}-\d{2}/.test(v)) return isoWeekKey(new Date(v.slice(0, 10) + 'T00:00:00'));
+  const m = /^(\d{4})-?W(\d{1,2})$/i.exec(v.trim());
+  return m ? m[1] + '-W' + String(+m[2]).padStart(2, '0') : '';
+}
 function importCSV(text, mode){
   const rows = parseCSV(text);
   if(rows.length < 2) return alert('没读到有效数据行。');
   const head = rows[0].map(h => { const k = h.trim(); return CSV_CN[k] || k.toLowerCase(); });
-  if(!head.includes('page')) return alert('缺少 page（页面）列。');
+  if(!head.includes('platform')) return alert('缺少 platform（平台）列。');
   const out = [];
   for(let i = 1; i < rows.length; i++){
     const o = {}; head.forEach((h, j) => o[h] = (rows[i][j] || '').trim());
-    const page = o.page; if(!page) continue;
-    let week = o.week;
-    if(week && /^\d{4}-\d{2}-\d{2}/.test(week)) week = isoWeekKey(new Date(week.slice(0, 10) + 'T00:00:00'));
-    if(!/^\d{4}-W\d{1,2}$/.test(week || '')) continue;
-    week = week.replace(/W(\d)$/, 'W0$1');
-    const rec = {id:Date.now() + '-' + i + '-' + Math.random().toString(36).slice(2, 6), week:week, page:page};
-    FIELDS.forEach(f => rec[f] = Math.max(0, Math.round(+o[f] || 0)));
+    const platform = o.platform; if(!platform) continue;
+    const week = normWeek(o.week); if(!week) continue;
+    const rec = {id:uid() + i, week:week, platform:platform, content:o.content || ''};
+    FIELDS.forEach(f => rec[f] = Math.round(+String(o[f] || '').replace(/,/g, '') || 0));
     out.push(rec);
   }
   if(!out.length) return alert('没有可导入的行（检查 week 列是否为 2026-W35 或 2026-08-24 这样的格式）。');
@@ -997,94 +1084,403 @@ function importCSV(text, mode){
   closeModal('md-csv'); render();
   alert('已导入 ' + out.length + ' 条记录。');
 }
-document.getElementById('btn-import').addEventListener('click', () => {
+F('btn-import').addEventListener('click', () => {
   F('csv-title').textContent = '导入 CSV';
   F('csv-import-only').style.display = '';
   F('f-csv').value = '';
-  F('csv-note').textContent = '列：week,page,views,likes,comments,shares,saves,completions（week 支持 2026-W35 或任意日期 2026-08-24；中文表头也可以）。';
+  F('csv-note').textContent = '列：' + CSV_HEAD.join(',') + '（week 支持 2026-W35 或任意日期 2026-08-24；中文表头也认）。';
   F('btn-csv-do').style.display = ''; F('btn-csv-copy').style.display = 'none'; F('btn-csv-download').style.display = 'none';
   openModal('md-csv');
 });
-document.getElementById('btn-export').addEventListener('click', () => {
+F('btn-export').addEventListener('click', () => {
   F('csv-title').textContent = '导出 CSV';
   F('csv-import-only').style.display = 'none';
   F('f-csv').value = toCSV();
-  F('csv-note').textContent = '共 ' + state.records.length + ' 条记录。可直接复制，或下载为文件。';
-  F('btn-csv-do').style.display = 'none'; F('btn-csv-copy').style.display = ''; F('btn-csv-download').style.display = embedded ? 'none' : '';
+  F('csv-note').textContent = '共 ' + state.records.length + ' 条记录。可直接复制' + (embedded ? '。' : '，或下载为文件。');
+  F('btn-csv-do').style.display = 'none'; F('btn-csv-copy').style.display = '';
+  F('btn-csv-download').style.display = embedded ? 'none' : '';
   openModal('md-csv');
 });
-document.getElementById('f-file').addEventListener('change', e => {
+F('f-file').addEventListener('change', e => {
   const f = e.target.files[0]; if(!f) return;
   const rd = new FileReader();
   rd.onload = () => { F('f-csv').value = rd.result; };
   rd.readAsText(f, 'utf-8');
 });
-document.getElementById('btn-csv-do').addEventListener('click', () => {
+F('btn-csv-do').addEventListener('click', () => {
   const text = F('f-csv').value.trim();
   if(!text) return alert('请先选择文件或粘贴内容。');
   const mode = state.records.length && confirm('确定要「覆盖」现有数据吗？\n确定 = 覆盖，取消 = 追加到现有数据。') ? 'replace' : 'append';
   importCSV(text, mode);
 });
-document.getElementById('btn-csv-copy').addEventListener('click', async () => {
+F('btn-csv-copy').addEventListener('click', async () => {
   const ta = F('f-csv');
   try{ await navigator.clipboard.writeText(ta.value); F('csv-note').textContent = '已复制到剪贴板。'; }
   catch(e){ ta.select(); F('csv-note').textContent = '已选中，请按 Ctrl/⌘+C 复制。'; }
 });
-document.getElementById('btn-csv-download').addEventListener('click', () => {
+F('btn-csv-download').addEventListener('click', () => {
   const blob = new Blob(['﻿' + F('f-csv').value], {type:'text/csv;charset=utf-8'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'page-engagement-' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.download = 'social-engagement-' + new Date().toISOString().slice(0, 10) + '.csv';
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 });
 
+/* ============================== PDF 导入 ============================== */
+const PDFJS_VER = '3.11.174';
+const PDF_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/' + PDFJS_VER + '/pdf.min.js';
+const PDF_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/' + PDFJS_VER + '/pdf.worker.min.js';
+// 映射目标：把表格的「第几列」对应到哪个指标
+const MAP_TARGETS = [
+  {k:'name', name:'内容名'},
+  {k:'impressions', name:'曝光量'}, {k:'views', name:'播放量'},
+  {k:'completions', name:'完播数'}, {k:'compRatePct', name:'完播率(%)'},
+  {k:'likes', name:'点赞'}, {k:'comments', name:'评论'},
+  {k:'shares', name:'分享'}, {k:'saves', name:'收藏'}, {k:'follows', name:'涨粉'}
+];
+// 表头别名：命中就自动对上号（长的先匹配，避免「完播率」被「播放」抢走）
+const HEAD_ALIAS = [
+  ['completions', ['完播数','完整播放次数','完整播放','看完人数','completions']],
+  ['compRatePct', ['完播率','播完率','完成率','completion rate','play through']],
+  ['impressions', ['曝光量','曝光','覆盖人数','覆盖','触达人数','触达','展示量','展示','impressions','reach']],
+  ['views',       ['播放量','播放','观看次数','观看','浏览量','浏览','views','plays']],
+  ['likes',       ['点赞数','点赞','喜欢','赞','likes']],
+  ['comments',    ['评论数','评论','comments']],
+  ['shares',      ['分享数','分享','转发','shares']],
+  ['saves',       ['收藏数','收藏','saves','bookmarks']],
+  ['follows',     ['新增粉丝','涨粉','粉丝增长','关注','follows','new followers']],
+  ['name',        ['内容','作品','帖子','标题','名称','post','content','title']]
+];
+let pdfRows = [], pdfMap = {}, pdfCols = 0, pdfHeads = [];
+
+function loadPdfJs(){
+  if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  return new Promise((ok, no) => {
+    const s = document.createElement('script');
+    s.src = PDF_LIB;
+    s.onload = () => {
+      if(!window.pdfjsLib) return no(new Error('解析库加载了但没生效'));
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDF_WORKER;
+      ok(window.pdfjsLib);
+    };
+    s.onerror = () => no(new Error('解析库下载失败（需要联网加载一次）'));
+    document.head.appendChild(s);
+  });
+}
+/** PDF → 每行一个 {cells:[文字...], raw}。同一基线的碎片按 x 排序，列之间靠横向空隙切开 */
+async function pdfToRows(buf){
+  const lib = await loadPdfJs();
+  const doc = await lib.getDocument({data:buf}).promise;
+  const rows = [];
+  for(let p = 1; p <= doc.numPages; p++){
+    const page = await doc.getPage(p);
+    const tc = await page.getTextContent();
+    const bucket = new Map();
+    tc.items.forEach(it => {
+      if(!it.str || !it.str.trim()) return;
+      const y = Math.round(it.transform[5]);          // 同一基线归成一行，容差 2pt
+      const key = [...bucket.keys()].find(k => Math.abs(k - y) <= 2);
+      const use = key === undefined ? y : key;
+      if(!bucket.has(use)) bucket.set(use, []);
+      bucket.get(use).push({x:it.transform[4], w:it.width || 0, s:it.str});
+    });
+    [...bucket.entries()].sort((a, b) => b[0] - a[0]).forEach(([, items]) => {
+      items.sort((a, b) => a.x - b.x);
+      const cells = [];
+      let cur = null;
+      items.forEach(it => {
+        if(cur && it.x - cur.end < 5){               // 紧挨着 → 还是同一格
+          cur.s += (it.x - cur.end > 1 ? ' ' : '') + it.s;   // 中间有空隙就补回一个空格
+          cur.end = it.x + it.w;
+        }else{
+          cur = {s:it.s, end:it.x + it.w};
+          cells.push(cur);
+        }
+      });
+      let texts = cells.map(c => c.s.replace(/\s+/g, ' ').trim()).filter(s => s !== '');
+      const raw = texts.join(' ');
+      if(!raw) return;
+      if(texts.length < 2) texts = splitByNumbers(raw);   // 整行没切开时，退回按数字切
+      rows.push({cells:texts, raw:raw});
+    });
+  }
+  return rows;
+}
+/** 「名称 1,234 56%」→ ['名称','1,234','56%']，作为切不开表格时的兜底 */
+function splitByNumbers(line){
+  const re = /-?\d[\d,]*(?:\.\d+)?\s*(?:%|万|千|亿|[kKmM])?/g;
+  const out = [];
+  let last = 0, m;
+  while((m = re.exec(line))){
+    const head = line.slice(last, m.index).replace(/[\s:：|,，]+$/, '').trim();
+    if(head) out.push(head);
+    out.push(m[0].trim());
+    last = m.index + m[0].length;
+  }
+  const tail = line.slice(last).trim();
+  if(tail) out.push(tail);
+  return out.length ? out : [line];
+}
+/** 单元格 → 数字（认得 1,234 / 12.3% / 1.2万 / 3.4K），认不出返回 null */
+function cellNum(s){
+  const m = /(-?\d[\d,]*(?:\.\d+)?)\s*(%|万|千|亿|[kKmM])?/.exec(String(s || ''));
+  if(!m) return null;
+  let v = parseFloat(m[1].replace(/,/g, ''));
+  const suf = m[2] || '';
+  if(suf === '万') v *= 1e4; else if(suf === '千') v *= 1e3; else if(suf === '亿') v *= 1e8;
+  else if(suf === 'k' || suf === 'K') v *= 1e3; else if(suf === 'm' || suf === 'M') v *= 1e6;
+  return {v:v, pct:suf === '%'};
+}
+function isNumCell(s){
+  const t = String(s || '').trim();
+  return /^[-+]?[\d,]+(\.\d+)?\s*(%|万|千|亿|[kKmM])?$/.test(t);
+}
+/** 找表头行：命中别名最多的一行 */
+function findHeader(rows){
+  let best = null;
+  rows.forEach((r, i) => {
+    if(r.cells.length < 3) return;
+    let hits = 0;
+    const map = {};
+    r.cells.forEach((c, ci) => {
+      const t = String(c).toLowerCase().replace(/\s/g, '');
+      for(const [field, names] of HEAD_ALIAS){
+        if(map[field] !== undefined) continue;
+        if(names.some(n => t.includes(n.toLowerCase().replace(/\s/g, '')))){ map[field] = ci; hits++; break; }
+      }
+    });
+    if(hits >= 2 && (!best || hits > best.hits)) best = {i:i, hits:hits, map:map, cells:r.cells};
+  });
+  return best;
+}
+function guessMapNoHeader(rows){
+  const map = {};
+  const cols = Math.max(...rows.map(r => r.cells.length));
+  const numeric = [];
+  for(let c = 0; c < cols; c++){
+    const vals = rows.map(r => r.cells[c]).filter(v => v !== undefined);
+    const nums = vals.filter(isNumCell).length;
+    if(vals.length && nums / vals.length >= 0.6) numeric.push(c);
+    else if(map.name === undefined && vals.length) map.name = c;
+  }
+  const order = ['views','likes','comments','shares'];
+  numeric.forEach((c, i) => { if(i < order.length) map[order[i]] = c; });
+  return map;
+}
+function pdfRowValues(row){
+  const out = {}; FIELDS.forEach(f => out[f] = 0);
+  let compPct = null;
+  MAP_TARGETS.forEach(t => {
+    if(t.k === 'name') return;
+    const ci = pdfMap[t.k];
+    if(ci === undefined || ci === null || ci === '') return;
+    const n = cellNum(row.cells[+ci]);
+    if(!n) return;
+    if(t.k === 'compRatePct') compPct = n.pct ? n.v : (n.v <= 1 ? n.v * 100 : n.v);
+    else out[t.k] = Math.round(n.v);
+  });
+  // 完播数列没映射时，才用完播率反推 —— 明确指定的列优先
+  const hasCompCol = pdfMap.completions !== undefined && pdfMap.completions !== null && pdfMap.completions !== '';
+  if(compPct !== null && !hasCompCol) out.completions = Math.round(out.views * Math.min(100, Math.max(0, compPct)) / 100);
+  return out;
+}
+function pdfRowName(row){
+  const ci = pdfMap.name;
+  if(ci === undefined || ci === null || ci === '') return '';
+  return String(row.cells[+ci] || '').trim();
+}
+/** 平台名：先在报告开头几行里找常见平台名，找不到再退回文件名 */
+const KNOWN_PLATFORMS = ['Instagram','TikTok','Facebook','YouTube','LinkedIn','Threads','Twitter',
+  '小红书','抖音','微博','视频号','快手','B站','哔哩哔哩','公众号'];
+function guessPlatform(rows, fileName){
+  const head = rows.slice(0, 10).map(r => r.raw).join(' ') + ' ' + fileName;
+  const hit = KNOWN_PLATFORMS.find(p => head.toLowerCase().includes(p.toLowerCase()));
+  if(hit) return hit;
+  const base = fileName.replace(/\.pdf$/i, '').split(/[_\-\s]/)[0];
+  return base && base.length <= 20 ? base : '';
+}
+function renderPdfPreview(){
+  const host = F('pdf-preview');
+  if(!pdfRows.length){ host.style.display = 'none'; return; }
+  host.style.display = '';
+  const cols = ['impressions','views','completions','likes','comments','shares','saves','follows'];
+  host.innerHTML = '<table><thead><tr><th style="text-align:left"><input type="checkbox" id="pdf-all" checked></th>' +
+    '<th style="text-align:left">内容名</th>' + cols.map(c => '<th>' + FIELD_CN[c] + '</th>').join('') +
+    '<th style="text-align:left">原始行</th></tr></thead><tbody>' +
+    pdfRows.map((r, i) => {
+      const v = pdfRowValues(r);
+      const nm = r.name !== undefined ? r.name : pdfRowName(r);
+      return '<tr data-i="' + i + '">' +
+        '<td><input type="checkbox" class="pdf-pick"' + (r.pick ? ' checked' : '') + '></td>' +
+        '<td><input type="text" class="pdf-name" value="' + esc(nm) + '"></td>' +
+        cols.map(c => '<td><input type="number" class="pdf-v" data-f="' + c + '" value="' + (v[c] || 0) + '"></td>').join('') +
+        '<td class="raw" title="' + esc(r.raw) + '">' + esc(r.raw.slice(0, 60)) + '</td></tr>';
+    }).join('') + '</tbody></table>';
+  F('pdf-all').addEventListener('change', e => {
+    host.querySelectorAll('.pdf-pick').forEach(c => { c.checked = e.target.checked; });
+    pdfRows.forEach(r => r.pick = e.target.checked);
+    updatePdfButton();
+  });
+  host.addEventListener('change', e => {
+    const tr = e.target.closest('tr'); if(!tr || tr.dataset.i === undefined) return;
+    const r = pdfRows[+tr.dataset.i];
+    if(e.target.classList.contains('pdf-pick')){ r.pick = e.target.checked; updatePdfButton(); }
+    if(e.target.classList.contains('pdf-name')) r.name = e.target.value;
+  });
+  updatePdfButton();
+}
+function renderPdfMap(){
+  const host = F('pdf-map');
+  if(!pdfCols){ host.style.display = 'none'; return; }
+  host.style.display = '';
+  const colName = i => '第 ' + (i + 1) + ' 列' + (pdfHeads[i] ? '（' + pdfHeads[i].slice(0, 8) + '）' : '');
+  const opt = sel => '<option value="">不使用</option>' +
+    Array.from({length:pdfCols}, (_, i) =>
+      '<option value="' + i + '"' + (String(sel) === String(i) ? ' selected' : '') + '>' + esc(colName(i)) + '</option>').join('');
+  host.innerHTML = MAP_TARGETS.map(t =>
+    '<div class="m"><label for="map-' + t.k + '">' + t.name + '</label>' +
+    '<select id="map-' + t.k + '" data-k="' + t.k + '">' + opt(pdfMap[t.k]) + '</select></div>').join('');
+  host.querySelectorAll('select').forEach(s => s.addEventListener('change', e => {
+    pdfMap[e.target.dataset.k] = e.target.value === '' ? undefined : +e.target.value;
+    if(e.target.dataset.k === 'name') pdfRows.forEach(r => delete r.name);   // 换名称列 → 重新取名
+    renderPdfPreview();
+  }));
+}
+function updatePdfButton(){
+  const picked = pdfRows.filter(r => r.pick).length;
+  F('btn-pdf-do').disabled = !(picked && F('f-pdf-plat').value.trim() && F('f-pdf-date').value);
+  F('btn-pdf-do').textContent = picked ? '导入选中的 ' + picked + ' 行' : '导入选中的行';
+}
+F('btn-pdf').addEventListener('click', () => {
+  F('f-pdf-date').value = F('f-pdf-date').value || new Date().toISOString().slice(0, 10);
+  openModal('md-pdf');
+});
+F('f-pdf-plat').addEventListener('input', updatePdfButton);
+F('f-pdf-date').addEventListener('change', updatePdfButton);
+F('f-pdf').addEventListener('change', async e => {
+  const file = e.target.files[0]; if(!file) return;
+  const st = F('pdf-status');
+  st.className = 'note'; st.textContent = '正在读取 ' + file.name + ' …';
+  pdfRows = []; pdfMap = {}; pdfCols = 0; pdfHeads = [];
+  F('pdf-preview').style.display = 'none'; F('pdf-map').style.display = 'none';
+  updatePdfButton();
+  try{
+    const buf = new Uint8Array(await file.arrayBuffer());
+    const all = await pdfToRows(buf);
+    F('pdf-raw').value = all.map(r => r.cells.join(' | ')).join('\n');
+    F('pdf-raw-wrap').style.display = '';
+
+    const head = findHeader(all);
+    let body;
+    if(head){
+      pdfHeads = head.cells.map(c => String(c));
+      pdfMap = Object.assign({}, head.map);
+      // 只留跟表头列数对得上的行 —— 把说明文字、页眉页脚挡在外面
+      body = all.filter((r, i) => i > head.i && Math.abs(r.cells.length - head.cells.length) <= 1);
+    }else{
+      body = all.filter(r => r.cells.length >= 2 && r.cells.some(isNumCell));
+    }
+    body = body.filter(r => r.cells.some(isNumCell)).slice(0, 80);
+    if(!body.length){
+      st.className = 'note warn';
+      st.textContent = '读到了 ' + all.length + ' 行文字，但没找到「名称 + 数字」形式的表格行。' +
+        '这份 PDF 可能是图片扫描件，或者数据是竖排的 —— 展开下面的原始文字看看，或改用 CSV 导入。';
+      updatePdfButton(); return;
+    }
+    pdfCols = Math.min(16, Math.max(...body.map(r => r.cells.length)));
+    if(!head) pdfMap = guessMapNoHeader(body);
+    if(pdfMap.name === undefined){                       // 名称列兜底：第一个不像数字的列
+      for(let c = 0; c < pdfCols; c++){
+        if(body.filter(r => r.cells[c] !== undefined && !isNumCell(r.cells[c])).length > body.length / 2){ pdfMap.name = c; break; }
+      }
+    }
+    pdfRows = body.map(r => { r.pick = true; return r; });
+    st.className = 'note';
+    st.textContent = head
+      ? '认出了表头（' + head.hits + ' 列对上号），挑出 ' + pdfRows.length + ' 行数据。下面确认一下列对应关系，数值也能直接改。'
+      : '没找到表头，先按位置猜了一版：挑出 ' + pdfRows.length + ' 行数据。请在下面把每一列对上号，数值也能直接改。';
+    if(!F('f-pdf-plat').value.trim()){
+      const guess = guessPlatform(all, file.name);
+      if(guess) F('f-pdf-plat').value = guess;
+    }
+    renderPdfMap(); renderPdfPreview();
+  }catch(err){
+    st.className = 'note warn';
+    st.textContent = 'PDF 解析失败：' + (err && err.message ? err.message : err) + '。可以改用 CSV 导入。';
+    updatePdfButton();
+  }
+});
+F('btn-pdf-do').addEventListener('click', () => {
+  const platform = F('f-pdf-plat').value.trim();
+  const week = isoWeekKey(new Date(F('f-pdf-date').value + 'T00:00:00'));
+  const out = [];
+  F('pdf-preview').querySelectorAll('tbody tr').forEach(tr => {
+    if(!tr.querySelector('.pdf-pick').checked) return;
+    const rec = {id:uid(), week:week, platform:platform, content:tr.querySelector('.pdf-name').value.trim()};
+    FIELDS.forEach(f => rec[f] = 0);
+    tr.querySelectorAll('.pdf-v').forEach(inp => rec[inp.dataset.f] = Math.round(+inp.value || 0));
+    if(rec.completions > rec.views) rec.completions = rec.views;
+    out.push(rec);
+  });
+  if(!out.length) return;
+  state.records = state.records.concat(out);
+  save(); state.weekA = week; state.weekB = null;
+  closeModal('md-pdf'); render();
+  alert('已从 PDF 导入 ' + out.length + ' 条记录到 ' + weekLabel(week) + '。');
+});
+
+
 /* --------- 示例数据 / 清空 --------- */
 function demoData(){
-  const pages = [
-    {name:'首页',        v:5200, e:.062, c:.48},
-    {name:'NVDA 追踪',   v:3800, e:.091, c:.61},
-    {name:'SPCX 记分卡', v:2100, e:.074, c:.55},
-    {name:'棋牌游戏厅',  v:1600, e:.130, c:.72},
-    {name:'太阳系 3D',   v:1150, e:.108, c:.66},
-    {name:'F1 展厅',     v:820,  e:.085, c:.58},
-    {name:'清水玻璃',    v:430,  e:.052, c:.40}
+  const plans = [
+    {p:'Instagram', v:12000, imp:1.9, e:.052, c:.42, f:120, cs:['开箱短片','客户好评','幕后花絮']},
+    {p:'TikTok',    v:26000, imp:1.4, e:.071, c:.31, f:340, cs:['15秒挑战','使用教程','对比测评']},
+    {p:'小红书',    v:7600,  imp:2.4, e:.089, c:.55, f:210, cs:['图文笔记','好物清单','避雷指南']},
+    {p:'Facebook',  v:5200,  imp:2.8, e:.031, c:.38, f:45,  cs:['产品长片','用户见证','活动预告']},
+    {p:'YouTube',   v:3400,  imp:1.7, e:.043, c:.61, f:90,  cs:['深度评测','安装教学','Q&A 合集']}
   ];
   const out = [];
   const today = new Date();
   for(let back = 5; back >= 0; back--){
     const d = new Date(today); d.setDate(today.getDate() - back * 7);
     const week = isoWeekKey(d);
-    pages.forEach((p, pi) => {
-      const wave = 1 + Math.sin((5 - back + pi) * 0.9) * 0.16 + (5 - back) * 0.045;
-      const views = Math.round(p.v * wave * (0.94 + ((pi * 7 + back * 13) % 11) / 90));
-      const eng   = Math.round(views * p.e * (0.9 + ((back * 5 + pi * 3) % 9) / 40));
-      const comp  = Math.round(views * Math.min(0.95, p.c * (0.93 + ((pi + back * 2) % 7) / 45)));
-      const likes = Math.round(eng * 0.62), comments = Math.round(eng * 0.14),
-            shares = Math.round(eng * 0.15), saves = Math.max(0, eng - likes - comments - shares);
-      out.push({id:'demo-' + week + '-' + pi, week:week, page:p.name, views:views,
-        likes:likes, comments:comments, shares:shares, saves:saves, completions:comp});
+    plans.forEach((pl, pi) => {
+      pl.cs.forEach((c, ci) => {
+        const wave = 1 + Math.sin((5 - back + pi * 1.3 + ci) * 0.85) * 0.22 + (5 - back) * 0.05;
+        const share = [0.5, 0.3, 0.2][ci];
+        const views = Math.round(pl.v * share * wave * (0.92 + ((pi * 7 + back * 13 + ci * 5) % 13) / 80));
+        const imps  = Math.round(views * pl.imp * (0.95 + ((back + ci) % 5) / 40));
+        const comp  = Math.round(views * Math.min(0.95, pl.c * (0.9 + ((pi + back * 2 + ci) % 9) / 45)));
+        const eng   = Math.round(imps * pl.e * (0.88 + ((back * 5 + pi * 3 + ci * 2) % 11) / 35));
+        const likes = Math.round(eng * 0.66), comments = Math.round(eng * 0.11),
+              shares = Math.round(eng * 0.13), saves = Math.max(0, eng - likes - comments - shares);
+        out.push({id:'demo-' + week + '-' + pi + '-' + ci, week:week, platform:pl.p, content:c,
+          impressions:imps, views:views, completions:comp,
+          likes:likes, comments:comments, shares:shares, saves:saves,
+          follows:Math.round(pl.f * share * wave * (0.8 + ((pi + back) % 6) / 12))});
+      });
     });
   }
   return out;
 }
-document.getElementById('btn-demo').addEventListener('click', () => {
+F('btn-demo').addEventListener('click', () => {
   if(state.records.length && !confirm('载入示例会覆盖当前数据，继续吗？')) return;
   state.records = demoData(); save();
-  state.weekA = ''; state.weekB = null; state.page = '';
+  state.weekA = ''; state.weekB = null; state.platform = '';
   render();
 });
-document.getElementById('btn-clear').addEventListener('click', () => {
+F('btn-clear').addEventListener('click', () => {
   if(!state.records.length) return;
   if(!confirm('确定清空全部记录？建议先导出 CSV 备份。')) return;
-  state.records = []; save(); state.weekA = ''; state.weekB = null; state.page = '';
+  state.records = []; save(); state.weekA = ''; state.weekB = null; state.platform = '';
   render();
 });
 
 /* --------- 启动 --------- */
 // 嵌在别人页面里（预览 / iframe）时下载会被沙箱拦掉，直接收起按钮，只留「复制」
 const embedded = (() => { try{ return window.self !== window.top; }catch(e){ return true; } })();
-if(embedded) document.getElementById('btn-csv-download').style.display = 'none';
+if(embedded) F('btn-csv-download').style.display = 'none';
 
 let t = null;
 addEventListener('resize', () => { clearTimeout(t); t = setTimeout(render, 150); });
