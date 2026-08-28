@@ -400,8 +400,7 @@ footer{margin-top:28px; color:var(--text3); font-size:12px; line-height:1.8}
 
 /* ============================== 数据层 ============================== */
 const KEY = 'socialEngagement.v3';
-const OLD_KEYS = ['socialEngagement.v2', 'pageEngagement.v1'];
-const DEFAULT_BRAND = '默认品牌';
+
 const FIELDS = ['impressions','views','views3s','completions','watchSec','likes','comments','shares','saves','follows','interactions'];
 const FIELD_CN = {impressions:'曝光/触及', views:'播放量', views3s:'3秒观看', completions:'完播数',
   watchSec:'总观看秒数', likes:'点赞', comments:'评论/留言', shares:'分享', saves:'收藏',
@@ -420,24 +419,8 @@ function load(){
     const raw = localStorage.getItem(KEY);
     state.records = raw ? JSON.parse(raw) : [];
     if(!Array.isArray(state.records)) state.records = [];
-    if(!state.records.length) state.records = migrateOld();
+    state.records = state.records.filter(r => r && brandOf(r));   // 没有品牌的记录不收
   }catch(e){ state.records = []; }
-}
-function migrateOld(){       // v2 没有品牌字段 → 归到默认品牌；v1 是「网页」维度 → 平台=网站
-  for(const key of OLD_KEYS){
-    let old = [];
-    try{ old = JSON.parse(localStorage.getItem(key) || '[]'); }catch(e){ continue; }
-    if(!Array.isArray(old) || !old.length) continue;
-    return old.map((r, i) => ({
-      id:'mig-' + i, week:r.week,
-      brand:r.brand || DEFAULT_BRAND,
-      platform:r.platform || '网站',
-      content:r.content || r.page || '',
-      impressions:+r.impressions || 0, views:+r.views || 0, completions:+r.completions || 0,
-      likes:+r.likes || 0, comments:+r.comments || 0, shares:+r.shares || 0,
-      saves:+r.saves || 0, follows:+r.follows || 0}));
-  }
-  return [];
 }
 function save(){
   try{ localStorage.setItem(KEY, JSON.stringify(state.records)); }
@@ -492,7 +475,7 @@ function allPlatforms(){
   state.records.forEach(r => { if(!seen.includes(r.platform)) seen.push(r.platform); });
   return seen;
 }
-function brandOf(r){ return r.brand || DEFAULT_BRAND; }
+function brandOf(r){ return String(r.brand || '').trim(); }
 /** 每个品牌在本期出现过的平台，用于品牌卡的副标题 */
 function platformsOfBrand(b, week){
   const seen = [];
@@ -1224,7 +1207,8 @@ F('btn-add').addEventListener('click', () => openEntry(null));
 F('form-entry').addEventListener('submit', e => {
   e.preventDefault();
   const week = isoWeekKey(new Date(F('f-date').value + 'T00:00:00'));
-  const brand = F('f-brand').value.trim() || DEFAULT_BRAND;
+  const brand = F('f-brand').value.trim();
+  if(!brand) return;
   const platform = F('f-platform').value.trim();
   const content = F('f-content').value.trim();
   if(!platform) return;
@@ -1318,13 +1302,16 @@ function importCSV(text, mode){
   if(rows.length < 2) return alert('没读到有效数据行。');
   const head = rows[0].map(h => { const k = h.trim(); return CSV_CN[k] || k.toLowerCase(); });
   if(!head.includes('platform')) return alert('缺少 platform（平台）列。');
+  if(!head.includes('brand')) return alert('缺少 brand（品牌）列 —— 每条记录都要写明属于哪个品牌。');
   const out = [];
+  let skipped = 0;
   for(let i = 1; i < rows.length; i++){
     const o = {}; head.forEach((h, j) => o[h] = (rows[i][j] || '').trim());
     const platform = o.platform; if(!platform) continue;
     const week = normWeek(o.week); if(!week) continue;
-    const rec = {id:uid() + i, week:week, brand:(o.brand || DEFAULT_BRAND).trim() || DEFAULT_BRAND,
-      platform:platform, content:o.content || ''};
+    const brand = (o.brand || '').trim();
+    if(!brand){ skipped++; continue; }
+    const rec = {id:uid() + i, week:week, brand:brand, platform:platform, content:o.content || ''};
     FIELDS.forEach(f => rec[f] = Math.round(+String(o[f] || '').replace(/,/g, '') || 0));
     out.push(rec);
   }
@@ -1332,7 +1319,7 @@ function importCSV(text, mode){
   state.records = mode === 'replace' ? out : state.records.concat(out);
   save(); state.weekA = ''; state.weekB = null;
   closeModal('md-csv'); render();
-  alert('已导入 ' + out.length + ' 条记录。');
+  alert('已导入 ' + out.length + ' 条记录。' + (skipped ? '\n有 ' + skipped + ' 行没填品牌，已跳过。' : ''));
 }
 F('btn-import').addEventListener('click', () => {
   F('csv-title').textContent = '导入 CSV';
@@ -1976,7 +1963,7 @@ F('btn-pdf-do').addEventListener('click', () => {
     if(!tr.querySelector('.pdf-pick').checked) return;
     const src = pdfSources[+tr.dataset.s];
     const week = isoWeekKey(new Date(src.date + 'T00:00:00'));
-    const rec = {id:uid(), week:week, brand:src.brand.trim() || fallback || DEFAULT_BRAND,
+    const rec = {id:uid(), week:week, brand:src.brand.trim() || fallback,
       platform:src.platform.trim(),
       content:tr.querySelector('.pdf-name').value.trim()};
     FIELDS.forEach(f => rec[f] = 0);
