@@ -147,6 +147,13 @@ details{margin-top:10px} summary{cursor:pointer; font-size:12px; color:var(--tex
 .pv input[type=text]{width:150px; padding:4px 6px; font-size:12px}
 .pv input[type=number]{width:84px; padding:4px 6px; font-size:12px; text-align:right}
 .pv .raw{color:var(--text3); font-size:11px; max-width:280px; overflow:hidden; text-overflow:ellipsis}
+.src{border:1px solid var(--border); border-radius:12px; padding:10px 12px; margin-top:12px}
+.srchead{display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end}
+.srchead .fname{font-weight:700; font-size:13px; align-self:center; margin-right:4px;
+  max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.srchead input{padding:5px 8px; font-size:12px}
+.srcnote{font-size:11px; color:var(--text3); margin-top:6px}
+.srcnote b{color:var(--good)}
 
 #tip{position:fixed; z-index:80; pointer-events:none; opacity:0; transition:opacity .1s;
   background:var(--bg2); color:var(--text); border:1px solid var(--border2); border-radius:10px;
@@ -324,6 +331,8 @@ footer{margin-top:28px; color:var(--text3); font-size:12px; line-height:1.8}
       <div><label for="f-comments">评论</label><input type="number" id="f-comments" min="0" step="1" value="0"></div>
       <div><label for="f-shares">分享</label><input type="number" id="f-shares" min="0" step="1" value="0"></div>
       <div><label for="f-saves">收藏</label><input type="number" id="f-saves" min="0" step="1" value="0"></div>
+      <div class="full"><label for="f-interactions">互动总数（平台只给一个总数时填这里，会覆盖上面四项之和）</label>
+        <input type="number" id="f-interactions" min="0" step="1" value="0"></div>
       <div class="note warn full" id="f-warn" style="display:none"></div>
       <div class="foot full">
         <button type="button" class="ghost" data-close>取消</button>
@@ -357,25 +366,26 @@ footer{margin-top:28px; color:var(--text3); font-size:12px; line-height:1.8}
   <div class="modal wide">
     <h3>从 PDF 导入</h3>
     <p class="note" style="margin-top:0">
-      选一份平台后台导出的 PDF，页面会把里面的文字读出来、按行找出数字，你确认每一列对应哪个指标后再导入。
-      解析得不对也没关系：预览表里的名称和每个数字都能直接改。
+      可以一次选多份（Instagram 和 Facebook 的一起选）。页面会自己认出平台、统计周期和各项指标；
+      认不准的地方，下面每一格都能直接改。文件不会上传，全部在你自己的浏览器里解析。<br>
+      账号总览类的报表会汇总成一条「账号整体」；同一个平台同一周，账号整体和单条内容建议只导其中一种，
+      不然两边的数会加在一起。
     </p>
     <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end">
-      <div class="field"><label for="f-pdf">PDF 文件</label><input type="file" id="f-pdf" accept="application/pdf,.pdf"></div>
-      <div class="field"><label for="f-pdf-brand">品牌</label><input type="text" id="f-pdf-brand" list="dl-brand" placeholder="例：艾芙美妆"></div>
-      <div class="field"><label for="f-pdf-plat">平台</label><input type="text" id="f-pdf-plat" list="dl-plat" placeholder="例：Instagram"></div>
-      <div class="field"><label for="f-pdf-date">日期（归入所在周）</label><input type="date" id="f-pdf-date"></div>
+      <div class="field"><label for="f-pdf-brand">品牌（这批 PDF 都算这个品牌）</label>
+        <input type="text" id="f-pdf-brand" list="dl-brand" placeholder="例：艾芙美妆"></div>
+      <div class="field"><label for="f-pdf">PDF 文件（可多选）</label>
+        <input type="file" id="f-pdf" accept="application/pdf,.pdf" multiple></div>
     </div>
     <div class="note" id="pdf-status">还没有选择文件。</div>
-    <div class="maprow" id="pdf-map" style="display:none"></div>
-    <div class="pv" id="pdf-preview" style="display:none"></div>
+    <div id="pdf-sources"></div>
     <details id="pdf-raw-wrap" style="display:none">
-      <summary>看不出来？展开 PDF 原始文字（可以复制出来交给别人处理）</summary>
+      <summary>展开 PDF 原始文字（认不出来时，看这里能知道原文长什么样）</summary>
       <textarea id="pdf-raw" spellcheck="false" readonly></textarea>
     </details>
     <div class="foot">
       <button type="button" class="ghost" data-close>关闭</button>
-      <button type="button" class="primary" id="btn-pdf-do" disabled>导入选中的行</button>
+      <button type="button" class="primary" id="btn-pdf-do" disabled>导入</button>
     </div>
   </div>
 </div>
@@ -390,9 +400,10 @@ footer{margin-top:28px; color:var(--text3); font-size:12px; line-height:1.8}
 const KEY = 'socialEngagement.v3';
 const OLD_KEYS = ['socialEngagement.v2', 'pageEngagement.v1'];
 const DEFAULT_BRAND = '默认品牌';
-const FIELDS = ['impressions','views','completions','likes','comments','shares','saves','follows'];
+const FIELDS = ['impressions','views','completions','likes','comments','shares','saves','follows','interactions'];
 const FIELD_CN = {impressions:'曝光量', views:'播放量', completions:'完播数',
-  likes:'点赞', comments:'评论', shares:'分享', saves:'收藏', follows:'涨粉'};
+  likes:'点赞', comments:'评论', shares:'分享', saves:'收藏', follows:'涨粉',
+  interactions:'互动总数'};
 const METRICS = {
   views:       {name:'播放量', get:a=>a.views},
   impressions: {name:'曝光量', get:a=>a.impressions},
@@ -506,7 +517,8 @@ function blank(){
   o.eng = 0; o.engRate = 0; o.compRate = 0; return o;
 }
 function derive(a){
-  a.eng = a.likes + a.comments + a.shares + a.saves;
+  // 有拆分就用拆分之和；平台只给「互动总数」时用那个总数
+  a.eng = Math.max(a.likes + a.comments + a.shares + a.saves, a.interactions || 0);
   const base = a.impressions > 0 ? a.impressions : a.views;
   a.engRate  = base > 0 ? a.eng / base : 0;
   a.compRate = a.views > 0 ? a.completions / a.views : 0;
@@ -796,7 +808,12 @@ function drawMix(t){
     {label:'收藏', value:t.saves,    color:cssVar('--s4')}
   ];
   const sum = parts.reduce((s, p) => s + p.value, 0);
-  if(sum <= 0){ emptyChart(host, '本期还没有互动数据'); lg.innerHTML = ''; return; }
+  if(sum <= 0){
+    emptyChart(host, t.interactions > 0
+      ? '本期只有「互动总数」' + fmtInt(t.interactions) + '，没有点赞/评论/分享/收藏的拆分'
+      : '本期还没有互动数据');
+    lg.innerHTML = ''; return;
+  }
   const W = hostWidth(host), H = 74, bh = 30, y = 16;
   const svg = newSVG(host, W, H);
   let x = 0;
@@ -1145,12 +1162,17 @@ F('seg-dim').addEventListener('click', e => {
 
 /* --------- 录入 / 编辑 --------- */
 function uid(){ return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7); }
+/** 最近用过的品牌 —— 只管一个品牌的人就不用每次重填 */
+function lastBrand(){
+  const r = state.records[state.records.length - 1];
+  return r ? brandOf(r) : '';
+}
 function openEntry(rec){
   state.editId = rec ? rec.id : null;
   F('entry-title').textContent = rec ? '编辑数据' : '录入数据';
   const mon = rec ? weekMonday(rec.week) : null;
   F('f-date').value = mon ? mon.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
-  F('f-brand').value    = rec ? brandOf(rec) : (state.brand || '');
+  F('f-brand').value    = rec ? brandOf(rec) : (state.brand || lastBrand());
   F('f-platform').value = rec ? rec.platform : '';
   F('f-content').value  = rec ? (rec.content || '') : '';
   FIELDS.forEach(f => F('f-' + f).value = rec ? (rec[f] || 0) : (f === 'views' ? '' : 0));
@@ -1213,13 +1235,14 @@ F('tbl').addEventListener('click', e => {
 });
 
 /* --------- CSV --------- */
-const CSV_HEAD = ['week','brand','platform','content','impressions','views','completions','likes','comments','shares','saves','follows'];
+const CSV_HEAD = ['week','brand','platform','content','impressions','views','completions','likes','comments','shares','saves','follows','interactions'];
 const CSV_CN = {'周次':'week','周':'week','日期':'week','品牌':'brand','账号':'brand','brand':'brand','平台':'platform','渠道':'platform',
   '内容':'content','帖子':'content','标题':'content','作品':'content',
   '曝光量':'impressions','曝光':'impressions','触达':'impressions','展示':'impressions',
   '播放量':'views','播放':'views','观看':'views','浏览量':'views',
   '完播数':'completions','完播':'completions','点赞':'likes','评论':'comments',
-  '分享':'shares','转发':'shares','收藏':'saves','涨粉':'follows','新增粉丝':'follows'};
+  '分享':'shares','转发':'shares','收藏':'saves','涨粉':'follows','新增粉丝':'follows',
+  '互动总数':'interactions','互动':'interactions','互动次数':'interactions'};
 function toCSV(){
   const head = CSV_HEAD.join(',');
   const body = state.records.slice()
@@ -1227,7 +1250,7 @@ function toCSV(){
       ? (brandOf(a) + a.platform + a.content).localeCompare(brandOf(b) + b.platform + b.content)
       : a.week.localeCompare(b.week))
     .map(r => CSV_HEAD.map(k => {
-      const v = r[k] === undefined ? '' : r[k];
+      const v = r[k] !== undefined ? r[k] : (FIELDS.includes(k) ? 0 : '');
       return /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : v;
     }).join(',')).join('\n');
   return head + '\n' + body + '\n';
@@ -1324,28 +1347,38 @@ F('btn-csv-download').addEventListener('click', () => {
 const PDFJS_VER = '3.11.174';
 const PDF_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/' + PDFJS_VER + '/pdf.min.js';
 const PDF_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/' + PDFJS_VER + '/pdf.worker.min.js';
-// 映射目标：把表格的「第几列」对应到哪个指标
+// 映射目标：表格模式下把「第几列」对应到哪个指标
 const MAP_TARGETS = [
   {k:'name', name:'内容名'},
   {k:'impressions', name:'曝光量'}, {k:'views', name:'播放量'},
   {k:'completions', name:'完播数'}, {k:'compRatePct', name:'完播率(%)'},
   {k:'likes', name:'点赞'}, {k:'comments', name:'评论'},
-  {k:'shares', name:'分享'}, {k:'saves', name:'收藏'}, {k:'follows', name:'涨粉'}
+  {k:'shares', name:'分享'}, {k:'saves', name:'收藏'},
+  {k:'interactions', name:'互动总数'}, {k:'follows', name:'涨粉'}
 ];
-// 表头别名：命中就自动对上号（长的先匹配，避免「完播率」被「播放」抢走）
-const HEAD_ALIAS = [
-  ['completions', ['完播数','完整播放次数','完整播放','看完人数','completions']],
-  ['compRatePct', ['完播率','播完率','完成率','completion rate','play through']],
-  ['impressions', ['曝光量','曝光','覆盖人数','覆盖','触达人数','触达','展示量','展示','impressions','reach']],
-  ['views',       ['播放量','播放','观看次数','观看','浏览量','浏览','views','plays']],
-  ['likes',       ['点赞数','点赞','喜欢','赞','likes']],
-  ['comments',    ['评论数','评论','comments']],
-  ['shares',      ['分享数','分享','转发','shares']],
-  ['saves',       ['收藏数','收藏','saves','bookmarks']],
-  ['follows',     ['新增粉丝','涨粉','粉丝增长','关注','follows','new followers']],
-  ['name',        ['内容','作品','帖子','标题','名称','post','content','title']]
+/** 指标别名：Meta（Instagram / Facebook）中英文写法都收进来，长的排前面先匹配 */
+const METRIC_ALIAS = [
+  ['completions',  ['完整观看次数','完整播放次数','完整观看','完播次数','完播数','watched full video','video completions','completions']],
+  ['compRatePct',  ['平均播放完成率','播放完成率','完播率','播完率','completion rate','play-through rate','watch-through rate']],
+  ['impressions',  ['覆盖的账户数','覆盖人数','触及人数','触达人数','覆盖账户','展示次数','曝光次数','曝光量','覆盖','触及','曝光',
+                    'accounts reached','accounts center accounts reached','people reached','reach','impressions']],
+  ['views',        ['观看次数','播放次数','视频观看次数','播放量','观看量','浏览量','视频播放','观看','播放','浏览',
+                    'video views','3-second video views','plays','views']],
+  ['interactions', ['内容互动次数','互动的账户数','互动总数','互动次数','互动人数','互动量','互动',
+                    'accounts engaged','content interactions','post engagement','interactions','engagements']],
+  ['likes',        ['点赞次数','点赞数','赞和心情','点赞','喜欢','赞','reactions','likes']],
+  ['comments',     ['评论次数','评论数','评论','comments']],
+  ['shares',       ['分享次数','转发次数','分享数','分享','转发','shares','reposts']],
+  ['saves',        ['保存次数','收藏次数','收藏数','收藏','保存','saves','bookmarks']],
+  ['follows',      ['新增粉丝数','新增关注数','净增粉丝','新增粉丝','新增关注','涨粉','粉丝增长','关注数','净关注',
+                    'net follows','new followers','follows','followers gained']],
+  ['name',         ['内容','作品','帖子','标题','名称','post','content','title','caption']]
 ];
-let pdfRows = [], pdfMap = {}, pdfCols = 0, pdfHeads = [];
+const KNOWN_PLATFORMS = ['Instagram','TikTok','Facebook','YouTube','LinkedIn','Threads','Twitter',
+  '小红书','抖音','微博','视频号','快手','B站','哔哩哔哩','公众号'];
+const MONTHS = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+
+let pdfSources = [];        // [{name, platform, date, mode, rows, map, cols, heads, hits, raw}]
 
 function loadPdfJs(){
   if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
@@ -1429,7 +1462,27 @@ function isNumCell(s){
   const t = String(s || '').trim();
   return /^[-+]?[\d,]+(\.\d+)?\s*(%|万|千|亿|[kKmM])?$/.test(t);
 }
-/** 找表头行：命中别名最多的一行 */
+function norm(t){ return String(t || '').toLowerCase().replace(/[\s:：]/g, ''); }
+/** 一段文字命中哪个指标（整词优先，避免「完播率」被「播放」抢走） */
+function matchMetric(text){
+  const t = norm(text);
+  if(!t || t.length > 24) return null;
+  for(const [field, names] of METRIC_ALIAS){
+    for(const n of names){
+      const k = norm(n);
+      if(t === k) return field;
+    }
+  }
+  for(const [field, names] of METRIC_ALIAS){
+    for(const n of names){
+      const k = norm(n);
+      if(k.length >= 2 && t.includes(k)) return field;
+    }
+  }
+  return null;
+}
+
+/* ---------- 模式一：表格（有表头的那种） ---------- */
 function findHeader(rows){
   let best = null;
   rows.forEach((r, i) => {
@@ -1437,15 +1490,133 @@ function findHeader(rows){
     let hits = 0;
     const map = {};
     r.cells.forEach((c, ci) => {
-      const t = String(c).toLowerCase().replace(/\s/g, '');
-      for(const [field, names] of HEAD_ALIAS){
-        if(map[field] !== undefined) continue;
-        if(names.some(n => t.includes(n.toLowerCase().replace(/\s/g, '')))){ map[field] = ci; hits++; break; }
-      }
+      const f = matchMetric(c);
+      if(f && map[f] === undefined){ map[f] = ci; hits++; }
     });
     if(hits >= 2 && (!best || hits > best.hits)) best = {i:i, hits:hits, map:map, cells:r.cells};
   });
   return best;
+}
+/* ---------- 模式二：指标卡（Meta 常见：一个指标名配一个数字） ---------- */
+function parseKeyValue(rows){
+  const found = {};                       // field → 数值（只取第一次出现，报表通常先总览后明细）
+  const seen = [];
+  const put = (f, n) => {
+    if(!f || !n || found[f] !== undefined) return;
+    found[f] = f === 'compRatePct' ? (n.pct ? n.v : (n.v <= 1 ? n.v * 100 : n.v)) : n.v;
+    seen.push(f);
+  };
+  // (a) 卡片并排时，pdf.js 会把一排数字排成一行、一排指标名排成另一行 —— 按位置配对
+  rows.forEach((r, i) => {
+    if(r.cells.length < 2 || r.cells.some(isNumCell)) return;
+    const fields = r.cells.map(matchMetric);
+    if(fields.filter(Boolean).length < 2) return;
+    [rows[i - 1], rows[i + 1]].forEach(nb => {
+      if(!nb || nb.cells.length !== r.cells.length || !nb.cells.every(isNumCell)) return;
+      fields.forEach((f, ci) => put(f, cellNum(nb.cells[ci])));
+    });
+  });
+  rows.forEach((r, i) => {
+    // (b) 同一行里「指标名 + 数字」
+    const labelCells = [], numCells = [];
+    r.cells.forEach(c => (isNumCell(c) ? numCells : labelCells).push(c));
+    if(labelCells.length === 1 && numCells.length === 1){
+      put(matchMetric(labelCells[0]), cellNum(numCells[0]));
+      return;
+    }
+    if(r.cells.length === 2){
+      put(matchMetric(r.cells[0]), cellNum(r.cells[1]));
+      return;
+    }
+    // (c) 单个数字和单个指标名分成上下两行
+    if(r.cells.length === 1 && isNumCell(r.cells[0])){
+      const n = cellNum(r.cells[0]);
+      const near = [rows[i + 1], rows[i - 1]].filter(Boolean);
+      for(const nb of near){
+        if(nb.cells.length !== 1 || isNumCell(nb.cells[0])) continue;
+        const f = matchMetric(nb.cells[0]);
+        if(f){ put(f, n); break; }
+      }
+    }
+  });
+  return {values:found, hits:seen.filter(f => f !== 'name').length};
+}
+/** 报表里的统计周期 → yyyy-mm-dd（取开始那天） */
+function findReportDate(rows){
+  const head = rows.slice(0, 30).map(r => r.raw).join(' ');
+  const found = [];
+  let m;
+  const re1 = /(\d{4})\s*[-/年]\s*(\d{1,2})\s*[-/月]\s*(\d{1,2})/g;
+  while((m = re1.exec(head))) found.push(iso(+m[1], +m[2], +m[3]));
+  const re2 = /(\d{1,2})\/(\d{1,2})\/(\d{4})/g;
+  while((m = re2.exec(head))) found.push(iso(+m[3], +m[1], +m[2]));
+  const yr = /(20\d{2})/.exec(head);
+  const re3 = new RegExp('(' + MONTHS.join('|') + ')[a-z]*\\.?\\s+(\\d{1,2})(?:\\D{0,4}(\\d{4}))?', 'gi');
+  while((m = re3.exec(head))){
+    const y = m[3] ? +m[3] : (yr ? +yr[1] : 0);
+    if(y) found.push(iso(y, MONTHS.indexOf(m[1].toLowerCase()) + 1, +m[2]));
+  }
+  const valid = found.filter(Boolean).sort();
+  return valid[0] || '';                 // 报表通常写「开始 - 结束」，取开始那天
+}
+function iso(y, mo, d){
+  if(!(y > 1990 && mo >= 1 && mo <= 12 && d >= 1 && d <= 31)) return '';
+  return y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+function guessPlatform(rows, fileName){
+  const head = rows.slice(0, 25).map(r => r.raw).join(' ') + ' ' + fileName;
+  const hit = KNOWN_PLATFORMS.find(p => head.toLowerCase().includes(p.toLowerCase()));
+  if(hit) return hit;
+  const base = fileName.replace(/\.pdf$/i, '').split(/[_\-\s]/)[0];
+  return base && base.length <= 20 ? base : '';
+}
+
+/* ---------- 一份文件 → 一个 source ---------- */
+async function readPdfFile(file){
+  const buf = new Uint8Array(await file.arrayBuffer());
+  const all = await pdfToRows(buf);
+  const src = {name:file.name, raw:all.map(r => r.cells.join(' | ')).join('\n'),
+    platform:guessPlatform(all, file.name), date:findReportDate(all) || new Date().toISOString().slice(0, 10),
+    map:{}, heads:[], cols:0, rows:[], mode:'none', hits:0};
+
+  const head = findHeader(all);
+  let body = [];
+  if(head){
+    body = all.filter((r, i) => i > head.i && Math.abs(r.cells.length - head.cells.length) <= 1)
+              .filter(r => r.cells.some(isNumCell));
+  }
+  // 每行都得有个非数字的名称格，否则这是「指标卡」而不是明细表
+  const named = body.filter(r => r.cells.some(c => !isNumCell(c))).length;
+  if(head && body.length && named >= body.length / 2){
+    src.mode = 'table'; src.hits = head.hits;
+    src.heads = head.cells.map(String);
+    src.map = Object.assign({}, head.map);
+    src.rows = body.slice(0, 80).map(r => { r.pick = true; return r; });
+    src.cols = Math.min(16, Math.max(...src.rows.map(r => r.cells.length)));
+    if(src.map.name === undefined){
+      for(let c = 0; c < src.cols; c++){
+        if(src.rows.filter(r => r.cells[c] !== undefined && !isNumCell(r.cells[c])).length > src.rows.length / 2){
+          src.map.name = c; break;
+        }
+      }
+    }
+    return src;
+  }
+  const kv = parseKeyValue(all);                   // 指标卡：整份文件汇总成一条
+  if(kv.hits >= 2){
+    src.mode = 'kv'; src.hits = kv.hits;
+    src.rows = [{name:'账号整体', values:kv.values, pick:true, raw:'（整份报表汇总成一条）'}];
+    return src;
+  }
+  const loose = all.filter(r => r.cells.length >= 2 && r.cells.some(isNumCell));
+  if(loose.length){
+    src.mode = 'loose';
+    src.rows = loose.slice(0, 80).map(r => { r.pick = true; return r; });
+    src.cols = Math.min(16, Math.max(...src.rows.map(r => r.cells.length)));
+    src.map = guessMapNoHeader(src.rows);
+    return src;
+  }
+  return src;                                      // mode = none
 }
 function guessMapNoHeader(rows){
   const map = {};
@@ -1457,164 +1628,167 @@ function guessMapNoHeader(rows){
     if(vals.length && nums / vals.length >= 0.6) numeric.push(c);
     else if(map.name === undefined && vals.length) map.name = c;
   }
-  const order = ['views','likes','comments','shares'];
-  numeric.forEach((c, i) => { if(i < order.length) map[order[i]] = c; });
+  ['views','likes','comments','shares'].forEach((f, i) => { if(numeric[i] !== undefined) map[f] = numeric[i]; });
   return map;
 }
-function pdfRowValues(row){
+/* ---------- 一行 → 各指标数值 ---------- */
+function rowValues(src, row){
   const out = {}; FIELDS.forEach(f => out[f] = 0);
   let compPct = null;
-  MAP_TARGETS.forEach(t => {
-    if(t.k === 'name') return;
-    const ci = pdfMap[t.k];
-    if(ci === undefined || ci === null || ci === '') return;
-    const n = cellNum(row.cells[+ci]);
-    if(!n) return;
-    if(t.k === 'compRatePct') compPct = n.pct ? n.v : (n.v <= 1 ? n.v * 100 : n.v);
-    else out[t.k] = Math.round(n.v);
-  });
+  if(src.mode === 'kv'){
+    FIELDS.forEach(f => { if(row.values[f] !== undefined) out[f] = Math.round(row.values[f]); });
+    if(row.values.compRatePct !== undefined) compPct = row.values.compRatePct;
+  }else{
+    MAP_TARGETS.forEach(t => {
+      if(t.k === 'name') return;
+      const ci = src.map[t.k];
+      if(ci === undefined || ci === null || ci === '') return;
+      const n = cellNum(row.cells[+ci]);
+      if(!n) return;
+      if(t.k === 'compRatePct') compPct = n.pct ? n.v : (n.v <= 1 ? n.v * 100 : n.v);
+      else out[t.k] = Math.round(n.v);
+    });
+  }
   // 完播数列没映射时，才用完播率反推 —— 明确指定的列优先
-  const hasCompCol = pdfMap.completions !== undefined && pdfMap.completions !== null && pdfMap.completions !== '';
+  const hasCompCol = src.mode === 'kv'
+    ? row.values.completions !== undefined
+    : (src.map.completions !== undefined && src.map.completions !== null && src.map.completions !== '');
   if(compPct !== null && !hasCompCol) out.completions = Math.round(out.views * Math.min(100, Math.max(0, compPct)) / 100);
   return out;
 }
-function pdfRowName(row){
-  const ci = pdfMap.name;
+function rowName(src, row){
+  if(row.name !== undefined) return row.name;
+  const ci = src.map.name;
   if(ci === undefined || ci === null || ci === '') return '';
   return String(row.cells[+ci] || '').trim();
 }
-/** 平台名：先在报告开头几行里找常见平台名，找不到再退回文件名 */
-const KNOWN_PLATFORMS = ['Instagram','TikTok','Facebook','YouTube','LinkedIn','Threads','Twitter',
-  '小红书','抖音','微博','视频号','快手','B站','哔哩哔哩','公众号'];
-function guessPlatform(rows, fileName){
-  const head = rows.slice(0, 10).map(r => r.raw).join(' ') + ' ' + fileName;
-  const hit = KNOWN_PLATFORMS.find(p => head.toLowerCase().includes(p.toLowerCase()));
-  if(hit) return hit;
-  const base = fileName.replace(/\.pdf$/i, '').split(/[_\-\s]/)[0];
-  return base && base.length <= 20 ? base : '';
-}
-function renderPdfPreview(){
-  const host = F('pdf-preview');
-  if(!pdfRows.length){ host.style.display = 'none'; return; }
-  host.style.display = '';
-  const cols = ['impressions','views','completions','likes','comments','shares','saves','follows'];
-  host.innerHTML = '<table><thead><tr><th style="text-align:left"><input type="checkbox" id="pdf-all" checked></th>' +
-    '<th style="text-align:left">内容名</th>' + cols.map(c => '<th>' + FIELD_CN[c] + '</th>').join('') +
-    '<th style="text-align:left">原始行</th></tr></thead><tbody>' +
-    pdfRows.map((r, i) => {
-      const v = pdfRowValues(r);
-      const nm = r.name !== undefined ? r.name : pdfRowName(r);
-      return '<tr data-i="' + i + '">' +
-        '<td><input type="checkbox" class="pdf-pick"' + (r.pick ? ' checked' : '') + '></td>' +
-        '<td><input type="text" class="pdf-name" value="' + esc(nm) + '"></td>' +
-        cols.map(c => '<td><input type="number" class="pdf-v" data-f="' + c + '" value="' + (v[c] || 0) + '"></td>').join('') +
-        '<td class="raw" title="' + esc(r.raw) + '">' + esc(r.raw.slice(0, 60)) + '</td></tr>';
-    }).join('') + '</tbody></table>';
-  F('pdf-all').addEventListener('change', e => {
-    host.querySelectorAll('.pdf-pick').forEach(c => { c.checked = e.target.checked; });
-    pdfRows.forEach(r => r.pick = e.target.checked);
+
+/* ---------- 渲染 ---------- */
+const PREVIEW_COLS = ['impressions','views','completions','likes','comments','shares','saves','interactions','follows'];
+function renderPdfSources(){
+  const host = F('pdf-sources');
+  if(!pdfSources.length){ host.innerHTML = ''; updatePdfButton(); return; }
+  host.innerHTML = pdfSources.map((src, si) => {
+    if(src.mode === 'none'){
+      return '<div class="src" data-s="' + si + '"><div class="srchead"><span class="fname">' + esc(src.name) + '</span></div>' +
+        '<div class="srcnote" style="color:var(--bad)">没认出表格或指标卡 —— 可能是图片扫描件。' +
+        '展开下面的原始文字看看，或改用 CSV 导入。</div></div>';
+    }
+    const modeNote = src.mode === 'table' ? '认出明细表（表头对上 <b>' + src.hits + '</b> 列），共 ' + src.rows.length + ' 行'
+      : src.mode === 'kv' ? '认出指标卡，自动读到 <b>' + src.hits + '</b> 个指标，汇总成 1 条'
+      : '没找到表头，按位置猜的，共 ' + src.rows.length + ' 行 —— 请核对下面每一格';
+    const colName = i => '第 ' + (i + 1) + ' 列' + (src.heads[i] ? '（' + src.heads[i].slice(0, 8) + '）' : '');
+    const mapUI = src.mode === 'kv' ? '' :
+      '<div class="maprow">' + MAP_TARGETS.map(t =>
+        '<div class="m"><label for="map-' + si + '-' + t.k + '">' + t.name + '</label>' +
+        '<select id="map-' + si + '-' + t.k + '" data-s="' + si + '" data-k="' + t.k + '">' +
+        '<option value="">不使用</option>' +
+        Array.from({length:src.cols}, (_, i) =>
+          '<option value="' + i + '"' + (String(src.map[t.k]) === String(i) ? ' selected' : '') + '>' +
+          esc(colName(i)) + '</option>').join('') +
+        '</select></div>').join('') + '</div>';
+    return '<div class="src" data-s="' + si + '">' +
+      '<div class="srchead"><span class="fname" title="' + esc(src.name) + '">' + esc(src.name) + '</span>' +
+        '<div class="field"><label>平台</label>' +
+          '<input type="text" class="src-plat" data-s="' + si + '" list="dl-plat" value="' + esc(src.platform) + '"></div>' +
+        '<div class="field"><label>日期（归入所在周）</label>' +
+          '<input type="date" class="src-date" data-s="' + si + '" value="' + esc(src.date) + '"></div>' +
+        '<div class="field"><label>归入</label><span style="font-size:12px;padding:5px 0">' +
+          esc(src.date ? weekLabel(isoWeekKey(new Date(src.date + 'T00:00:00'))) : '—') + '</span></div>' +
+      '</div>' +
+      '<div class="srcnote">' + modeNote + '</div>' + mapUI +
+      '<div class="pv"><table><thead><tr>' +
+        '<th style="text-align:left"><input type="checkbox" class="pdf-all" data-s="' + si + '" checked></th>' +
+        '<th style="text-align:left">内容名</th>' +
+        PREVIEW_COLS.map(c => '<th>' + FIELD_CN[c] + '</th>').join('') +
+        '<th style="text-align:left">原始行</th></tr></thead><tbody>' +
+        src.rows.map((r, ri) => {
+          const v = rowValues(src, r);
+          return '<tr data-s="' + si + '" data-i="' + ri + '">' +
+            '<td><input type="checkbox" class="pdf-pick"' + (r.pick ? ' checked' : '') + '></td>' +
+            '<td><input type="text" class="pdf-name" value="' + esc(rowName(src, r)) + '"></td>' +
+            PREVIEW_COLS.map(c => '<td><input type="number" class="pdf-v" data-f="' + c + '" value="' + (v[c] || 0) + '"></td>').join('') +
+            '<td class="raw" title="' + esc(r.raw) + '">' + esc(String(r.raw).slice(0, 50)) + '</td></tr>';
+        }).join('') +
+      '</tbody></table></div></div>';
+  }).join('');
+
+  host.querySelectorAll('.maprow select').forEach(sel => sel.addEventListener('change', e => {
+    const src = pdfSources[+e.target.dataset.s];
+    src.map[e.target.dataset.k] = e.target.value === '' ? undefined : +e.target.value;
+    if(e.target.dataset.k === 'name') src.rows.forEach(r => delete r.name);
+    renderPdfSources();
+  }));
+  host.querySelectorAll('.pdf-all').forEach(cb => cb.addEventListener('change', e => {
+    const si = +e.target.dataset.s;
+    pdfSources[si].rows.forEach(r => r.pick = e.target.checked);
+    host.querySelectorAll('tr[data-s="' + si + '"] .pdf-pick').forEach(c => { c.checked = e.target.checked; });
     updatePdfButton();
-  });
+  }));
+  host.querySelectorAll('.src-plat').forEach(inp => inp.addEventListener('input', e => {
+    pdfSources[+e.target.dataset.s].platform = e.target.value;
+    updatePdfButton();
+  }));
+  host.querySelectorAll('.src-date').forEach(inp => inp.addEventListener('change', e => {
+    pdfSources[+e.target.dataset.s].date = e.target.value;
+    renderPdfSources();
+  }));
   host.addEventListener('change', e => {
     const tr = e.target.closest('tr'); if(!tr || tr.dataset.i === undefined) return;
-    const r = pdfRows[+tr.dataset.i];
+    const r = pdfSources[+tr.dataset.s].rows[+tr.dataset.i];
     if(e.target.classList.contains('pdf-pick')){ r.pick = e.target.checked; updatePdfButton(); }
     if(e.target.classList.contains('pdf-name')) r.name = e.target.value;
   });
   updatePdfButton();
 }
-function renderPdfMap(){
-  const host = F('pdf-map');
-  if(!pdfCols){ host.style.display = 'none'; return; }
-  host.style.display = '';
-  const colName = i => '第 ' + (i + 1) + ' 列' + (pdfHeads[i] ? '（' + pdfHeads[i].slice(0, 8) + '）' : '');
-  const opt = sel => '<option value="">不使用</option>' +
-    Array.from({length:pdfCols}, (_, i) =>
-      '<option value="' + i + '"' + (String(sel) === String(i) ? ' selected' : '') + '>' + esc(colName(i)) + '</option>').join('');
-  host.innerHTML = MAP_TARGETS.map(t =>
-    '<div class="m"><label for="map-' + t.k + '">' + t.name + '</label>' +
-    '<select id="map-' + t.k + '" data-k="' + t.k + '">' + opt(pdfMap[t.k]) + '</select></div>').join('');
-  host.querySelectorAll('select').forEach(s => s.addEventListener('change', e => {
-    pdfMap[e.target.dataset.k] = e.target.value === '' ? undefined : +e.target.value;
-    if(e.target.dataset.k === 'name') pdfRows.forEach(r => delete r.name);   // 换名称列 → 重新取名
-    renderPdfPreview();
-  }));
-}
 function updatePdfButton(){
-  const picked = pdfRows.filter(r => r.pick).length;
-  F('btn-pdf-do').disabled = !(picked && F('f-pdf-brand').value.trim() &&
-    F('f-pdf-plat').value.trim() && F('f-pdf-date').value);
-  F('btn-pdf-do').textContent = picked ? '导入选中的 ' + picked + ' 行' : '导入选中的行';
+  const picked = pdfSources.reduce((n, s) => n + s.rows.filter(r => r.pick).length, 0);
+  const ready = pdfSources.every(s => !s.rows.length || (s.platform.trim() && s.date));
+  F('btn-pdf-do').disabled = !(picked && ready && F('f-pdf-brand').value.trim());
+  F('btn-pdf-do').textContent = picked ? '导入 ' + picked + ' 条' : '导入';
 }
 F('btn-pdf').addEventListener('click', () => {
-  F('f-pdf-date').value = F('f-pdf-date').value || new Date().toISOString().slice(0, 10);
   if(!F('f-pdf-brand').value.trim() && state.brand) F('f-pdf-brand').value = state.brand;
   openModal('md-pdf');
 });
 F('f-pdf-brand').addEventListener('input', updatePdfButton);
-F('f-pdf-plat').addEventListener('input', updatePdfButton);
-F('f-pdf-date').addEventListener('change', updatePdfButton);
 F('f-pdf').addEventListener('change', async e => {
-  const file = e.target.files[0]; if(!file) return;
+  const files = [...e.target.files];
+  if(!files.length) return;
   const st = F('pdf-status');
-  st.className = 'note'; st.textContent = '正在读取 ' + file.name + ' …';
-  pdfRows = []; pdfMap = {}; pdfCols = 0; pdfHeads = [];
-  F('pdf-preview').style.display = 'none'; F('pdf-map').style.display = 'none';
-  updatePdfButton();
-  try{
-    const buf = new Uint8Array(await file.arrayBuffer());
-    const all = await pdfToRows(buf);
-    F('pdf-raw').value = all.map(r => r.cells.join(' | ')).join('\n');
-    F('pdf-raw-wrap').style.display = '';
-
-    const head = findHeader(all);
-    let body;
-    if(head){
-      pdfHeads = head.cells.map(c => String(c));
-      pdfMap = Object.assign({}, head.map);
-      // 只留跟表头列数对得上的行 —— 把说明文字、页眉页脚挡在外面
-      body = all.filter((r, i) => i > head.i && Math.abs(r.cells.length - head.cells.length) <= 1);
-    }else{
-      body = all.filter(r => r.cells.length >= 2 && r.cells.some(isNumCell));
-    }
-    body = body.filter(r => r.cells.some(isNumCell)).slice(0, 80);
-    if(!body.length){
+  pdfSources = []; F('pdf-sources').innerHTML = ''; updatePdfButton();
+  st.className = 'note'; st.textContent = '正在读取 ' + files.length + ' 份文件 …';
+  const raws = [];
+  for(const f of files){
+    try{
+      const src = await readPdfFile(f);
+      pdfSources.push(src);
+      raws.push('===== ' + f.name + ' =====\n' + src.raw);
+    }catch(err){
       st.className = 'note warn';
-      st.textContent = '读到了 ' + all.length + ' 行文字，但没找到「名称 + 数字」形式的表格行。' +
-        '这份 PDF 可能是图片扫描件，或者数据是竖排的 —— 展开下面的原始文字看看，或改用 CSV 导入。';
-      updatePdfButton(); return;
+      st.textContent = '「' + f.name + '」解析失败：' + (err && err.message ? err.message : err);
     }
-    pdfCols = Math.min(16, Math.max(...body.map(r => r.cells.length)));
-    if(!head) pdfMap = guessMapNoHeader(body);
-    if(pdfMap.name === undefined){                       // 名称列兜底：第一个不像数字的列
-      for(let c = 0; c < pdfCols; c++){
-        if(body.filter(r => r.cells[c] !== undefined && !isNumCell(r.cells[c])).length > body.length / 2){ pdfMap.name = c; break; }
-      }
-    }
-    pdfRows = body.map(r => { r.pick = true; return r; });
-    st.className = 'note';
-    st.textContent = head
-      ? '认出了表头（' + head.hits + ' 列对上号），挑出 ' + pdfRows.length + ' 行数据。下面确认一下列对应关系，数值也能直接改。'
-      : '没找到表头，先按位置猜了一版：挑出 ' + pdfRows.length + ' 行数据。请在下面把每一列对上号，数值也能直接改。';
-    if(!F('f-pdf-plat').value.trim()){
-      const guess = guessPlatform(all, file.name);
-      if(guess) F('f-pdf-plat').value = guess;
-    }
-    renderPdfMap(); renderPdfPreview();
-  }catch(err){
-    st.className = 'note warn';
-    st.textContent = 'PDF 解析失败：' + (err && err.message ? err.message : err) + '。可以改用 CSV 导入。';
-    updatePdfButton();
   }
+  F('pdf-raw').value = raws.join('\n\n');
+  F('pdf-raw-wrap').style.display = raws.length ? '' : 'none';
+  const okCount = pdfSources.filter(s => s.rows.length).length;
+  if(okCount){
+    st.className = 'note';
+    st.textContent = okCount + ' / ' + files.length + ' 份读出了数据。平台和统计周期已自动填好，核对无误就可以导入。';
+  }else if(pdfSources.length){
+    st.className = 'note warn';
+    st.textContent = '文字读出来了，但没认出数据。展开下面的原始文字看看是什么排版。';
+  }
+  renderPdfSources();
 });
 F('btn-pdf-do').addEventListener('click', () => {
   const brand = F('f-pdf-brand').value.trim() || DEFAULT_BRAND;
-  const platform = F('f-pdf-plat').value.trim();
-  const week = isoWeekKey(new Date(F('f-pdf-date').value + 'T00:00:00'));
   const out = [];
-  F('pdf-preview').querySelectorAll('tbody tr').forEach(tr => {
+  F('pdf-sources').querySelectorAll('tbody tr').forEach(tr => {
     if(!tr.querySelector('.pdf-pick').checked) return;
-    const rec = {id:uid(), week:week, brand:brand, platform:platform,
+    const src = pdfSources[+tr.dataset.s];
+    const week = isoWeekKey(new Date(src.date + 'T00:00:00'));
+    const rec = {id:uid(), week:week, brand:brand, platform:src.platform.trim(),
       content:tr.querySelector('.pdf-name').value.trim()};
     FIELDS.forEach(f => rec[f] = 0);
     tr.querySelectorAll('.pdf-v').forEach(inp => rec[inp.dataset.f] = Math.round(+inp.value || 0));
@@ -1622,10 +1796,21 @@ F('btn-pdf-do').addEventListener('click', () => {
     out.push(rec);
   });
   if(!out.length) return;
-  state.records = state.records.concat(out);
-  save(); state.weekA = week; state.weekB = null; state.brand = ''; state.platform = '';
+  // 同一周 · 同品牌 · 同平台 · 同名称的旧记录直接替换 —— 同一份报表导两次不会翻倍
+  let replaced = 0;
+  out.forEach(rec => {
+    const i = state.records.findIndex(r => r.week === rec.week && brandOf(r) === rec.brand &&
+      r.platform === rec.platform && (r.content || '') === rec.content);
+    if(i >= 0){ rec.id = state.records[i].id; state.records[i] = rec; replaced++; }
+    else state.records.push(rec);
+  });
+  save();
+  state.weekA = out[out.length - 1].week; state.weekB = null; state.brand = ''; state.platform = '';
   closeModal('md-pdf'); render();
-  alert('已从 PDF 导入 ' + out.length + ' 条记录到 ' + weekLabel(week) + '。');
+  const both = out.some(r => r.content === '账号整体') && out.some(r => r.content !== '账号整体');
+  alert('已导入 ' + out.length + ' 条记录' + (replaced ? '（其中 ' + replaced + ' 条覆盖了同名旧记录）' : '') + '。' +
+    (both ? '\n\n注意：这批里既有「账号整体」又有单条内容，两者会被加在一起算。' +
+            '同一个平台同一周建议只留一种，另一种可以在明细表里删掉。' : ''));
 });
 
 
