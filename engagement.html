@@ -118,6 +118,7 @@ tfoot td{font-weight:700; border-top:1px solid var(--border2); border-bottom:0}
 .dot{display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:7px; vertical-align:-1px}
 .rowbtn{padding:3px 8px; font-size:12px}
 .sub2{color:var(--text3); font-size:11px}
+body.no-comp .col-comp{display:none}
 
 .backdrop{position:fixed; inset:0; background:rgba(4,8,16,.62); backdrop-filter:blur(3px);
   display:none; align-items:center; justify-content:center; padding:18px; z-index:50}
@@ -181,7 +182,7 @@ footer{margin-top:28px; color:var(--text3); font-size:12px; line-height:1.8}
     <button class="ghost" id="btn-pdf">导入 PDF</button>
     <button class="ghost" id="btn-import">导入 CSV</button>
     <button class="ghost" id="btn-export">导出 CSV</button>
-    <button class="ghost" id="btn-demo">载入示例</button>
+    <button class="ghost" id="btn-demo">载入起始数据</button>
     <button class="ghost danger" id="btn-clear">清空</button>
   </div>
 </header>
@@ -284,7 +285,7 @@ footer{margin-top:28px; color:var(--text3); font-size:12px; line-height:1.8}
     <div class="tablewrap"><table id="tbl">
       <thead><tr>
         <th id="th-dim">平台</th><th>曝光/触及</th><th>播放量</th><th>3秒留存</th><th>均播</th>
-        <th>完播率</th><th>互动数</th><th>互动率</th><th>涨粉</th><th>占比</th><th>操作</th>
+        <th class="col-comp">完播率</th><th>互动数</th><th>互动率</th><th>涨粉</th><th>占比</th><th>操作</th>
       </tr></thead>
       <tbody></tbody><tfoot></tfoot>
     </table></div>
@@ -977,8 +978,10 @@ function renderKPIs(A, B){
       ? {label:'3 秒留存率', value:fmtPct(ta.hookRate), d:deltaHTML(ta.hookRate, hasB ? tb.hookRate : null, 'rate')}
       : {label:'平均完播率', value:fmtPct(ta.compRate), d:deltaHTML(ta.compRate, hasB ? tb.compRate : null, 'rate')},
     {label:'平均互动率', value:fmtPct(ta.engRate),   d:deltaHTML(ta.engRate,  hasB ? tb.engRate  : null, 'rate')},
-    {label:'净涨粉', value:fmtSigned(ta.follows),    d:deltaHTML(ta.follows,  hasB ? tb.follows  : null, 'num')}
-  ];
+    (ta.follows || tb.follows)
+      ? {label:'净涨粉', value:fmtSigned(ta.follows), d:deltaHTML(ta.follows, hasB ? tb.follows : null, 'num')}
+      : null
+  ].filter(Boolean);
   F('kpis').innerHTML = cards.map(c =>
     '<div class="kpi"><div class="k-label">' + c.label + '</div><div class="k-value">' + c.value +
     '</div><div class="k-delta">' + (state.weekB ? c.d + ' vs ' + esc(weekLabel(state.weekB))
@@ -1015,7 +1018,9 @@ function renderBrandCards(){
         (a.views3s > 0
           ? row('3秒留存', fmtPct(a.hookRate), a.hookRate, prev && prev.hookRate, 'rate') +
             (a.avgSec ? row('均播', a.avgSec.toFixed(1) + 's', 0, 0, 'none') : '')
-          : row('完播率', fmtPct(a.compRate), a.compRate, prev && prev.compRate, 'rate')) +
+          : a.completions > 0
+            ? row('完播率', fmtPct(a.compRate), a.compRate, prev && prev.compRate, 'rate')
+            : '') +
         row('互动率', fmtPct(a.engRate), a.engRate, prev && prev.engRate, 'rate') +
         row('涨粉', fmtSigned(a.follows), a.follows, prev && prev.follows, 'num') +
       '</div></div>';
@@ -1025,10 +1030,12 @@ function renderBrandCards(){
 function renderTable(A, B){
   const tb = document.querySelector('#tbl tbody'), tf = document.querySelector('#tbl tfoot');
   F('th-dim').textContent = DIMS[state.dim].name;
+  // 一条完播数据都没有时，把完播率那列收起来（多数平台报表只给 3 秒留存）
+  document.body.classList.toggle('no-comp', totalOf(A).completions === 0);
   const rows = [...A.entries()].sort((p, q) => q[1].views - p[1].views);
   if(!rows.length){
     tb.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text3);padding:22px">' +
-      '本期没有数据。用右上角「录入数据 / 导入 PDF / 导入 CSV」加进来，或点「载入示例」先看看长什么样。</td></tr>';
+      '本期没有数据。用右上角「录入数据 / 导入 PDF / 导入 CSV」加进来，或点「载入起始数据」恢复三个品牌的周报数字。</td></tr>';
     tf.innerHTML = ''; return;
   }
   const tot = totalOf(A);
@@ -1043,7 +1050,7 @@ function renderTable(A, B){
       '<td>' + fmtInt(a.views) + ' <small>' + deltaHTML(a.views, b ? b.views : null, 'num') + '</small></td>' +
       '<td>' + fmtPct(a.hookRate) + ' <small>' + deltaHTML(a.hookRate, b ? b.hookRate : null, 'rate') + '</small></td>' +
       '<td>' + (a.avgSec ? a.avgSec.toFixed(1) + 's' : '—') + '</td>' +
-      '<td>' + fmtPct(a.compRate) + ' <small>' + deltaHTML(a.compRate, b ? b.compRate : null, 'rate') + '</small></td>' +
+      '<td class="col-comp">' + fmtPct(a.compRate) + ' <small>' + deltaHTML(a.compRate, b ? b.compRate : null, 'rate') + '</small></td>' +
       '<td>' + fmtInt(a.eng) + ' <small>' + deltaHTML(a.eng, b ? b.eng : null, 'num') + '</small></td>' +
       '<td>' + fmtPct(a.engRate) + ' <small>' + deltaHTML(a.engRate, b ? b.engRate : null, 'rate') + '</small></td>' +
       '<td>' + fmtSigned(a.follows) + '</td>' +
@@ -1053,8 +1060,8 @@ function renderTable(A, B){
     '</tr>';
   }).join('');
   tf.innerHTML = '<tr><td>合计</td><td>' + fmtInt(tot.impressions) + '</td><td>' + fmtInt(tot.views) + '</td><td>' +
-    fmtPct(tot.hookRate) + '</td><td>' + (tot.avgSec ? tot.avgSec.toFixed(1) + 's' : '—') + '</td><td>' +
-    fmtPct(tot.compRate) + '</td><td>' + fmtInt(tot.eng) + '</td><td>' + fmtPct(tot.engRate) + '</td><td>' +
+    fmtPct(tot.hookRate) + '</td><td>' + (tot.avgSec ? tot.avgSec.toFixed(1) + 's' : '—') + '</td>' +
+    '<td class="col-comp">' + fmtPct(tot.compRate) + '</td><td>' + fmtInt(tot.eng) + '</td><td>' + fmtPct(tot.engRate) + '</td><td>' +
     fmtSigned(tot.follows) + '</td><td>100.0%</td><td></td></tr>';
 }
 
@@ -1991,45 +1998,50 @@ F('btn-pdf-do').addEventListener('click', () => {
 
 
 /* --------- 示例数据 / 清空 --------- */
-function demoData(){
-  // 三个品牌，各自主打的平台不同 —— 正好用来看跨品牌的流量对比
-  const plans = [
-    {b:'艾芙美妆', p:'Instagram', v:12000, imp:1.9, e:.052, c:.42, f:120, cs:['开箱短片','客户好评','幕后花絮']},
-    {b:'艾芙美妆', p:'小红书',    v:7600,  imp:2.4, e:.089, c:.55, f:210, cs:['图文笔记','好物清单']},
-    {b:'艾芙美妆', p:'TikTok',    v:9800,  imp:1.5, e:.061, c:.29, f:180, cs:['上脸测评']},
-    {b:'本木家居', p:'Facebook',  v:5200,  imp:2.8, e:.031, c:.38, f:45,  cs:['产品长片','用户见证']},
-    {b:'本木家居', p:'Instagram', v:6400,  imp:2.0, e:.044, c:.46, f:88,  cs:['空间改造','搭配灵感']},
-    {b:'本木家居', p:'YouTube',   v:3400,  imp:1.7, e:.043, c:.61, f:90,  cs:['深度评测','安装教学']},
-    {b:'三味餐饮', p:'TikTok',    v:26000, imp:1.4, e:.071, c:.31, f:340, cs:['15秒挑战','后厨揭秘','对比测评']},
-    {b:'三味餐饮', p:'小红书',    v:5100,  imp:2.2, e:.095, c:.58, f:150, cs:['探店笔记','隐藏菜单']}
-  ];
-  const out = [];
-  const today = new Date();
-  for(let back = 5; back >= 0; back--){
-    const d = new Date(today); d.setDate(today.getDate() - back * 7);
-    const week = isoWeekKey(d);
-    plans.forEach((pl, pi) => {
-      pl.cs.forEach((c, ci) => {
-        const wave = 1 + Math.sin((5 - back + pi * 1.3 + ci) * 0.85) * 0.22 + (5 - back) * 0.05;
-        const share = [0.5, 0.3, 0.2][ci] || 0.2;
-        const views = Math.round(pl.v * share * wave * (0.92 + ((pi * 7 + back * 13 + ci * 5) % 13) / 80));
-        const imps  = Math.round(views * pl.imp * (0.95 + ((back + ci) % 5) / 40));
-        const comp  = Math.round(views * Math.min(0.95, pl.c * (0.9 + ((pi + back * 2 + ci) % 9) / 45)));
-        const eng   = Math.round(imps * pl.e * (0.88 + ((back * 5 + pi * 3 + ci * 2) % 11) / 35));
-        const likes = Math.round(eng * 0.66), comments = Math.round(eng * 0.11),
-              shares = Math.round(eng * 0.13), saves = Math.max(0, eng - likes - comments - shares);
-        out.push({id:'demo-' + week + '-' + pi + '-' + ci, week:week, brand:pl.b, platform:pl.p, content:c,
-          impressions:imps, views:views, completions:comp,
-          likes:likes, comments:comments, shares:shares, saves:saves,
-          follows:Math.round(pl.f * share * wave * (0.8 + ((pi + back) % 6) / 12))});
-      });
-    });
-  }
-  return out;
+/** 起始数据：FANG / JAN'S SECRET / Jan's Cart 三个品牌的真实周报数字
+ *  FANG   —— 用账号级周汇总（周报的「总量对比」表，带触及，能做周对比）
+ *  两个 JAN'S —— 用逐条明细（8/17‒8/23 那周，各条观看之和正好等于账号周总观看）
+ *  同一品牌同一周只放一种口径，避免账号汇总和单条内容重复计算 */
+function seedData(){
+  const rows = [];
+  const add = r => rows.push(Object.assign({id:'seed-' + rows.length,
+    impressions:0, views:0, views3s:0, completions:0, watchSec:0,
+    likes:0, comments:0, shares:0, saves:0, follows:0, interactions:0}, r));
+
+  // FANG · 账号级周汇总
+  add({week:'2026-W33', brand:'FANG', platform:'Facebook', content:'账号整体',
+       impressions:8409, views:13391, likes:147, comments:23, shares:32, interactions:206});
+  add({week:'2026-W34', brand:'FANG', platform:'Facebook', content:'账号整体',
+       impressions:4966, views:9827, likes:126, comments:11, shares:25, interactions:166});
+
+  // 两个 JAN'S 品牌 · 8/17‒8/23 逐条明细（观看 / 3秒观看 / 均播秒 / 留言 / 互动）
+  const posts = (brand, list) => list.forEach(([content, views, v3s, sec, comments, inter]) =>
+    add({week:'2026-W34', brand:brand, platform:'Facebook', content:content,
+         views:views, views3s:v3s, watchSec:views * sec, comments:comments, interactions:inter}));
+
+  posts("JAN'S SECRET", [
+    ['🇲🇾小葡萄珍珠吊坠 预算RM300内', 15410, 3959, 4, 15, 72],
+    ['🇲🇾天然珍珠·Baby珠手链 S925银', 1678, 323, 4, 5, 9],
+    ['🇲🇾初光Shine｜Baby珠项链 周年', 1652, 348, 5, 9, 14],
+    ['🇲🇾相遇·珍珠吊坠大小珠 S925银', 1405, 235, 4, 1, 7],
+    ['💫行星款｜星轨Orbit 5-6mm 珍珠', 1342, 221, 4, 1, 6],
+    ['🇲🇾月半 天然珍珠吊坠 7-8mm', 1317, 216, 6, 1, 5],
+    ['🍬糖果色珍珠手链 S925银 磁吸扣', 1304, 273, 9, 4, 7],
+    ['☁云枕｜天然珍珠耳钉 S925银', 1247, 220, 5, 3, 8]
+  ]);
+  posts("Jan's Cart", [
+    ['周年庆【珍珠】仅此一场！（含投流）', 11677, 4461, 29, 881, 1161],
+    ['🍬糖果色珍珠手链 S925银 磁吸扣', 1301, 285, 5, 3, 29],
+    ['🇲🇾相遇·珍珠吊坠大小珠 S925银', 1258, 292, 5, 3, 28],
+    ['🇲🇾天然珍珠·Baby珠手链 S925银', 1198, 258, 6, 1, 13],
+    ['💫行星款｜星轨Orbit 5-6mm 珍珠', 1030, 242, 6, 3, 17],
+    ['🇲🇾月半 天然珍珠吊坠 7-8mm', 921, 167, 4, 4, 17]
+  ]);
+  return rows;
 }
 F('btn-demo').addEventListener('click', () => {
-  if(state.records.length && !confirm('载入示例会覆盖当前数据，继续吗？')) return;
-  state.records = demoData(); save();
+  if(state.records.length && !confirm('会用三个品牌的起始数据覆盖当前内容，继续吗？')) return;
+  state.records = seedData(); save();
   state.weekA = ''; state.weekB = null; state.brand = ''; state.platform = '';
   render();
 });
@@ -2050,7 +2062,7 @@ addEventListener('resize', () => { clearTimeout(t); t = setTimeout(render, 150);
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => setTimeout(render, 60));
 
 load();
-if(!state.records.length) state.records = demoData();   // 首次访问先给一份示例，方便看懂
+if(!state.records.length) state.records = seedData();    // 首次打开先放三个品牌的真实周报数字
 render();
 
 })();
