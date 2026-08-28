@@ -17,8 +17,9 @@
   --other:#5b6b88;
   --shadow:0 8px 30px rgba(0,0,0,.45);
 }
+/* 深色是默认；系统浅色、或宿主显式标记 data-theme="light" 时切浅色 */
 @media (prefers-color-scheme: light){
-  :root{
+  :root:not([data-theme="dark"]){
     --bg:#f4f6fb; --bg2:#ffffff; --card:#ffffff;
     --border:rgba(0,0,0,.09); --border2:rgba(0,0,0,.18);
     --text:#0a1428; --text2:#4c5c78; --text3:#8a97ad;
@@ -29,6 +30,16 @@
     --shadow:0 6px 20px rgba(20,30,50,.10);
   }
 }
+:root[data-theme="light"]{
+    --bg:#f4f6fb; --bg2:#ffffff; --card:#ffffff;
+    --border:rgba(0,0,0,.09); --border2:rgba(0,0,0,.18);
+    --text:#0a1428; --text2:#4c5c78; --text3:#8a97ad;
+    --grid:rgba(0,0,0,.10);
+    --good:#00845a; --bad:#c93636; --neutral:#6b7a93;
+    --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#4a3aa7;
+    --other:#8a97ad;
+    --shadow:0 6px 20px rgba(20,30,50,.10);
+  }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{
@@ -999,7 +1010,7 @@ document.getElementById('btn-export').addEventListener('click', () => {
   F('csv-import-only').style.display = 'none';
   F('f-csv').value = toCSV();
   F('csv-note').textContent = '共 ' + state.records.length + ' 条记录。可直接复制，或下载为文件。';
-  F('btn-csv-do').style.display = 'none'; F('btn-csv-copy').style.display = ''; F('btn-csv-download').style.display = '';
+  F('btn-csv-do').style.display = 'none'; F('btn-csv-copy').style.display = ''; F('btn-csv-download').style.display = embedded ? 'none' : '';
   openModal('md-csv');
 });
 document.getElementById('f-file').addEventListener('change', e => {
@@ -1071,6 +1082,10 @@ document.getElementById('btn-clear').addEventListener('click', () => {
 });
 
 /* --------- 启动 --------- */
+// 嵌在别人页面里（预览 / iframe）时下载会被沙箱拦掉，直接收起按钮，只留「复制」
+const embedded = (() => { try{ return window.self !== window.top; }catch(e){ return true; } })();
+if(embedded) document.getElementById('btn-csv-download').style.display = 'none';
+
 let t = null;
 addEventListener('resize', () => { clearTimeout(t); t = setTimeout(render, 150); });
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => setTimeout(render, 60));
