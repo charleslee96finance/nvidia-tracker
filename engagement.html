@@ -57,6 +57,7 @@ header .sub{color:var(--text2); font-size:13px; margin-top:4px}
   background:var(--card); border:1px solid var(--border); border-radius:14px;
   padding:12px 14px; margin-bottom:18px; box-shadow:var(--shadow)}
 .field{display:flex; flex-direction:column; gap:4px; min-width:0}
+.filters{display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap}
 .field label{font-size:11px; color:var(--text3); letter-spacing:.4px}
 select,input,textarea{
   font:inherit; color:var(--text); background:var(--bg2);
@@ -82,6 +83,15 @@ button[disabled]{opacity:.45; cursor:not-allowed}
 .up{color:var(--good)} .down{color:var(--bad)} .flat{color:var(--neutral)}
 
 .grid{display:grid; grid-template-columns:repeat(12,1fr); gap:14px; align-items:start}
+.brandgrid{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:12px; margin-top:4px}
+.bcard{border:1px solid var(--border); border-radius:12px; padding:12px 14px; background:var(--bg2)}
+.bcard .bname{display:flex; align-items:center; gap:7px; font-weight:700; font-size:14px}
+.bcard .bname .sw{width:10px; height:10px; border-radius:3px; flex:0 0 auto}
+.bcard .bplat{color:var(--text3); font-size:11px; margin:3px 0 9px}
+.bcard .brow{display:grid; grid-template-columns:auto 1fr; gap:2px 10px; font-size:12px;
+  color:var(--text2); font-variant-numeric:tabular-nums}
+.bcard .brow b{color:var(--text); font-weight:700; text-align:right}
+.bcard .brow .d{grid-column:2; text-align:right; font-size:11px; margin-top:-2px}
 .card{background:var(--card); border:1px solid var(--border); border-radius:14px;
   padding:14px 16px 16px; box-shadow:var(--shadow); min-width:0}
 .c-12{grid-column:span 12} .c-7{grid-column:span 7} .c-5{grid-column:span 5} .c-6{grid-column:span 6}
@@ -181,7 +191,9 @@ footer{margin-top:28px; color:var(--text3); font-size:12px; line-height:1.8}
   <div class="field">
     <label>对比维度</label>
     <div class="seg" id="seg-dim">
-      <button data-dim="platform" aria-pressed="true">按平台</button>
+      <button data-dim="brand" aria-pressed="true">按品牌</button>
+      <button data-dim="platform" aria-pressed="false">按平台</button>
+      <button data-dim="brandPlatform" aria-pressed="false">品牌×平台</button>
       <button data-dim="content" aria-pressed="false">按内容</button>
     </div>
   </div>
@@ -195,15 +207,34 @@ footer{margin-top:28px; color:var(--text3); font-size:12px; line-height:1.8}
     </div>
   </div>
   <div class="spacer"></div>
-  <div class="field">
-    <label for="sel-plat">平台筛选</label>
-    <select id="sel-plat"><option value="">全部平台</option></select>
+  <div class="filters">
+    <div class="field">
+      <label for="sel-brand">品牌筛选</label>
+      <select id="sel-brand"><option value="">全部品牌</option></select>
+    </div>
+    <div class="field">
+      <label for="sel-plat">平台筛选</label>
+      <select id="sel-plat"><option value="">全部平台</option></select>
+    </div>
   </div>
 </div>
 
 <div class="kpis" id="kpis"></div>
 
+<section class="card" id="brands-card" style="margin-bottom:14px">
+  <h2>品牌概览 <span id="brands-week" style="color:var(--text2);font-weight:400"></span></h2>
+  <p class="hint">每个品牌本期的整体表现，小字是相对对比周的变化</p>
+  <div class="brandgrid" id="brandgrid"></div>
+</section>
+
 <div class="grid">
+
+  <section class="card c-12">
+    <h2>品牌 × 平台 <span id="bp-metric-name" style="color:var(--text2);font-weight:400"></span></h2>
+    <p class="hint">每个平台上，各品牌本期的数值 —— 三个品牌同屏对比</p>
+    <div class="chart" id="ch-bp"></div>
+    <div class="legend" id="lg-bp"></div>
+  </section>
 
   <section class="card c-7">
     <h2>周对比 <span id="cmp-metric-name" style="color:var(--text2);font-weight:400"></span></h2>
@@ -271,6 +302,11 @@ footer{margin-top:28px; color:var(--text3); font-size:12px; line-height:1.8}
         <div class="note" id="f-week-hint"></div>
       </div>
       <div>
+        <label for="f-brand">品牌</label>
+        <input type="text" id="f-brand" list="dl-brand" placeholder="例：艾芙美妆" required>
+        <datalist id="dl-brand"></datalist>
+      </div>
+      <div class="full">
         <label for="f-platform">平台</label>
         <input type="text" id="f-platform" list="dl-plat" placeholder="例：Instagram / 抖音 / 小红书" required>
         <datalist id="dl-plat"></datalist>
@@ -326,7 +362,8 @@ footer{margin-top:28px; color:var(--text3); font-size:12px; line-height:1.8}
     </p>
     <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end">
       <div class="field"><label for="f-pdf">PDF 文件</label><input type="file" id="f-pdf" accept="application/pdf,.pdf"></div>
-      <div class="field"><label for="f-pdf-plat">这份数据属于哪个平台</label><input type="text" id="f-pdf-plat" list="dl-plat" placeholder="例：Instagram"></div>
+      <div class="field"><label for="f-pdf-brand">品牌</label><input type="text" id="f-pdf-brand" list="dl-brand" placeholder="例：艾芙美妆"></div>
+      <div class="field"><label for="f-pdf-plat">平台</label><input type="text" id="f-pdf-plat" list="dl-plat" placeholder="例：Instagram"></div>
       <div class="field"><label for="f-pdf-date">日期（归入所在周）</label><input type="date" id="f-pdf-date"></div>
     </div>
     <div class="note" id="pdf-status">还没有选择文件。</div>
@@ -350,8 +387,9 @@ footer{margin-top:28px; color:var(--text3); font-size:12px; line-height:1.8}
 'use strict';
 
 /* ============================== 数据层 ============================== */
-const KEY = 'socialEngagement.v2';
-const OLD_KEY = 'pageEngagement.v1';
+const KEY = 'socialEngagement.v3';
+const OLD_KEYS = ['socialEngagement.v2', 'pageEngagement.v1'];
+const DEFAULT_BRAND = '默认品牌';
 const FIELDS = ['impressions','views','completions','likes','comments','shares','saves','follows'];
 const FIELD_CN = {impressions:'曝光量', views:'播放量', completions:'完播数',
   likes:'点赞', comments:'评论', shares:'分享', saves:'收藏', follows:'涨粉'};
@@ -362,7 +400,7 @@ const METRICS = {
   completions: {name:'完播数', get:a=>a.completions}
 };
 
-let state = { records: [], weekA:'', weekB:null, metric:'views', dim:'platform', platform:'', editId:null };
+let state = { records: [], weekA:'', weekB:null, metric:'views', dim:'brand', brand:'', platform:'', editId:null };
 
 function load(){
   try{
@@ -372,14 +410,21 @@ function load(){
     if(!state.records.length) state.records = migrateOld();
   }catch(e){ state.records = []; }
 }
-function migrateOld(){                      // v1 是「网页」维度，搬成 平台=网站 的记录
-  try{
-    const old = JSON.parse(localStorage.getItem(OLD_KEY) || '[]');
-    if(!Array.isArray(old) || !old.length) return [];
-    return old.map((r, i) => ({id:'mig-' + i, week:r.week, platform:'网站', content:r.page || '',
-      impressions:0, views:+r.views || 0, completions:+r.completions || 0,
-      likes:+r.likes || 0, comments:+r.comments || 0, shares:+r.shares || 0, saves:+r.saves || 0, follows:0}));
-  }catch(e){ return []; }
+function migrateOld(){       // v2 没有品牌字段 → 归到默认品牌；v1 是「网页」维度 → 平台=网站
+  for(const key of OLD_KEYS){
+    let old = [];
+    try{ old = JSON.parse(localStorage.getItem(key) || '[]'); }catch(e){ continue; }
+    if(!Array.isArray(old) || !old.length) continue;
+    return old.map((r, i) => ({
+      id:'mig-' + i, week:r.week,
+      brand:r.brand || DEFAULT_BRAND,
+      platform:r.platform || '网站',
+      content:r.content || r.page || '',
+      impressions:+r.impressions || 0, views:+r.views || 0, completions:+r.completions || 0,
+      likes:+r.likes || 0, comments:+r.comments || 0, shares:+r.shares || 0,
+      saves:+r.saves || 0, follows:+r.follows || 0}));
+  }
+  return [];
 }
 function save(){
   try{ localStorage.setItem(KEY, JSON.stringify(state.records)); }
@@ -423,16 +468,39 @@ function prevWeekOf(key){
 
 /* --------- 聚合 --------- */
 function allWeeks(){ return [...new Set(state.records.map(r => r.week))].sort(); }
+// 首次出现顺序 —— 颜色跟着实体走，不跟着排名走
+function allBrands(){
+  const seen = [];
+  state.records.forEach(r => { if(!seen.includes(brandOf(r))) seen.push(brandOf(r)); });
+  return seen;
+}
 function allPlatforms(){
   const seen = [];
   state.records.forEach(r => { if(!seen.includes(r.platform)) seen.push(r.platform); });
-  return seen;                 // 首次出现顺序 —— 颜色跟着平台走，不跟着排名走
+  return seen;
 }
+function brandOf(r){ return r.brand || DEFAULT_BRAND; }
+/** 每个品牌在本期出现过的平台，用于品牌卡的副标题 */
+function platformsOfBrand(b, week){
+  const seen = [];
+  state.records.forEach(r => {
+    if(brandOf(r) !== b || (week && r.week !== week)) return;
+    if(!seen.includes(r.platform)) seen.push(r.platform);
+  });
+  return seen;
+}
+const DIMS = {
+  brand:         {name:'品牌',      key:r => brandOf(r)},
+  platform:      {name:'平台',      key:r => r.platform},
+  brandPlatform: {name:'品牌×平台', key:r => brandOf(r) + ' · ' + r.platform},
+  content:       {name:'内容',      key:r => brandOf(r) + ' · ' + r.platform + (r.content ? ' · ' + r.content : '')}
+};
+const keyBrand = new Map();                 // 维度键 → 所属品牌（品牌名自己可能带分隔符，不能靠拆字符串）
 function keyOf(r){
-  return state.dim === 'platform' ? r.platform
-    : (r.content ? r.platform + ' · ' + r.content : r.platform);
+  const k = DIMS[state.dim].key(r);
+  keyBrand.set(k, brandOf(r));
+  return k;
 }
-function platformOfKey(k){ return k.split(' · ')[0]; }
 function blank(){
   const o = {}; FIELDS.forEach(f => o[f] = 0);
   o.eng = 0; o.engRate = 0; o.compRate = 0; return o;
@@ -448,6 +516,7 @@ function aggWeek(week){
   const map = new Map();
   state.records.forEach(r => {
     if(r.week !== week) return;
+    if(state.brand && brandOf(r) !== state.brand) return;
     if(state.platform && r.platform !== state.platform) return;
     const k = keyOf(r);
     if(!map.has(k)) map.set(k, blank());
@@ -489,13 +558,22 @@ function deltaHTML(cur, prev, kind){
 /* --------- 颜色 --------- */
 function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 const SLOTS = ['--s1','--s2','--s3','--s4','--s5','--s6'];
-let colorMap = new Map();
+let brandColors = new Map(), platformColors = new Map();
 function buildColors(){
-  colorMap = new Map();
-  // 颜色跟着平台走，色板用尽后一律中性灰 —— 不循环、不生成新色
-  allPlatforms().forEach((p, i) => colorMap.set(p, i < SLOTS.length ? cssVar(SLOTS[i]) : cssVar('--other')));
+  // 色板用尽后一律中性灰 —— 不循环、不生成新色
+  const fill = (names, map) => {
+    map.clear();
+    names.forEach((n, i) => map.set(n, i < SLOTS.length ? cssVar(SLOTS[i]) : cssVar('--other')));
+  };
+  fill(allBrands(), brandColors);
+  fill(allPlatforms(), platformColors);
 }
-function keyColor(k){ return colorMap.get(platformOfKey(k)) || cssVar('--other'); }
+function brandColor(b){ return brandColors.get(b) || cssVar('--other'); }
+function platformColor(p){ return platformColors.get(p) || cssVar('--other'); }
+/** 「按平台」维度按平台上色，其余维度都以品牌为身份 */
+function keyColor(k){
+  return state.dim === 'platform' ? platformColor(k) : brandColor(keyBrand.get(k));
+}
 function inkOn(hex){
   const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
   if(!m) return '#fff';
@@ -525,6 +603,13 @@ function newSVG(host, w, h){
   const svg = el('svg', {width:w, height:h, viewBox:'0 0 ' + w + ' ' + h, role:'img'});
   host.appendChild(svg);
   return svg;
+}
+/** 0 → max 之间的整百分比刻度（5% / 10% / 20% / 25% / 50% 步长里挑一个） */
+function pctTicks(max){
+  const step = [0.05, 0.1, 0.2, 0.25, 0.5, 1].find(st => max / st <= 5) || 1;
+  const out = [];
+  for(let v = 0; v <= max + 1e-9; v += step) out.push(Math.min(v, max));
+  return out;
 }
 function niceMax(v){
   if(!(v > 0)) return 1;
@@ -635,6 +720,46 @@ function drawCompare(rows){
   legend(lg, hasB ? [{color:cA, label:'本期 ' + weekName(state.weekA)}, {color:cB, label:'对比周 ' + weekName(state.weekB)}] : []);
 }
 
+/* 1b) 分组柱状：品牌 × 平台 —— 各品牌在同一平台上并排比 */
+function drawBrandPlatform(platforms, brands, valueOf, metricName){
+  const host = document.getElementById('ch-bp'), lg = document.getElementById('lg-bp');
+  if(!platforms.length || !brands.length){ emptyChart(host, '本期还没有数据'); lg.innerHTML = ''; return; }
+  const W = hostWidth(host), H = 300;
+  const m = {t:14, r:14, b:44, l:60};
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const svg = newSVG(host, W, H);
+  let max = 0;
+  platforms.forEach(p => brands.forEach(b => { max = Math.max(max, valueOf(b, p)); }));
+  max = niceMax(Math.max(1, max));
+  const y = v => m.t + ih - (v / max) * ih;
+
+  for(let i = 0; i <= 4; i++){
+    const v = max * i / 4, yy = y(v);
+    svg.appendChild(el('line', {x1:m.l, x2:m.l + iw, y1:yy, y2:yy, stroke:cssVar('--grid'), 'stroke-width':1}));
+    svg.appendChild(label(m.l - 8, yy + 3, fmtInt(v), {anchor:'end', size:10, fill:cssVar('--text3')}));
+  }
+  const band = iw / platforms.length;
+  const slot = (band - 14) / brands.length;
+  const bw = Math.min(24, Math.max(4, slot - 2));          // 相邻柱之间留 2px 面板间隙
+  platforms.forEach((p, i) => {
+    const x0 = m.l + band * i + (band - slot * brands.length) / 2;
+    brands.forEach((b, bi) => {
+      const v = valueOf(b, p);
+      if(v <= 0) return;
+      const h = Math.max(2, (v / max) * ih);
+      svg.appendChild(el('path', {d:barV(x0 + slot * bi + (slot - bw) / 2, m.t + ih - h, bw, h, 4),
+        fill:brandColor(b)}));
+    });
+    svg.appendChild(label(m.l + band * i + band / 2, H - 26, ellip(p, band - 6, 11), {anchor:'middle', size:11}));
+    const hit = el('rect', {x:m.l + band * i, y:m.t, width:band, height:ih, fill:'transparent'});
+    bindTip(hit, '<div class="t-title">' + esc(p) + ' · ' + esc(metricName) + '</div>' +
+      brands.map(b => tipRow(brandColor(b), b, fmtInt(valueOf(b, p)))).join(''));
+    svg.appendChild(hit);
+  });
+  svg.appendChild(el('line', {x1:m.l, x2:m.l + iw, y1:m.t + ih, y2:m.t + ih, stroke:cssVar('--border2'), 'stroke-width':1}));
+  legend(lg, brands.map(b => ({color:brandColor(b), label:b})));
+}
+
 /* 2) 环形图：占比 */
 function drawDonut(items, totalVal, metricName){
   const host = document.getElementById('ch-donut'), lg = document.getElementById('lg-donut');
@@ -718,11 +843,11 @@ function drawCompletion(rows){
   const max = Math.min(1, niceMax(Math.max(0.1, ...rows.map(r => Math.max(r.rate, r.prevRate || 0)))));
   const x = v => m.l + (v / max) * iw;
 
-  for(let i = 0; i <= 4; i++){
-    const v = max * i / 4, xx = x(v);
+  pctTicks(max).forEach(v => {
+    const xx = x(v);
     svg.appendChild(el('line', {x1:xx, x2:xx, y1:m.t, y2:m.t + rows.length * rowH, stroke:cssVar('--grid'), 'stroke-width':1}));
     svg.appendChild(label(xx, H - 10, fmtPct(v, 0), {anchor:'middle', size:10, fill:cssVar('--text3')}));
-  }
+  });
   rows.forEach((r, i) => {
     const y = m.t + i * rowH, bh = Math.min(22, rowH - 12), by = y + (rowH - bh) / 2;
     const w = Math.max(r.rate > 0 ? 2 : 0, (r.rate / max) * iw);
@@ -819,6 +944,11 @@ function renderPickers(){
   a.innerHTML = opts(state.weekA);
   b.innerHTML = '<option value=""' + (state.weekB ? '' : ' selected') + '>— 无对比 —</option>' + opts(state.weekB);
 
+  const bs = allBrands();
+  F('sel-brand').innerHTML = '<option value="">全部品牌</option>' +
+    bs.map(x => '<option value="' + esc(x) + '"' + (state.brand === x ? ' selected' : '') + '>' + esc(x) + '</option>').join('');
+  F('dl-brand').innerHTML = bs.map(x => '<option value="' + esc(x) + '">').join('');
+
   const ps = allPlatforms();
   F('sel-plat').innerHTML = '<option value="">全部平台</option>' +
     ps.map(p => '<option value="' + esc(p) + '"' + (state.platform === p ? ' selected' : '') + '>' + esc(p) + '</option>').join('');
@@ -844,9 +974,41 @@ function renderKPIs(A, B){
     '</div></div>').join('');
 }
 
+function renderBrandCards(){
+  const host = F('brandgrid');
+  const brands = allBrands().filter(b => !state.brand || b === state.brand);
+  if(!brands.length){ host.innerHTML = '<div class="empty">本期还没有数据</div>'; return; }
+  const sum = (b, week) => {
+    const t = blank();
+    state.records.forEach(r => {
+      if(r.week !== week || brandOf(r) !== b) return;
+      if(state.platform && r.platform !== state.platform) return;
+      FIELDS.forEach(f => t[f] += (+r[f] || 0));
+    });
+    return derive(t);
+  };
+  host.innerHTML = brands.map(b => {
+    const a = sum(b, state.weekA), prev = state.weekB ? sum(b, state.weekB) : null;
+    const plats = platformsOfBrand(b, state.weekA);
+    const row = (name, val, cur, old, kind) =>
+      '<span>' + name + '</span><b>' + val + '</b>' +
+      '<span class="d">' + (prev ? deltaHTML(cur, old, kind) : '') + '</span>';
+    return '<div class="bcard">' +
+      '<div class="bname"><span class="sw" style="background:' + brandColor(b) + '"></span>' + esc(b) + '</div>' +
+      '<div class="bplat">' + (plats.length ? esc(plats.join(' · ')) : '本期无数据') + '</div>' +
+      '<div class="brow">' +
+        row('播放量', fmtInt(a.views), a.views, prev && prev.views, 'num') +
+        row('曝光量', fmtInt(a.impressions), a.impressions, prev && prev.impressions, 'num') +
+        row('完播率', fmtPct(a.compRate), a.compRate, prev && prev.compRate, 'rate') +
+        row('互动率', fmtPct(a.engRate), a.engRate, prev && prev.engRate, 'rate') +
+        row('涨粉', fmtSigned(a.follows), a.follows, prev && prev.follows, 'num') +
+      '</div></div>';
+  }).join('');
+}
+
 function renderTable(A, B){
   const tb = document.querySelector('#tbl tbody'), tf = document.querySelector('#tbl tfoot');
-  F('th-dim').textContent = state.dim === 'platform' ? '平台' : '平台 · 内容';
+  F('th-dim').textContent = DIMS[state.dim].name;
   const rows = [...A.entries()].sort((p, q) => q[1].views - p[1].views);
   if(!rows.length){
     tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:22px">' +
@@ -878,10 +1040,11 @@ function renderTable(A, B){
 }
 
 function render(){
+  keyBrand.clear();
   buildColors();
   renderPickers();
   const M = METRICS[state.metric];
-  const dimName = state.dim === 'platform' ? '平台' : '内容';
+  const dimName = DIMS[state.dim].name;
   F('cmp-metric-name').textContent = '· ' + M.name;
   F('trend-metric-name').textContent = '· ' + M.name;
   F('donut-hint').textContent = '本期各' + dimName + M.name + '占总量的比例';
@@ -889,8 +1052,33 @@ function render(){
     ? '本期 vs 对比周，按本期数值排序（最多 8 个' + dimName + '）'
     : '本期各' + dimName + '数值，按大小排序（当前未选对比周）';
 
+  F('bp-metric-name').textContent = '· ' + M.name;
+  F('brands-week').textContent = state.weekA ? '· ' + weekLabel(state.weekA) : '';
+
   const A = aggWeek(state.weekA), B = aggWeek(state.weekB);
   renderKPIs(A, B);
+  renderBrandCards();
+
+  // 品牌 × 平台：x 轴是本期出现过的平台，系列是品牌
+  const cell = new Map();
+  const platSet = [], brandSet = [];
+  state.records.forEach(r => {
+    if(r.week !== state.weekA) return;
+    const b = brandOf(r);
+    if(state.brand && b !== state.brand) return;
+    if(state.platform && r.platform !== state.platform) return;
+    if(!platSet.includes(r.platform)) platSet.push(r.platform);
+    if(!brandSet.includes(b)) brandSet.push(b);
+    const k = b + '\u0000' + r.platform;
+    if(!cell.has(k)) cell.set(k, blank());
+    const agg = cell.get(k);
+    FIELDS.forEach(f => agg[f] += (+r[f] || 0));
+  });
+  cell.forEach(derive);
+  const bpPlats = allPlatforms().filter(p => platSet.includes(p));   // 保持稳定顺序
+  const bpBrands = allBrands().filter(b => brandSet.includes(b));
+  drawBrandPlatform(bpPlats, bpBrands,
+    (b, p) => { const a = cell.get(b + '\u0000' + p); return a ? M.get(a) : 0; }, M.name);
 
   const cmp = [...A.keys()].map(k => ({label:k, a:M.get(A.get(k)), b:B.has(k) ? M.get(B.get(k)) : 0}))
     .sort((x, y) => y.a - x.a).slice(0, 8);
@@ -940,6 +1128,7 @@ document.addEventListener('keydown', e => {
 
 F('sel-a').addEventListener('change', e => { state.weekA = e.target.value; state.weekB = null; render(); });
 F('sel-b').addEventListener('change', e => { state.weekB = e.target.value; render(); });
+F('sel-brand').addEventListener('change', e => { state.brand = e.target.value; render(); });
 F('sel-plat').addEventListener('change', e => { state.platform = e.target.value; render(); });
 F('seg-metric').addEventListener('click', e => {
   const b = e.target.closest('button'); if(!b) return;
@@ -961,13 +1150,14 @@ function openEntry(rec){
   F('entry-title').textContent = rec ? '编辑数据' : '录入数据';
   const mon = rec ? weekMonday(rec.week) : null;
   F('f-date').value = mon ? mon.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
+  F('f-brand').value    = rec ? brandOf(rec) : (state.brand || '');
   F('f-platform').value = rec ? rec.platform : '';
   F('f-content').value  = rec ? (rec.content || '') : '';
   FIELDS.forEach(f => F('f-' + f).value = rec ? (rec[f] || 0) : (f === 'views' ? '' : 0));
   F('f-warn').style.display = 'none';
   updateWeekHint();
   openModal('md-entry');
-  setTimeout(() => F('f-platform').focus(), 30);
+  setTimeout(() => F('f-brand').focus(), 30);
 }
 function updateWeekHint(){
   const v = F('f-date').value;
@@ -979,10 +1169,11 @@ F('btn-add').addEventListener('click', () => openEntry(null));
 F('form-entry').addEventListener('submit', e => {
   e.preventDefault();
   const week = isoWeekKey(new Date(F('f-date').value + 'T00:00:00'));
+  const brand = F('f-brand').value.trim() || DEFAULT_BRAND;
   const platform = F('f-platform').value.trim();
   const content = F('f-content').value.trim();
   if(!platform) return;
-  const rec = {id:state.editId || uid(), week:week, platform:platform, content:content};
+  const rec = {id:state.editId || uid(), week:week, brand:brand, platform:platform, content:content};
   FIELDS.forEach(f => rec[f] = Math.round(+F('f-' + f).value || 0));
   FIELDS.filter(f => f !== 'follows').forEach(f => rec[f] = Math.max(0, rec[f]));
   if(rec.completions > rec.views){
@@ -992,8 +1183,9 @@ F('form-entry').addEventListener('submit', e => {
     const i = state.records.findIndex(r => r.id === state.editId);
     if(i >= 0) state.records[i] = rec; else state.records.push(rec);
   }else{
-    const i = state.records.findIndex(r => r.week === week && r.platform === platform && (r.content || '') === content);
-    if(i >= 0 && confirm('「' + platform + (content ? ' · ' + content : '') + '」在 ' + weekLabel(week) +
+    const i = state.records.findIndex(r => r.week === week && brandOf(r) === brand &&
+      r.platform === platform && (r.content || '') === content);
+    if(i >= 0 && confirm('「' + brand + ' · ' + platform + (content ? ' · ' + content : '') + '」在 ' + weekLabel(week) +
                          ' 已有数据。\n确定 = 覆盖，取消 = 另存一条（会累加）。')){
       rec.id = state.records[i].id; state.records[i] = rec;
     }else{
@@ -1021,8 +1213,8 @@ F('tbl').addEventListener('click', e => {
 });
 
 /* --------- CSV --------- */
-const CSV_HEAD = ['week','platform','content','impressions','views','completions','likes','comments','shares','saves','follows'];
-const CSV_CN = {'周次':'week','周':'week','日期':'week','平台':'platform','渠道':'platform',
+const CSV_HEAD = ['week','brand','platform','content','impressions','views','completions','likes','comments','shares','saves','follows'];
+const CSV_CN = {'周次':'week','周':'week','日期':'week','品牌':'brand','账号':'brand','brand':'brand','平台':'platform','渠道':'platform',
   '内容':'content','帖子':'content','标题':'content','作品':'content',
   '曝光量':'impressions','曝光':'impressions','触达':'impressions','展示':'impressions',
   '播放量':'views','播放':'views','观看':'views','浏览量':'views',
@@ -1032,7 +1224,7 @@ function toCSV(){
   const head = CSV_HEAD.join(',');
   const body = state.records.slice()
     .sort((a, b) => a.week === b.week
-      ? (a.platform + a.content).localeCompare(b.platform + b.content)
+      ? (brandOf(a) + a.platform + a.content).localeCompare(brandOf(b) + b.platform + b.content)
       : a.week.localeCompare(b.week))
     .map(r => CSV_HEAD.map(k => {
       const v = r[k] === undefined ? '' : r[k];
@@ -1074,7 +1266,8 @@ function importCSV(text, mode){
     const o = {}; head.forEach((h, j) => o[h] = (rows[i][j] || '').trim());
     const platform = o.platform; if(!platform) continue;
     const week = normWeek(o.week); if(!week) continue;
-    const rec = {id:uid() + i, week:week, platform:platform, content:o.content || ''};
+    const rec = {id:uid() + i, week:week, brand:(o.brand || DEFAULT_BRAND).trim() || DEFAULT_BRAND,
+      platform:platform, content:o.content || ''};
     FIELDS.forEach(f => rec[f] = Math.round(+String(o[f] || '').replace(/,/g, '') || 0));
     out.push(rec);
   }
@@ -1349,13 +1542,16 @@ function renderPdfMap(){
 }
 function updatePdfButton(){
   const picked = pdfRows.filter(r => r.pick).length;
-  F('btn-pdf-do').disabled = !(picked && F('f-pdf-plat').value.trim() && F('f-pdf-date').value);
+  F('btn-pdf-do').disabled = !(picked && F('f-pdf-brand').value.trim() &&
+    F('f-pdf-plat').value.trim() && F('f-pdf-date').value);
   F('btn-pdf-do').textContent = picked ? '导入选中的 ' + picked + ' 行' : '导入选中的行';
 }
 F('btn-pdf').addEventListener('click', () => {
   F('f-pdf-date').value = F('f-pdf-date').value || new Date().toISOString().slice(0, 10);
+  if(!F('f-pdf-brand').value.trim() && state.brand) F('f-pdf-brand').value = state.brand;
   openModal('md-pdf');
 });
+F('f-pdf-brand').addEventListener('input', updatePdfButton);
 F('f-pdf-plat').addEventListener('input', updatePdfButton);
 F('f-pdf-date').addEventListener('change', updatePdfButton);
 F('f-pdf').addEventListener('change', async e => {
@@ -1412,12 +1608,14 @@ F('f-pdf').addEventListener('change', async e => {
   }
 });
 F('btn-pdf-do').addEventListener('click', () => {
+  const brand = F('f-pdf-brand').value.trim() || DEFAULT_BRAND;
   const platform = F('f-pdf-plat').value.trim();
   const week = isoWeekKey(new Date(F('f-pdf-date').value + 'T00:00:00'));
   const out = [];
   F('pdf-preview').querySelectorAll('tbody tr').forEach(tr => {
     if(!tr.querySelector('.pdf-pick').checked) return;
-    const rec = {id:uid(), week:week, platform:platform, content:tr.querySelector('.pdf-name').value.trim()};
+    const rec = {id:uid(), week:week, brand:brand, platform:platform,
+      content:tr.querySelector('.pdf-name').value.trim()};
     FIELDS.forEach(f => rec[f] = 0);
     tr.querySelectorAll('.pdf-v').forEach(inp => rec[inp.dataset.f] = Math.round(+inp.value || 0));
     if(rec.completions > rec.views) rec.completions = rec.views;
@@ -1425,7 +1623,7 @@ F('btn-pdf-do').addEventListener('click', () => {
   });
   if(!out.length) return;
   state.records = state.records.concat(out);
-  save(); state.weekA = week; state.weekB = null;
+  save(); state.weekA = week; state.weekB = null; state.brand = ''; state.platform = '';
   closeModal('md-pdf'); render();
   alert('已从 PDF 导入 ' + out.length + ' 条记录到 ' + weekLabel(week) + '。');
 });
@@ -1433,12 +1631,16 @@ F('btn-pdf-do').addEventListener('click', () => {
 
 /* --------- 示例数据 / 清空 --------- */
 function demoData(){
+  // 三个品牌，各自主打的平台不同 —— 正好用来看跨品牌的流量对比
   const plans = [
-    {p:'Instagram', v:12000, imp:1.9, e:.052, c:.42, f:120, cs:['开箱短片','客户好评','幕后花絮']},
-    {p:'TikTok',    v:26000, imp:1.4, e:.071, c:.31, f:340, cs:['15秒挑战','使用教程','对比测评']},
-    {p:'小红书',    v:7600,  imp:2.4, e:.089, c:.55, f:210, cs:['图文笔记','好物清单','避雷指南']},
-    {p:'Facebook',  v:5200,  imp:2.8, e:.031, c:.38, f:45,  cs:['产品长片','用户见证','活动预告']},
-    {p:'YouTube',   v:3400,  imp:1.7, e:.043, c:.61, f:90,  cs:['深度评测','安装教学','Q&A 合集']}
+    {b:'艾芙美妆', p:'Instagram', v:12000, imp:1.9, e:.052, c:.42, f:120, cs:['开箱短片','客户好评','幕后花絮']},
+    {b:'艾芙美妆', p:'小红书',    v:7600,  imp:2.4, e:.089, c:.55, f:210, cs:['图文笔记','好物清单']},
+    {b:'艾芙美妆', p:'TikTok',    v:9800,  imp:1.5, e:.061, c:.29, f:180, cs:['上脸测评']},
+    {b:'本木家居', p:'Facebook',  v:5200,  imp:2.8, e:.031, c:.38, f:45,  cs:['产品长片','用户见证']},
+    {b:'本木家居', p:'Instagram', v:6400,  imp:2.0, e:.044, c:.46, f:88,  cs:['空间改造','搭配灵感']},
+    {b:'本木家居', p:'YouTube',   v:3400,  imp:1.7, e:.043, c:.61, f:90,  cs:['深度评测','安装教学']},
+    {b:'三味餐饮', p:'TikTok',    v:26000, imp:1.4, e:.071, c:.31, f:340, cs:['15秒挑战','后厨揭秘','对比测评']},
+    {b:'三味餐饮', p:'小红书',    v:5100,  imp:2.2, e:.095, c:.58, f:150, cs:['探店笔记','隐藏菜单']}
   ];
   const out = [];
   const today = new Date();
@@ -1448,14 +1650,14 @@ function demoData(){
     plans.forEach((pl, pi) => {
       pl.cs.forEach((c, ci) => {
         const wave = 1 + Math.sin((5 - back + pi * 1.3 + ci) * 0.85) * 0.22 + (5 - back) * 0.05;
-        const share = [0.5, 0.3, 0.2][ci];
+        const share = [0.5, 0.3, 0.2][ci] || 0.2;
         const views = Math.round(pl.v * share * wave * (0.92 + ((pi * 7 + back * 13 + ci * 5) % 13) / 80));
         const imps  = Math.round(views * pl.imp * (0.95 + ((back + ci) % 5) / 40));
         const comp  = Math.round(views * Math.min(0.95, pl.c * (0.9 + ((pi + back * 2 + ci) % 9) / 45)));
         const eng   = Math.round(imps * pl.e * (0.88 + ((back * 5 + pi * 3 + ci * 2) % 11) / 35));
         const likes = Math.round(eng * 0.66), comments = Math.round(eng * 0.11),
               shares = Math.round(eng * 0.13), saves = Math.max(0, eng - likes - comments - shares);
-        out.push({id:'demo-' + week + '-' + pi + '-' + ci, week:week, platform:pl.p, content:c,
+        out.push({id:'demo-' + week + '-' + pi + '-' + ci, week:week, brand:pl.b, platform:pl.p, content:c,
           impressions:imps, views:views, completions:comp,
           likes:likes, comments:comments, shares:shares, saves:saves,
           follows:Math.round(pl.f * share * wave * (0.8 + ((pi + back) % 6) / 12))});
@@ -1467,13 +1669,13 @@ function demoData(){
 F('btn-demo').addEventListener('click', () => {
   if(state.records.length && !confirm('载入示例会覆盖当前数据，继续吗？')) return;
   state.records = demoData(); save();
-  state.weekA = ''; state.weekB = null; state.platform = '';
+  state.weekA = ''; state.weekB = null; state.brand = ''; state.platform = '';
   render();
 });
 F('btn-clear').addEventListener('click', () => {
   if(!state.records.length) return;
   if(!confirm('确定清空全部记录？建议先导出 CSV 备份。')) return;
-  state.records = []; save(); state.weekA = ''; state.weekB = null; state.platform = '';
+  state.records = []; save(); state.weekA = ''; state.weekB = null; state.brand = ''; state.platform = '';
   render();
 });
 
