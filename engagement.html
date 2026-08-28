@@ -108,7 +108,7 @@ text{font-family:inherit}
 .empty{color:var(--text3); font-size:13px; padding:26px 0; text-align:center}
 
 .tablewrap{overflow-x:auto; margin-top:6px}
-table{border-collapse:collapse; width:100%; font-size:13px; min-width:820px}
+table{border-collapse:collapse; width:100%; font-size:13px; min-width:960px}
 th,td{padding:8px 10px; text-align:right; white-space:nowrap; border-bottom:1px solid var(--border)}
 th{color:var(--text2); font-weight:600; font-size:12px; position:sticky; top:0; background:var(--card)}
 th:first-child,td:first-child{text-align:left}
@@ -265,8 +265,8 @@ footer{margin-top:28px; color:var(--text3); font-size:12px; line-height:1.8}
   </section>
 
   <section class="card c-6">
-    <h2>完播率排行</h2>
-    <p class="hint">完播率 = 完播数 ÷ 播放量；灰色竖线是对比周的水平</p>
+    <h2 id="comp-title">完播率排行</h2>
+    <p class="hint" id="comp-hint">完播率 = 完播数 ÷ 播放量；灰色竖线是对比周的水平</p>
     <div class="chart" id="ch-comp"></div>
     <div class="legend" id="lg-comp"></div>
   </section>
@@ -283,8 +283,8 @@ footer{margin-top:28px; color:var(--text3); font-size:12px; line-height:1.8}
     <p class="hint">本期汇总，小字是相对对比周的变化。互动率 = 互动数 ÷ 曝光量（没填曝光量时用播放量）</p>
     <div class="tablewrap"><table id="tbl">
       <thead><tr>
-        <th id="th-dim">平台</th><th>曝光量</th><th>播放量</th><th>完播率</th>
-        <th>互动数</th><th>互动率</th><th>涨粉</th><th>占比</th><th>操作</th>
+        <th id="th-dim">平台</th><th>曝光/触及</th><th>播放量</th><th>3秒留存</th><th>均播</th>
+        <th>完播率</th><th>互动数</th><th>互动率</th><th>涨粉</th><th>占比</th><th>操作</th>
       </tr></thead>
       <tbody></tbody><tfoot></tfoot>
     </table></div>
@@ -326,6 +326,8 @@ footer{margin-top:28px; color:var(--text3); font-size:12px; line-height:1.8}
       <div><label for="f-impressions">曝光量 / 触达</label><input type="number" id="f-impressions" min="0" step="1" value="0"></div>
       <div><label for="f-views">播放量</label><input type="number" id="f-views" min="0" step="1" required></div>
       <div><label for="f-completions">完播数</label><input type="number" id="f-completions" min="0" step="1" value="0"></div>
+      <div><label for="f-views3s">3 秒观看</label><input type="number" id="f-views3s" min="0" step="1" value="0"></div>
+      <div><label for="f-avgsec">均播（秒）</label><input type="number" id="f-avgsec" min="0" step="0.1" value="0"></div>
       <div><label for="f-follows">涨粉</label><input type="number" id="f-follows" step="1" value="0"></div>
       <div><label for="f-likes">点赞</label><input type="number" id="f-likes" min="0" step="1" value="0"></div>
       <div><label for="f-comments">评论</label><input type="number" id="f-comments" min="0" step="1" value="0"></div>
@@ -372,7 +374,7 @@ footer{margin-top:28px; color:var(--text3); font-size:12px; line-height:1.8}
       不然两边的数会加在一起。
     </p>
     <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end">
-      <div class="field"><label for="f-pdf-brand">品牌（这批 PDF 都算这个品牌）</label>
+      <div class="field"><label for="f-pdf-brand">品牌（下面没填的用这个）</label>
         <input type="text" id="f-pdf-brand" list="dl-brand" placeholder="例：艾芙美妆"></div>
       <div class="field"><label for="f-pdf">PDF 文件（可多选）</label>
         <input type="file" id="f-pdf" accept="application/pdf,.pdf" multiple></div>
@@ -400,10 +402,10 @@ footer{margin-top:28px; color:var(--text3); font-size:12px; line-height:1.8}
 const KEY = 'socialEngagement.v3';
 const OLD_KEYS = ['socialEngagement.v2', 'pageEngagement.v1'];
 const DEFAULT_BRAND = '默认品牌';
-const FIELDS = ['impressions','views','completions','likes','comments','shares','saves','follows','interactions'];
-const FIELD_CN = {impressions:'曝光量', views:'播放量', completions:'完播数',
-  likes:'点赞', comments:'评论', shares:'分享', saves:'收藏', follows:'涨粉',
-  interactions:'互动总数'};
+const FIELDS = ['impressions','views','views3s','completions','watchSec','likes','comments','shares','saves','follows','interactions'];
+const FIELD_CN = {impressions:'曝光/触及', views:'播放量', views3s:'3秒观看', completions:'完播数',
+  watchSec:'总观看秒数', likes:'点赞', comments:'评论/留言', shares:'分享', saves:'收藏',
+  follows:'涨粉', interactions:'互动总数'};
 const METRICS = {
   views:       {name:'播放量', get:a=>a.views},
   impressions: {name:'曝光量', get:a=>a.impressions},
@@ -514,14 +516,17 @@ function keyOf(r){
 }
 function blank(){
   const o = {}; FIELDS.forEach(f => o[f] = 0);
-  o.eng = 0; o.engRate = 0; o.compRate = 0; return o;
+  o.eng = 0; o.engBase = 0; o.engRate = 0; o.compRate = 0; o.hookRate = 0; o.avgSec = 0; return o;
 }
 function derive(a){
   // 有拆分就用拆分之和；平台只给「互动总数」时用那个总数
   a.eng = Math.max(a.likes + a.comments + a.shares + a.saves, a.interactions || 0);
-  const base = a.impressions > 0 ? a.impressions : a.views;
+  // 分母逐条累计：有曝光的用曝光、没有的用播放，避免「一条有曝光」把整体互动率抬高
+  const base = a.engBase > 0 ? a.engBase : (a.impressions > 0 ? a.impressions : a.views);
   a.engRate  = base > 0 ? a.eng / base : 0;
   a.compRate = a.views > 0 ? a.completions / a.views : 0;
+  a.hookRate = a.views > 0 ? a.views3s / a.views : 0;      // 3 秒留存率
+  a.avgSec   = a.views > 0 ? a.watchSec / a.views : 0;     // 均播秒数
   return a;
 }
 function aggWeek(week){
@@ -534,13 +539,14 @@ function aggWeek(week){
     if(!map.has(k)) map.set(k, blank());
     const a = map.get(k);
     FIELDS.forEach(f => a[f] += (+r[f] || 0));
+    a.engBase += (+r.impressions || 0) > 0 ? (+r.impressions || 0) : (+r.views || 0);
   });
   map.forEach(derive);
   return map;
 }
 function totalOf(map){
   const t = blank();
-  map.forEach(a => FIELDS.forEach(f => t[f] += a[f]));
+  map.forEach(a => { FIELDS.forEach(f => t[f] += a[f]); t.engBase += a.engBase || 0; });
   return derive(t);
 }
 
@@ -849,7 +855,7 @@ function barRounded(x, y, w, h, r, left, right){
 }
 
 /* 4) 横向条：完播率排行 */
-function drawCompletion(rows){
+function drawCompletion(rows, rateName){
   const host = document.getElementById('ch-comp'), lg = document.getElementById('lg-comp');
   if(!rows.length){ emptyChart(host, '本期还没有播放数据'); lg.innerHTML = ''; return; }
   const W = hostWidth(host);
@@ -884,15 +890,15 @@ function drawCompletion(rows){
     }
     const hit = el('rect', {x:0, y:y, width:W, height:rowH, fill:'transparent'});
     bindTip(hit, '<div class="t-title">' + esc(r.label) + '</div>' +
-      tipRow(r.color, '本期完播率', fmtPct(r.rate)) +
+      tipRow(r.color, '本期' + rateName, fmtPct(r.rate)) +
       tipRow(cssVar('--neutral'), '对比周', r.prevRate === null ? '—' : fmtPct(r.prevRate)) +
-      tipRow(null, '完播 / 播放', fmtInt(r.completions) + ' / ' + fmtInt(r.views)) +
+      tipRow(null, '分子 / 播放', fmtInt(r.completions) + ' / ' + fmtInt(r.views)) +
       '<div class="t-row" style="margin-top:3px"><span>变化</span><span class="v">' +
         deltaHTML(r.rate, r.prevRate === null ? null : r.prevRate, 'rate') + '</span></div>');
     svg.appendChild(hit);
   });
   svg.appendChild(el('line', {x1:m.l, x2:m.l, y1:m.t, y2:m.t + rows.length * rowH, stroke:cssVar('--border2'), 'stroke-width':1}));
-  legend(lg, state.weekB ? [{color:cssVar('--neutral'), label:'竖线 = 对比周 ' + weekName(state.weekB) + ' 的完播率'}] : []);
+  legend(lg, state.weekB ? [{color:cssVar('--neutral'), label:'竖线 = 对比周 ' + weekName(state.weekB) + ' 的' + rateName}] : []);
 }
 
 /* 5) 折线：每周趋势 */
@@ -905,7 +911,7 @@ function drawTrend(weeks, series, metricName){
   const m = {t:14, r:16, b:40, l:60};
   const iw = W - m.l - m.r, ih = H - m.t - m.b;
   const svg = newSVG(host, W, H);
-  const max = niceMax(Math.max(1, ...series.flatMap(s => s.values)));
+  const max = niceMax(Math.max(1, ...series.flatMap(s => s.values).filter(v => v !== null)));
   const x = i => m.l + (weeks.length === 1 ? iw / 2 : (i / (weeks.length - 1)) * iw);
   const y = v => m.t + ih - (v / max) * ih;
 
@@ -922,11 +928,15 @@ function drawTrend(weeks, series, metricName){
   const cross = el('line', {x1:0, x2:0, y1:m.t, y2:m.t + ih, stroke:cssVar('--border2'), 'stroke-width':1, opacity:0});
   svg.appendChild(cross);
   series.forEach(s => {
-    const d = s.values.map((v, i) => (i ? 'L' : 'M') + x(i) + ',' + y(v)).join('');
-    svg.appendChild(el('path', {d:d, fill:'none', stroke:s.color, 'stroke-width':2,
+    let d = '', pen = false, lastAt = -1;
+    s.values.forEach((v, i) => {
+      if(v === null){ pen = false; return; }
+      d += (pen ? 'L' : 'M') + x(i) + ',' + y(v);
+      pen = true; lastAt = i;
+    });
+    if(d) svg.appendChild(el('path', {d:d, fill:'none', stroke:s.color, 'stroke-width':2,
       'stroke-linejoin':'round', 'stroke-linecap':'round'}));
-    const last = s.values.length - 1;
-    svg.appendChild(el('circle', {cx:x(last), cy:y(s.values[last]), r:4, fill:s.color,
+    if(lastAt >= 0) svg.appendChild(el('circle', {cx:x(lastAt), cy:y(s.values[lastAt]), r:4, fill:s.color,
       stroke:cssVar('--card'), 'stroke-width':2}));      // 2px 面板色描边环
   });
   weeks.forEach((w, i) => {
@@ -934,7 +944,7 @@ function drawTrend(weeks, series, metricName){
     const hit = el('rect', {x:Math.max(m.l, x(i) - half), y:m.t,
       width:Math.min(half * 2, iw), height:ih, fill:'transparent'});
     const html = '<div class="t-title">' + weekLabel(w) + '</div>' +
-      series.map(s => tipRow(s.color, s.label, fmtInt(s.values[i]))).join('');
+      series.map(s => tipRow(s.color, s.label, s.values[i] === null ? '—' : fmtInt(s.values[i]))).join('');
     hit.addEventListener('mousemove', e => {
       cross.setAttribute('x1', x(i)); cross.setAttribute('x2', x(i)); cross.setAttribute('opacity', 1);
       tipShow(html, e);
@@ -980,7 +990,9 @@ function renderKPIs(A, B){
   const cards = [
     {label:'总曝光量', value:fmtInt(ta.impressions), d:deltaHTML(ta.impressions, hasB ? tb.impressions : null, 'num')},
     {label:'总播放量', value:fmtInt(ta.views),       d:deltaHTML(ta.views,       hasB ? tb.views       : null, 'num')},
-    {label:'平均完播率', value:fmtPct(ta.compRate),  d:deltaHTML(ta.compRate, hasB ? tb.compRate : null, 'rate')},
+    ta.views3s > 0
+      ? {label:'3 秒留存率', value:fmtPct(ta.hookRate), d:deltaHTML(ta.hookRate, hasB ? tb.hookRate : null, 'rate')}
+      : {label:'平均完播率', value:fmtPct(ta.compRate), d:deltaHTML(ta.compRate, hasB ? tb.compRate : null, 'rate')},
     {label:'平均互动率', value:fmtPct(ta.engRate),   d:deltaHTML(ta.engRate,  hasB ? tb.engRate  : null, 'rate')},
     {label:'净涨粉', value:fmtSigned(ta.follows),    d:deltaHTML(ta.follows,  hasB ? tb.follows  : null, 'num')}
   ];
@@ -1001,6 +1013,7 @@ function renderBrandCards(){
       if(r.week !== week || brandOf(r) !== b) return;
       if(state.platform && r.platform !== state.platform) return;
       FIELDS.forEach(f => t[f] += (+r[f] || 0));
+      t.engBase += (+r.impressions || 0) > 0 ? (+r.impressions || 0) : (+r.views || 0);
     });
     return derive(t);
   };
@@ -1009,14 +1022,17 @@ function renderBrandCards(){
     const plats = platformsOfBrand(b, state.weekA);
     const row = (name, val, cur, old, kind) =>
       '<span>' + name + '</span><b>' + val + '</b>' +
-      '<span class="d">' + (prev ? deltaHTML(cur, old, kind) : '') + '</span>';
+      '<span class="d">' + (prev && kind !== 'none' ? deltaHTML(cur, old, kind) : '') + '</span>';
     return '<div class="bcard">' +
       '<div class="bname"><span class="sw" style="background:' + brandColor(b) + '"></span>' + esc(b) + '</div>' +
       '<div class="bplat">' + (plats.length ? esc(plats.join(' · ')) : '本期无数据') + '</div>' +
       '<div class="brow">' +
         row('播放量', fmtInt(a.views), a.views, prev && prev.views, 'num') +
         row('曝光量', fmtInt(a.impressions), a.impressions, prev && prev.impressions, 'num') +
-        row('完播率', fmtPct(a.compRate), a.compRate, prev && prev.compRate, 'rate') +
+        (a.views3s > 0
+          ? row('3秒留存', fmtPct(a.hookRate), a.hookRate, prev && prev.hookRate, 'rate') +
+            (a.avgSec ? row('均播', a.avgSec.toFixed(1) + 's', 0, 0, 'none') : '')
+          : row('完播率', fmtPct(a.compRate), a.compRate, prev && prev.compRate, 'rate')) +
         row('互动率', fmtPct(a.engRate), a.engRate, prev && prev.engRate, 'rate') +
         row('涨粉', fmtSigned(a.follows), a.follows, prev && prev.follows, 'num') +
       '</div></div>';
@@ -1028,7 +1044,7 @@ function renderTable(A, B){
   F('th-dim').textContent = DIMS[state.dim].name;
   const rows = [...A.entries()].sort((p, q) => q[1].views - p[1].views);
   if(!rows.length){
-    tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:22px">' +
+    tb.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text3);padding:22px">' +
       '本期没有数据。用右上角「录入数据 / 导入 PDF / 导入 CSV」加进来，或点「载入示例」先看看长什么样。</td></tr>';
     tf.innerHTML = ''; return;
   }
@@ -1042,6 +1058,8 @@ function renderTable(A, B){
         (recs.length > 1 ? ' <span class="sub2">(' + recs.length + ' 条)</span>' : '') + '</td>' +
       '<td>' + fmtInt(a.impressions) + ' <small>' + deltaHTML(a.impressions, b ? b.impressions : null, 'num') + '</small></td>' +
       '<td>' + fmtInt(a.views) + ' <small>' + deltaHTML(a.views, b ? b.views : null, 'num') + '</small></td>' +
+      '<td>' + fmtPct(a.hookRate) + ' <small>' + deltaHTML(a.hookRate, b ? b.hookRate : null, 'rate') + '</small></td>' +
+      '<td>' + (a.avgSec ? a.avgSec.toFixed(1) + 's' : '—') + '</td>' +
       '<td>' + fmtPct(a.compRate) + ' <small>' + deltaHTML(a.compRate, b ? b.compRate : null, 'rate') + '</small></td>' +
       '<td>' + fmtInt(a.eng) + ' <small>' + deltaHTML(a.eng, b ? b.eng : null, 'num') + '</small></td>' +
       '<td>' + fmtPct(a.engRate) + ' <small>' + deltaHTML(a.engRate, b ? b.engRate : null, 'rate') + '</small></td>' +
@@ -1052,6 +1070,7 @@ function renderTable(A, B){
     '</tr>';
   }).join('');
   tf.innerHTML = '<tr><td>合计</td><td>' + fmtInt(tot.impressions) + '</td><td>' + fmtInt(tot.views) + '</td><td>' +
+    fmtPct(tot.hookRate) + '</td><td>' + (tot.avgSec ? tot.avgSec.toFixed(1) + 's' : '—') + '</td><td>' +
     fmtPct(tot.compRate) + '</td><td>' + fmtInt(tot.eng) + '</td><td>' + fmtPct(tot.engRate) + '</td><td>' +
     fmtSigned(tot.follows) + '</td><td>100.0%</td><td></td></tr>';
 }
@@ -1112,11 +1131,20 @@ function render(){
 
   drawMix(totalOf(A));
 
+  // 有完播数据就画完播率，只有 3 秒留存时自动改画 3 秒留存
+  const totA = totalOf(A);
+  const useHook = totA.completions === 0 && totA.views3s > 0;
+  const rateName = useHook ? '3 秒留存率' : '完播率';
+  F('comp-title').textContent = rateName + '排行';
+  F('comp-hint').textContent = (useHook
+    ? '3 秒留存率 = 3 秒观看 \u00f7 播放量'
+    : '完播率 = 完播数 \u00f7 播放量') + '；灰色竖线是对比周的水平';
   const comp = [...A.entries()].filter(([, a]) => a.views > 0)
-    .map(([k, a]) => ({label:k, rate:a.compRate, views:a.views, completions:a.completions,
-      color:keyColor(k), prevRate:B.has(k) ? B.get(k).compRate : null}))
+    .map(([k, a]) => ({label:k, rate:useHook ? a.hookRate : a.compRate, views:a.views,
+      completions:useHook ? a.views3s : a.completions, color:keyColor(k),
+      prevRate:B.has(k) ? (useHook ? B.get(k).hookRate : B.get(k).compRate) : null}))
     .sort((x, y) => y.rate - x.rate).slice(0, 8);
-  drawCompletion(comp);
+  drawCompletion(comp, rateName);
 
   const weeks = allWeeks();
   const byWeek = weeks.map(w => aggWeek(w));
@@ -1124,9 +1152,12 @@ function render(){
   const known = [...new Set(rank.concat(...byWeek.map(mp => [...mp.keys()])))];
   const top = known.slice(0, 5), rest = known.slice(5);
   const series = top.map(k => ({label:k, color:keyColor(k),
-    values:byWeek.map(mp => mp.has(k) ? M.get(mp.get(k)) : 0)}));
+    values:byWeek.map(mp => mp.has(k) ? M.get(mp.get(k)) : null)}));   // null = 那周没有数据，线断开
   if(rest.length) series.push({label:'其他 (' + rest.length + ' 项)', color:cssVar('--other'),
-    values:byWeek.map(mp => rest.reduce((s, k) => s + (mp.has(k) ? M.get(mp.get(k)) : 0), 0))});
+    values:byWeek.map(mp => {
+      const hit = rest.filter(k => mp.has(k));
+      return hit.length ? hit.reduce((s, k) => s + M.get(mp.get(k)), 0) : null;
+    })});
   drawTrend(weeks, series, M.name);
 
   renderTable(A, B);
@@ -1175,7 +1206,9 @@ function openEntry(rec){
   F('f-brand').value    = rec ? brandOf(rec) : (state.brand || lastBrand());
   F('f-platform').value = rec ? rec.platform : '';
   F('f-content').value  = rec ? (rec.content || '') : '';
-  FIELDS.forEach(f => F('f-' + f).value = rec ? (rec[f] || 0) : (f === 'views' ? '' : 0));
+  FIELDS.filter(f => f !== 'watchSec').forEach(f =>
+    F('f-' + f).value = rec ? (rec[f] || 0) : (f === 'views' ? '' : 0));
+  F('f-avgsec').value = rec && rec.views > 0 ? +((rec.watchSec || 0) / rec.views).toFixed(1) : 0;
   F('f-warn').style.display = 'none';
   updateWeekHint();
   openModal('md-entry');
@@ -1196,8 +1229,9 @@ F('form-entry').addEventListener('submit', e => {
   const content = F('f-content').value.trim();
   if(!platform) return;
   const rec = {id:state.editId || uid(), week:week, brand:brand, platform:platform, content:content};
-  FIELDS.forEach(f => rec[f] = Math.round(+F('f-' + f).value || 0));
-  FIELDS.filter(f => f !== 'follows').forEach(f => rec[f] = Math.max(0, rec[f]));
+  FIELDS.filter(f => f !== 'watchSec').forEach(f => rec[f] = Math.round(+F('f-' + f).value || 0));
+  FIELDS.filter(f => f !== 'follows').forEach(f => rec[f] = Math.max(0, rec[f] || 0));
+  rec.watchSec = Math.round((+F('f-avgsec').value || 0) * rec.views);
   if(rec.completions > rec.views){
     F('f-warn').textContent = '完播数不能大于播放量（完播率会超过 100%）。'; F('f-warn').style.display = 'block'; return;
   }
@@ -1352,22 +1386,26 @@ const MAP_TARGETS = [
   {k:'name', name:'内容名'},
   {k:'impressions', name:'曝光量'}, {k:'views', name:'播放量'},
   {k:'completions', name:'完播数'}, {k:'compRatePct', name:'完播率(%)'},
+  {k:'views3s', name:'3秒观看'}, {k:'hookRatePct', name:'3秒留存率(%)'}, {k:'avgSec', name:'均播(秒)'},
   {k:'likes', name:'点赞'}, {k:'comments', name:'评论'},
   {k:'shares', name:'分享'}, {k:'saves', name:'收藏'},
   {k:'interactions', name:'互动总数'}, {k:'follows', name:'涨粉'}
 ];
 /** 指标别名：Meta（Instagram / Facebook）中英文写法都收进来，长的排前面先匹配 */
 const METRIC_ALIAS = [
+  ['views3s',      ['3秒观看','3秒播放','三秒观看','3-second views','3s views']],
+  ['hookRatePct',  ['3秒留存率','三秒留存率','3秒留存','3-second retention','hook rate']],
+  ['avgSec',       ['均播','平均播放时长','平均观看时长','人均观看时长','average watch time','avg watch time']],
   ['completions',  ['完整观看次数','完整播放次数','完整观看','完播次数','完播数','watched full video','video completions','completions']],
   ['compRatePct',  ['平均播放完成率','播放完成率','完播率','播完率','completion rate','play-through rate','watch-through rate']],
-  ['impressions',  ['覆盖的账户数','覆盖人数','触及人数','触达人数','覆盖账户','展示次数','曝光次数','曝光量','覆盖','触及','曝光',
+  ['impressions',  ['覆盖的账户数','覆盖人数','触及人数','触达人数','覆盖账户','展示次数','曝光次数','曝光量','覆盖','触及','触達','曝光',
                     'accounts reached','accounts center accounts reached','people reached','reach','impressions']],
-  ['views',        ['观看次数','播放次数','视频观看次数','播放量','观看量','浏览量','视频播放','观看','播放','浏览',
+  ['views',        ['周总观看','观看次数','播放次数','视频观看次数','播放量','观看量','浏览量','视频播放','观看','播放','浏览',
                     'video views','3-second video views','plays','views']],
-  ['interactions', ['内容互动次数','互动的账户数','互动总数','互动次数','互动人数','互动量','互动',
+  ['interactions', ['互动合计','内容互动次数','互动的账户数','互动总数','互动次数','互动人数','互动量','周总互动','互动',
                     'accounts engaged','content interactions','post engagement','interactions','engagements']],
   ['likes',        ['点赞次数','点赞数','赞和心情','点赞','喜欢','赞','reactions','likes']],
-  ['comments',     ['评论次数','评论数','评论','comments']],
+  ['comments',     ['评论次数','留言数','评论数','留言','评论','comments']],
   ['shares',       ['分享次数','转发次数','分享数','分享','转发','shares','reposts']],
   ['saves',        ['保存次数','收藏次数','收藏数','收藏','保存','saves','bookmarks']],
   ['follows',      ['新增粉丝数','新增关注数','净增粉丝','新增粉丝','新增关注','涨粉','粉丝增长','关注数','净关注',
@@ -1424,7 +1462,7 @@ async function pdfToRows(buf){
           cells.push(cur);
         }
       });
-      let texts = cells.map(c => c.s.replace(/\s+/g, ' ').trim()).filter(s => s !== '');
+      let texts = cells.map(c => nfkc(c.s).replace(/\s+/g, ' ').trim()).filter(s => s !== '');
       const raw = texts.join(' ');
       if(!raw) return;
       if(texts.length < 2) texts = splitByNumbers(raw);   // 整行没切开时，退回按数字切
@@ -1462,7 +1500,11 @@ function isNumCell(s){
   const t = String(s || '').trim();
   return /^[-+]?[\d,]+(\.\d+)?\s*(%|万|千|亿|[kKmM])?$/.test(t);
 }
-function norm(t){ return String(t || '').toLowerCase().replace(/[\s:：]/g, ''); }
+function norm(t){
+  // NFKC 把康熙部首/兼容汉字折回正常汉字：留⾔→留言、⽇期→日期、全角数字→半角
+  return String(t || '').normalize('NFKC').toLowerCase().replace(/[\s:：（）()【】\[\]]/g, '');
+}
+function nfkc(t){ return String(t || '').normalize('NFKC'); }
 /** 一段文字命中哪个指标（整词优先，避免「完播率」被「播放」抢走） */
 function matchMetric(text){
   const t = norm(text);
@@ -1483,19 +1525,44 @@ function matchMetric(text){
 }
 
 /* ---------- 模式一：表格（有表头的那种） ---------- */
-function findHeader(rows){
-  let best = null;
+function findHeaders(rows){
+  const out = [];
   rows.forEach((r, i) => {
-    if(r.cells.length < 3) return;
+    if(r.cells.length < 3 || r.cells.some(isNumCell)) return;
     let hits = 0;
     const map = {};
     r.cells.forEach((c, ci) => {
       const f = matchMetric(c);
-      if(f && map[f] === undefined){ map[f] = ci; hits++; }
+      if(f && f !== 'name' && map[f] === undefined){ map[f] = ci; hits++; }
+      else if(f === 'name' && map.name === undefined) map.name = ci;
     });
-    if(hits >= 2 && (!best || hits > best.hits)) best = {i:i, hits:hits, map:map, cells:r.cells};
+    // 整行都是指标名 = 指标卡的标签行，不是明细表（明细表一定有一列放名称）
+    const hasName = map.name !== undefined || r.cells.some(c => matchMetric(c) === null);
+    if(hits >= 2 && hasName) out.push({i:i, hits:hits, map:map, cells:r.cells});
   });
-  return best;
+  return out;
+}
+/** 表格上方最近的一行标题（用来认这块是哪个账号 / 品牌） */
+const SECTION_NO = /^[一二三四五六七八九十0-9]+\s*[、.．)）]/;      // 「四、…」这类编号小标题
+function sectionTitle(rows, headerIndex){
+  for(let i = headerIndex - 1; i >= Math.max(0, headerIndex - 6); i--){
+    const r = rows[i];
+    if(r.cells.length !== 1) continue;
+    const t = r.cells[0];
+    if(!t || t.length > 40 || isNumCell(t) || SECTION_NO.test(t)) continue;
+    if(/[。！？；]/.test(t) || /[，,]$/.test(t)) continue;      // 正文换行，不是标题
+    return t;
+  }
+  return '';
+}
+/** 文档开头几行里最像品牌名的一行 */
+function docBrand(rows){
+  for(const r of rows.slice(0, 4)){
+    if(r.cells.length !== 1) continue;
+    const b = cleanBrand(r.cells[0]);
+    if(b && b.length >= 2 && !SECTION_NO.test(b)) return b;
+  }
+  return '';
 }
 /* ---------- 模式二：指标卡（Meta 常见：一个指标名配一个数字） ---------- */
 function parseKeyValue(rows){
@@ -1503,7 +1570,8 @@ function parseKeyValue(rows){
   const seen = [];
   const put = (f, n) => {
     if(!f || !n || found[f] !== undefined) return;
-    found[f] = f === 'compRatePct' ? (n.pct ? n.v : (n.v <= 1 ? n.v * 100 : n.v)) : n.v;
+    found[f] = (f === 'compRatePct' || f === 'hookRatePct')
+      ? (n.pct ? n.v : (n.v <= 1 ? n.v * 100 : n.v)) : n.v;
     seen.push(f);
   };
   // (a) 卡片并排时，pdf.js 会把一排数字排成一行、一排指标名排成另一行 —— 按位置配对
@@ -1541,57 +1609,106 @@ function parseKeyValue(rows){
   });
   return {values:found, hits:seen.filter(f => f !== 'name').length};
 }
-/** 报表里的统计周期 → yyyy-mm-dd（取开始那天） */
+/** 报表里的统计周期 → yyyy-mm-dd（取文中第一个出现的日期，也就是本期的开始那天） */
 function findReportDate(rows){
   const head = rows.slice(0, 30).map(r => r.raw).join(' ');
   const found = [];
   let m;
   const re1 = /(\d{4})\s*[-/年]\s*(\d{1,2})\s*[-/月]\s*(\d{1,2})/g;
-  while((m = re1.exec(head))) found.push(iso(+m[1], +m[2], +m[3]));
+  while((m = re1.exec(head))) found.push({d:iso(+m[1], +m[2], +m[3]), at:m.index});
   const re2 = /(\d{1,2})\/(\d{1,2})\/(\d{4})/g;
-  while((m = re2.exec(head))) found.push(iso(+m[3], +m[1], +m[2]));
+  while((m = re2.exec(head))) found.push({d:iso(+m[3], +m[1], +m[2]), at:m.index});
   const yr = /(20\d{2})/.exec(head);
   const re3 = new RegExp('(' + MONTHS.join('|') + ')[a-z]*\\.?\\s+(\\d{1,2})(?:\\D{0,4}(\\d{4}))?', 'gi');
   while((m = re3.exec(head))){
     const y = m[3] ? +m[3] : (yr ? +yr[1] : 0);
-    if(y) found.push(iso(y, MONTHS.indexOf(m[1].toLowerCase()) + 1, +m[2]));
+    if(y) found.push({d:iso(y, MONTHS.indexOf(m[1].toLowerCase()) + 1, +m[2]), at:m.index});
   }
-  const valid = found.filter(Boolean).sort();
-  return valid[0] || '';                 // 报表通常写「开始 - 结束」，取开始那天
+  // 按出现位置排序 —— 周报开头写的是本期周期，「对比前一周」「抓取于」都在后面
+  const valid = found.filter(f => f.d).sort((a, b) => a.at - b.at);
+  return valid.length ? valid[0].d : '';
 }
 function iso(y, mo, d){
   if(!(y > 1990 && mo >= 1 && mo <= 12 && d >= 1 && d <= 31)) return '';
   return y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
 }
 function guessPlatform(rows, fileName){
-  const head = rows.slice(0, 25).map(r => r.raw).join(' ') + ' ' + fileName;
-  const hit = KNOWN_PLATFORMS.find(p => head.toLowerCase().includes(p.toLowerCase()));
-  if(hit) return hit;
-  const base = fileName.replace(/\.pdf$/i, '').split(/[_\-\s]/)[0];
-  return base && base.length <= 20 ? base : '';
+  const head = (rows.slice(0, 25).map(r => r.raw).join(' ') + ' ' + fileName).toLowerCase();
+  // 取最先出现的那个 —— 「Facebook Page，无 Instagram」应该判成 Facebook
+  let best = null;
+  KNOWN_PLATFORMS.forEach(pf => {
+    const at = head.indexOf(pf.toLowerCase());
+    if(at >= 0 && (best === null || at < best.at)) best = {at:at, name:pf};
+  });
+  return best ? best.name : '';          // 认不出就留空，让人来填，不拿文件名瞎猜
 }
 
-/* ---------- 一份文件 → 一个 source ---------- */
+/** 转置表：指标在第一列、每个周期各占一列（FANG 的「总量对比」就是这种） */
+function findMatrix(rows){
+  const hits = [];
+  rows.forEach((r, i) => {
+    if(r.cells.length < 3) return;
+    const f = matchMetric(r.cells[0]);
+    const nums = r.cells.slice(1).filter(isNumCell).length;
+    if(f && f !== 'name' && nums >= 2) hits.push({i:i, field:f, cells:r.cells});
+  });
+  // 同一张表的行是连成一片的；文档里别处的零散行不能混进来
+  const runs = [];
+  hits.forEach(h => {
+    const last = runs[runs.length - 1];
+    if(last && h.i - last[last.length - 1].i <= 2 && h.cells.length === last[0].cells.length) last.push(h);
+    else runs.push([h]);
+  });
+  return runs.filter(run => run.length >= 3).map(run => buildMatrix(rows, run)).filter(Boolean);
+}
+function buildMatrix(rows, run){
+  const cols = run[0].cells.length;
+  let heads = [];
+  for(let i = run[0].i - 1; i >= Math.max(0, run[0].i - 4); i--){
+    const r = rows[i];
+    if(!r || r.cells.length !== cols) continue;
+    if(r.cells.filter(isNumCell).length > cols / 2) continue;     // 那是数据行，不是表头
+    heads = r.cells.map(String); break;
+  }
+  const skip = /增减|环比|同比|变化|差值|区间|口径|change|delta/i;
+  const valueCols = [];
+  for(let c = 1; c < cols; c++){
+    if(heads[c] && skip.test(heads[c])) continue;
+    const vals = run.map(h => h.cells[c]).filter(Boolean);
+    if(!vals.length || !vals.every(isNumCell)) continue;
+    if(vals.filter(v => /%/.test(v) || /^-/.test(v)).length > vals.length / 2) continue;
+    // 周期总量都是整数；「单条平均观看 892.73」这类均值表不是我们要的
+    if(vals.filter(v => /\.\d/.test(v)).length > vals.length / 2) continue;
+    valueCols.push(c);
+  }
+  if(!valueCols.length) return null;
+  return {rows:run, heads:heads, valueCols:valueCols, from:run[0].i};
+}
 async function readPdfFile(file){
   const buf = new Uint8Array(await file.arrayBuffer());
   const all = await pdfToRows(buf);
-  const src = {name:file.name, raw:all.map(r => r.cells.join(' | ')).join('\n'),
-    platform:guessPlatform(all, file.name), date:findReportDate(all) || new Date().toISOString().slice(0, 10),
-    map:{}, heads:[], cols:0, rows:[], mode:'none', hits:0};
+  const fileDate = findReportDate(all) || new Date().toISOString().slice(0, 10);
+  const filePlat = guessPlatform(all, file.name);
+  const fileBrand = docBrand(all);
+  const raw = all.map(r => r.cells.join(' | ')).join('\n');
+  const mk = extra => Object.assign({file:file.name, raw:raw, platform:filePlat, date:fileDate,
+    brand:'', title:'', map:{}, heads:[], cols:0, rows:[], mode:'none', hits:0}, extra);
+  const out = [];
 
-  const head = findHeader(all);
-  let body = [];
-  if(head){
-    body = all.filter((r, i) => i > head.i && Math.abs(r.cells.length - head.cells.length) <= 1)
-              .filter(r => r.cells.some(isNumCell));
-  }
-  // 每行都得有个非数字的名称格，否则这是「指标卡」而不是明细表
-  const named = body.filter(r => r.cells.some(c => !isNumCell(c))).length;
-  if(head && body.length && named >= body.length / 2){
-    src.mode = 'table'; src.hits = head.hits;
-    src.heads = head.cells.map(String);
-    src.map = Object.assign({}, head.map);
-    src.rows = body.slice(0, 80).map(r => { r.pick = true; return r; });
+  // (1) 明细表：一份 PDF 里可能有好几张（每个账号一张）
+  const heads = findHeaders(all);
+  heads.forEach((h, hi) => {
+    const stop = hi + 1 < heads.length ? heads[hi + 1].i : all.length;
+    const body = all.slice(h.i + 1, stop)
+      .filter(r => Math.abs(r.cells.length - h.cells.length) <= 1)
+      .filter(r => r.cells.some(isNumCell))
+      .filter(r => r.cells.join('|') !== h.cells.join('|'));       // 跨页重复的表头
+    const named = body.filter(r => r.cells.some(c => !isNumCell(c))).length;
+    if(!body.length || named < body.length / 2) return;            // 没有名称列 → 那是指标卡不是表
+    const title = sectionTitle(all, h.i);
+    const src = mk({mode:'table', hits:h.hits, title:title,
+      heads:h.cells.map(String), map:Object.assign({}, h.map),
+      rows:body.slice(0, 80).map(r => { r.pick = true; return r; })});
     src.cols = Math.min(16, Math.max(...src.rows.map(r => r.cells.length)));
     if(src.map.name === undefined){
       for(let c = 0; c < src.cols; c++){
@@ -1600,23 +1717,75 @@ async function readPdfFile(file){
         }
       }
     }
-    return src;
-  }
-  const kv = parseKeyValue(all);                   // 指标卡：整份文件汇总成一条
+    if(title){
+      const p = guessPlatform([{raw:title}], '');
+      if(p) src.platform = p;
+      src.brand = cleanBrand(title);
+    }
+    if(!src.brand) src.brand = fileBrand;
+    // 只有一行、名称像「35 条」的，是账号级汇总行
+    if(src.rows.length === 1 && /^\d+\s*条$/.test(String(src.rows[0].cells[src.map.name] || '').trim())){
+      src.rows[0].name = '账号整体';
+    }
+    out.push(src);
+  });
+
+  // (2) 转置的总量表：指标在第一列，每个周期一列
+  findMatrix(all).forEach(mx => {
+    const title = sectionTitle(all, mx.from);
+    mx.valueCols.forEach(c => {
+      const values = {};
+      mx.rows.forEach(h => {
+        const n = cellNum(h.cells[c]);
+        if(n) values[h.field] = n.pct ? n.v : n.v;
+      });
+      const colDate = dateFromLabel(mx.heads[c] || '', fileDate);
+      out.push(mk({mode:'matrix', hits:Object.keys(values).length, title:title || '总量对比',
+        date:colDate || fileDate, brand:cleanBrand(title) || fileBrand,
+        rows:[{name:'账号整体', values:values, pick:false,
+               raw:(mx.heads[c] || '该列') + ' 一整列的汇总'}]}));
+    });
+  });
+
+  // 同一个品牌+平台，既有账号汇总（1 行）又有明细表时，汇总默认不勾 —— 两者会重复计算
+  out.forEach(src => {
+    if(src.mode !== 'table' || src.rows.length !== 1) return;
+    const hasDetail = out.some(o => o !== src && o.mode === 'table' && o.rows.length > 1 &&
+      o.brand === src.brand && o.platform === src.platform);
+    if(hasDetail){ src.rows[0].pick = false; src.summaryOf = true; }
+  });
+  if(out.length) return out;
+
+  // (3) 指标卡：整份文件汇总成一条
+  const kv = parseKeyValue(all);
   if(kv.hits >= 2){
-    src.mode = 'kv'; src.hits = kv.hits;
-    src.rows = [{name:'账号整体', values:kv.values, pick:true, raw:'（整份报表汇总成一条）'}];
-    return src;
+    return [mk({mode:'kv', hits:kv.hits,
+      rows:[{name:'账号整体', values:kv.values, pick:true, raw:'（整份报表汇总成一条）'}]})];
   }
   const loose = all.filter(r => r.cells.length >= 2 && r.cells.some(isNumCell));
   if(loose.length){
-    src.mode = 'loose';
-    src.rows = loose.slice(0, 80).map(r => { r.pick = true; return r; });
+    const src = mk({mode:'loose', rows:loose.slice(0, 80).map(r => { r.pick = true; return r; })});
     src.cols = Math.min(16, Math.max(...src.rows.map(r => r.cells.length)));
     src.map = guessMapNoHeader(src.rows);
-    return src;
+    return [src];
   }
-  return src;                                      // mode = none
+  return [mk({})];
+}
+/** 「JAN'S SECRET（Facebook Page，无 Instagram）」→「JAN'S SECRET」 */
+function cleanBrand(title){
+  let t = nfkc(title).split(/[（(|｜]/)[0].trim();
+  t = t.replace(/(内容)?周报.*$/, '').replace(/[·・|]\s*$/, '').trim();
+  return t.length > 40 ? '' : t;
+}
+/** 列标题里的「8/17‒8/23」→ 具体日期（年份取整份报表的年份） */
+function dateFromLabel(labelText, fallbackISO){
+  const t = nfkc(labelText);
+  const year = (fallbackISO || '').slice(0, 4) || String(new Date().getFullYear());
+  let m = /(\d{4})[-/](\d{1,2})[-/](\d{1,2})/.exec(t);
+  if(m) return iso(+m[1], +m[2], +m[3]);
+  m = /(\d{1,2})\s*[\/月]\s*(\d{1,2})/.exec(t);
+  if(m) return iso(+year, +m[1], +m[2]);
+  return '';
 }
 function guessMapNoHeader(rows){
   const map = {};
@@ -1634,10 +1803,12 @@ function guessMapNoHeader(rows){
 /* ---------- 一行 → 各指标数值 ---------- */
 function rowValues(src, row){
   const out = {}; FIELDS.forEach(f => out[f] = 0);
-  let compPct = null;
-  if(src.mode === 'kv'){
+  let compPct = null, hookPct = null, avgSec = null;
+  if(src.mode === 'kv' || src.mode === 'matrix'){
     FIELDS.forEach(f => { if(row.values[f] !== undefined) out[f] = Math.round(row.values[f]); });
     if(row.values.compRatePct !== undefined) compPct = row.values.compRatePct;
+    if(row.values.hookRatePct !== undefined) hookPct = row.values.hookRatePct;
+    if(row.values.avgSec !== undefined) avgSec = row.values.avgSec;
   }else{
     MAP_TARGETS.forEach(t => {
       if(t.k === 'name') return;
@@ -1646,6 +1817,8 @@ function rowValues(src, row){
       const n = cellNum(row.cells[+ci]);
       if(!n) return;
       if(t.k === 'compRatePct') compPct = n.pct ? n.v : (n.v <= 1 ? n.v * 100 : n.v);
+      else if(t.k === 'hookRatePct') hookPct = n.pct ? n.v : (n.v <= 1 ? n.v * 100 : n.v);
+      else if(t.k === 'avgSec') avgSec = n.v;
       else out[t.k] = Math.round(n.v);
     });
   }
@@ -1654,6 +1827,8 @@ function rowValues(src, row){
     ? row.values.completions !== undefined
     : (src.map.completions !== undefined && src.map.completions !== null && src.map.completions !== '');
   if(compPct !== null && !hasCompCol) out.completions = Math.round(out.views * Math.min(100, Math.max(0, compPct)) / 100);
+  if(hookPct !== null && !out.views3s) out.views3s = Math.round(out.views * Math.min(100, Math.max(0, hookPct)) / 100);
+  if(avgSec !== null) out.watchSec = Math.round(avgSec * out.views);   // 均播 × 观看 = 总观看秒数，这样求和才对
   return out;
 }
 function rowName(src, row){
@@ -1664,21 +1839,23 @@ function rowName(src, row){
 }
 
 /* ---------- 渲染 ---------- */
-const PREVIEW_COLS = ['impressions','views','completions','likes','comments','shares','saves','interactions','follows'];
+const PREVIEW_COLS = ['impressions','views','views3s','completions','watchSec','likes','comments','shares','saves','interactions','follows'];
 function renderPdfSources(){
   const host = F('pdf-sources');
   if(!pdfSources.length){ host.innerHTML = ''; updatePdfButton(); return; }
   host.innerHTML = pdfSources.map((src, si) => {
     if(src.mode === 'none'){
-      return '<div class="src" data-s="' + si + '"><div class="srchead"><span class="fname">' + esc(src.name) + '</span></div>' +
+      return '<div class="src" data-s="' + si + '"><div class="srchead"><span class="fname">' + esc(src.file) + '</span></div>' +
         '<div class="srcnote" style="color:var(--bad)">没认出表格或指标卡 —— 可能是图片扫描件。' +
         '展开下面的原始文字看看，或改用 CSV 导入。</div></div>';
     }
     const modeNote = src.mode === 'table' ? '认出明细表（表头对上 <b>' + src.hits + '</b> 列），共 ' + src.rows.length + ' 行'
+      : src.mode === 'matrix' ? '认出总量表的一列（读到 <b>' + src.hits + '</b> 个指标）—— 和明细表二选一，默认没勾'
+      : src.summaryOf ? '这是账号级汇总（1 行）——下面已有同账号的逐条明细，默认没勾，避免重复计算'
       : src.mode === 'kv' ? '认出指标卡，自动读到 <b>' + src.hits + '</b> 个指标，汇总成 1 条'
       : '没找到表头，按位置猜的，共 ' + src.rows.length + ' 行 —— 请核对下面每一格';
     const colName = i => '第 ' + (i + 1) + ' 列' + (src.heads[i] ? '（' + src.heads[i].slice(0, 8) + '）' : '');
-    const mapUI = src.mode === 'kv' ? '' :
+    const mapUI = (src.mode === 'kv' || src.mode === 'matrix') ? '' :
       '<div class="maprow">' + MAP_TARGETS.map(t =>
         '<div class="m"><label for="map-' + si + '-' + t.k + '">' + t.name + '</label>' +
         '<select id="map-' + si + '-' + t.k + '" data-s="' + si + '" data-k="' + t.k + '">' +
@@ -1688,7 +1865,10 @@ function renderPdfSources(){
           esc(colName(i)) + '</option>').join('') +
         '</select></div>').join('') + '</div>';
     return '<div class="src" data-s="' + si + '">' +
-      '<div class="srchead"><span class="fname" title="' + esc(src.name) + '">' + esc(src.name) + '</span>' +
+      '<div class="srchead"><span class="fname" title="' + esc(src.file + (src.title ? ' · ' + src.title : '')) + '">' +
+          esc(src.title || src.file) + '</span>' +
+        '<div class="field"><label>品牌</label>' +
+          '<input type="text" class="src-brand" data-s="' + si + '" list="dl-brand" value="' + esc(src.brand) + '"></div>' +
         '<div class="field"><label>平台</label>' +
           '<input type="text" class="src-plat" data-s="' + si + '" list="dl-plat" value="' + esc(src.platform) + '"></div>' +
         '<div class="field"><label>日期（归入所在周）</label>' +
@@ -1725,6 +1905,10 @@ function renderPdfSources(){
     host.querySelectorAll('tr[data-s="' + si + '"] .pdf-pick').forEach(c => { c.checked = e.target.checked; });
     updatePdfButton();
   }));
+  host.querySelectorAll('.src-brand').forEach(inp => inp.addEventListener('input', e => {
+    pdfSources[+e.target.dataset.s].brand = e.target.value;
+    updatePdfButton();
+  }));
   host.querySelectorAll('.src-plat').forEach(inp => inp.addEventListener('input', e => {
     pdfSources[+e.target.dataset.s].platform = e.target.value;
     updatePdfButton();
@@ -1742,9 +1926,11 @@ function renderPdfSources(){
   updatePdfButton();
 }
 function updatePdfButton(){
-  const picked = pdfSources.reduce((n, s) => n + s.rows.filter(r => r.pick).length, 0);
-  const ready = pdfSources.every(s => !s.rows.length || (s.platform.trim() && s.date));
-  F('btn-pdf-do').disabled = !(picked && ready && F('f-pdf-brand').value.trim());
+  const fallback = F('f-pdf-brand').value.trim();
+  const active = pdfSources.filter(s => s.rows.some(r => r.pick));
+  const picked = active.reduce((n, s) => n + s.rows.filter(r => r.pick).length, 0);
+  const ready = active.every(s => s.platform.trim() && s.date && (s.brand.trim() || fallback));
+  F('btn-pdf-do').disabled = !(picked && ready);
   F('btn-pdf-do').textContent = picked ? '导入 ' + picked + ' 条' : '导入';
 }
 F('btn-pdf').addEventListener('click', () => {
@@ -1761,9 +1947,9 @@ F('f-pdf').addEventListener('change', async e => {
   const raws = [];
   for(const f of files){
     try{
-      const src = await readPdfFile(f);
-      pdfSources.push(src);
-      raws.push('===== ' + f.name + ' =====\n' + src.raw);
+      const list = await readPdfFile(f);
+      list.forEach(src => pdfSources.push(src));
+      raws.push('===== ' + f.name + ' =====\n' + (list[0] ? list[0].raw : ''));
     }catch(err){
       st.className = 'note warn';
       st.textContent = '「' + f.name + '」解析失败：' + (err && err.message ? err.message : err);
@@ -1771,10 +1957,12 @@ F('f-pdf').addEventListener('change', async e => {
   }
   F('pdf-raw').value = raws.join('\n\n');
   F('pdf-raw-wrap').style.display = raws.length ? '' : 'none';
-  const okCount = pdfSources.filter(s => s.rows.length).length;
-  if(okCount){
+  const okFiles = new Set(pdfSources.filter(s => s.rows.length).map(s => s.file)).size;
+  const blocks = pdfSources.filter(s => s.rows.length).length;
+  if(okFiles){
     st.className = 'note';
-    st.textContent = okCount + ' / ' + files.length + ' 份读出了数据。平台和统计周期已自动填好，核对无误就可以导入。';
+    st.textContent = okFiles + ' / ' + files.length + ' 份读出了数据，共 ' + blocks + ' 块。' +
+      '品牌、平台和统计周期已自动填好，核对无误就可以导入。';
   }else if(pdfSources.length){
     st.className = 'note warn';
     st.textContent = '文字读出来了，但没认出数据。展开下面的原始文字看看是什么排版。';
@@ -1782,13 +1970,14 @@ F('f-pdf').addEventListener('change', async e => {
   renderPdfSources();
 });
 F('btn-pdf-do').addEventListener('click', () => {
-  const brand = F('f-pdf-brand').value.trim() || DEFAULT_BRAND;
+  const fallback = F('f-pdf-brand').value.trim();
   const out = [];
   F('pdf-sources').querySelectorAll('tbody tr').forEach(tr => {
     if(!tr.querySelector('.pdf-pick').checked) return;
     const src = pdfSources[+tr.dataset.s];
     const week = isoWeekKey(new Date(src.date + 'T00:00:00'));
-    const rec = {id:uid(), week:week, brand:brand, platform:src.platform.trim(),
+    const rec = {id:uid(), week:week, brand:src.brand.trim() || fallback || DEFAULT_BRAND,
+      platform:src.platform.trim(),
       content:tr.querySelector('.pdf-name').value.trim()};
     FIELDS.forEach(f => rec[f] = 0);
     tr.querySelectorAll('.pdf-v').forEach(inp => rec[inp.dataset.f] = Math.round(+inp.value || 0));
