@@ -1,0 +1,42 @@
+name: Paper Trade
+
+# Runs the AUTO-PILOT rules against an Alpaca PAPER account (virtual money).
+# Does nothing until ALPACA_API_KEY_ID / ALPACA_API_SECRET_KEY are added as
+# Actions secrets. Scheduled runs only fire once this file is on the default
+# branch. Orders placed after the close execute at the next market open.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Log intended orders without submitting them'
+        type: boolean
+        default: false
+  schedule:
+    - cron: '40 21 * * 1-5'   # ~1h40m after US close (EDT); signals are final
+
+permissions: {}
+
+concurrency:
+  group: paper-trade
+  cancel-in-progress: false
+
+jobs:
+  trade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run paper-trading bot
+        env:
+          ALPACA_API_KEY_ID: ${{ secrets.ALPACA_API_KEY_ID }}
+          ALPACA_API_SECRET_KEY: ${{ secrets.ALPACA_API_SECRET_KEY }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+        run: python scripts/autopilot_trade.py
