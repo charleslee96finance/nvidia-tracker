@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>页面互动分析 · 周对比 / 完播率 / 占比</title>
+<style>
+/* ===== 深色为主，跟随系统自动切换浅色 ===== */
+:root{
+  --bg:#050810; --bg2:#0b0f1e; --card:#0e1424;
+  --border:rgba(255,255,255,.09); --border2:rgba(255,255,255,.18);
+  --text:#e8edf5; --text2:#93a3bf; --text3:#5b6b88;
+  --grid:rgba(255,255,255,.08);
+  --good:#00c07a; --bad:#e66767; --neutral:#7d8aa3;
+  /* 分类色板（深色面板专用步阶） */
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#9085e9;
+  --other:#5b6b88;
+  --shadow:0 8px 30px rgba(0,0,0,.45);
+}
+@media (prefers-color-scheme: light){
+  :root{
+    --bg:#f4f6fb; --bg2:#ffffff; --card:#ffffff;
+    --border:rgba(0,0,0,.09); --border2:rgba(0,0,0,.18);
+    --text:#0a1428; --text2:#4c5c78; --text3:#8a97ad;
+    --grid:rgba(0,0,0,.10);
+    --good:#00845a; --bad:#c93636; --neutral:#6b7a93;
+    --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#4a3aa7;
+    --other:#8a97ad;
+    --shadow:0 6px 20px rgba(20,30,50,.10);
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--text); min-height:100dvh;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+  font-size:14px; line-height:1.55; -webkit-text-size-adjust:100%;
+}
+.wrap{max-width:1180px; margin:0 auto; padding:24px 18px 60px}
+
+/* ---- 头部 ---- */
+header{display:flex; flex-wrap:wrap; align-items:flex-end; gap:12px; margin-bottom:18px}
+h1{font-size:22px; margin:0; letter-spacing:.5px}
+header .sub{color:var(--text2); font-size:13px; margin-top:4px}
+.spacer{flex:1 1 auto}
+
+/* ---- 控件 ---- */
+.toolbar{display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;
+  background:var(--card); border:1px solid var(--border); border-radius:14px;
+  padding:12px 14px; margin-bottom:18px; box-shadow:var(--shadow)}
+.field{display:flex; flex-direction:column; gap:4px; min-width:0}
+.field label{font-size:11px; color:var(--text3); letter-spacing:.4px}
+select,input,textarea{
+  font:inherit; color:var(--text); background:var(--bg2);
+  border:1px solid var(--border2); border-radius:9px; padding:7px 9px; min-width:0}
+select:focus,input:focus,textarea:focus{outline:2px solid var(--s1); outline-offset:1px}
+button{font:inherit; cursor:pointer; color:var(--text); background:var(--bg2);
+  border:1px solid var(--border2); border-radius:9px; padding:7px 12px; transition:transform .06s}
+button:active{transform:scale(.97)}
+button.primary{background:var(--s1); border-color:transparent; color:#fff; font-weight:600}
+button.ghost{background:transparent}
+button.danger{color:var(--bad)}
+.btns{display:flex; flex-wrap:wrap; gap:8px}
+.seg{display:inline-flex; border:1px solid var(--border2); border-radius:9px; overflow:hidden}
+.seg button{border:0; border-radius:0; background:transparent; padding:7px 11px; color:var(--text2)}
+.seg button[aria-pressed="true"]{background:var(--s1); color:#fff; font-weight:600}
+
+/* ---- KPI ---- */
+.kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; margin-bottom:18px}
+.kpi{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px 16px; box-shadow:var(--shadow)}
+.kpi .k-label{font-size:12px; color:var(--text2)}
+.kpi .k-value{font-size:26px; font-weight:700; letter-spacing:-.5px; margin-top:2px;
+  font-variant-numeric:tabular-nums}
+.kpi .k-delta{font-size:12px; margin-top:4px; color:var(--text2); font-variant-numeric:tabular-nums}
+.up{color:var(--good)} .down{color:var(--bad)} .flat{color:var(--neutral)}
+
+/* ---- 卡片 / 图表 ---- */
+.grid{display:grid; grid-template-columns:repeat(12,1fr); gap:14px}
+.card{background:var(--card); border:1px solid var(--border); border-radius:14px;
+  padding:14px 16px 16px; box-shadow:var(--shadow); min-width:0}
+.c-12{grid-column:span 12} .c-7{grid-column:span 7} .c-5{grid-column:span 5} .c-6{grid-column:span 6}
+@media(max-width:860px){ .c-7,.c-5,.c-6{grid-column:span 12} }
+.card h2{font-size:15px; margin:0 0 2px}
+.card .hint{font-size:12px; color:var(--text2); margin:0 0 10px}
+.chart{width:100%}
+.chart svg{display:block; width:100%; height:auto; overflow:visible}
+text{font-family:inherit}
+.legend{display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:10px; font-size:12px; color:var(--text2)}
+.legend .item{display:inline-flex; align-items:center; gap:6px}
+.legend .sw{width:10px; height:10px; border-radius:3px; flex:0 0 auto}
+.legend .sw.line{width:14px; height:2px; border-radius:2px}
+.empty{color:var(--text3); font-size:13px; padding:26px 0; text-align:center}
+
+/* ---- 表格 ---- */
+.tablewrap{overflow-x:auto; margin-top:6px}
+table{border-collapse:collapse; width:100%; font-size:13px; min-width:720px}
+th,td{padding:8px 10px; text-align:right; white-space:nowrap; border-bottom:1px solid var(--border)}
+th{color:var(--text2); font-weight:600; font-size:12px; position:sticky; top:0; background:var(--card)}
+th:first-child,td:first-child{text-align:left}
+td{font-variant-numeric:tabular-nums}
+tbody tr:hover{background:rgba(127,127,127,.07)}
+tfoot td{font-weight:700; border-top:1px solid var(--border2); border-bottom:0}
+.dot{display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:7px; vertical-align:-1px}
+.rowbtn{padding:3px 8px; font-size:12px}
+
+/* ---- 弹窗 ---- */
+.backdrop{position:fixed; inset:0; background:rgba(4,8,16,.62); backdrop-filter:blur(3px);
+  display:none; align-items:center; justify-content:center; padding:18px; z-index:50}
+.backdrop.on{display:flex}
+.modal{background:var(--card); border:1px solid var(--border2); border-radius:16px;
+  width:min(560px,100%); max-height:88dvh; overflow:auto; padding:18px 20px 20px; box-shadow:var(--shadow)}
+.modal h3{margin:0 0 12px; font-size:17px}
+.form{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+.form .full{grid-column:span 2}
+.form label{display:block; font-size:12px; color:var(--text2); margin-bottom:4px}
+.form input{width:100%}
+.modal .foot{display:flex; gap:8px; justify-content:flex-end; margin-top:16px; flex-wrap:wrap}
+.modal textarea{width:100%; min-height:170px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px}
+.note{font-size:12px; color:var(--text3); margin-top:8px; line-height:1.6}
+
+/* ---- 提示气泡 ---- */
+#tip{position:fixed; z-index:80; pointer-events:none; opacity:0; transition:opacity .1s;
+  background:var(--bg2); color:var(--text); border:1px solid var(--border2); border-radius:10px;
+  padding:8px 10px; font-size:12px; box-shadow:var(--shadow); max-width:260px; line-height:1.6}
+#tip.on{opacity:1}
+#tip .t-title{font-weight:700; margin-bottom:4px}
+#tip .t-row{display:flex; align-items:center; gap:7px; white-space:nowrap; font-variant-numeric:tabular-nums}
+#tip .t-row .sw{width:9px; height:9px; border-radius:3px; flex:0 0 auto}
+#tip .t-row .v{margin-left:auto; font-weight:600}
+footer{margin-top:28px; color:var(--text3); font-size:12px; line-height:1.8}
+footer a{color:var(--s1)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div>
+    <h1>📊 页面互动分析</h1>
+    <div class="sub">按页面记录浏览 / 互动 / 完播，做每周数据对比与占比拆解 · 数据保存在本机浏览器</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="btns">
+    <button class="primary" id="btn-add">+ 录入数据</button>
+    <button class="ghost" id="btn-import">导入 CSV</button>
+    <button class="ghost" id="btn-export">导出 CSV</button>
+    <button class="ghost" id="btn-demo">载入示例</button>
+    <button class="ghost danger" id="btn-clear">清空</button>
+  </div>
+</header>
+
+<div class="toolbar">
+  <div class="field">
+    <label for="sel-a">本期（周）</label>
+    <select id="sel-a"></select>
+  </div>
+  <div class="field">
+    <label for="sel-b">对比周</label>
+    <select id="sel-b"></select>
+  </div>
+  <div class="field">
+    <label>对比指标</label>
+    <div class="seg" id="seg-metric">
+      <button data-metric="views" aria-pressed="true">浏览量</button>
+      <button data-metric="eng" aria-pressed="false">互动数</button>
+      <button data-metric="completions" aria-pressed="false">完播数</button>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="field">
+    <label for="sel-page">页面筛选</label>
+    <select id="sel-page"><option value="">全部页面</option></select>
+  </div>
+</div>
+
+<div class="kpis" id="kpis"></div>
+
+<div class="grid">
+
+  <section class="card c-7">
+    <h2>各页面周对比 <span id="cmp-metric-name" style="color:var(--text2);font-weight:400"></span></h2>
+    <p class="hint" id="cmp-hint">本期 vs 对比周，按本期数值排序</p>
+    <div class="chart" id="ch-compare"></div>
+    <div class="legend" id="lg-compare"></div>
+  </section>
+
+  <section class="card c-5">
+    <h2>各页面占比</h2>
+    <p class="hint" id="donut-hint">本期各页面占总量的比例</p>
+    <div class="chart" id="ch-donut"></div>
+    <div class="legend" id="lg-donut"></div>
+  </section>
+
+  <section class="card c-12">
+    <h2>互动构成占比</h2>
+    <p class="hint">本期全部互动中，点赞 / 评论 / 分享 / 收藏 各占多少</p>
+    <div class="chart" id="ch-mix"></div>
+    <div class="legend" id="lg-mix"></div>
+  </section>
+
+  <section class="card c-6">
+    <h2>完播率排行</h2>
+    <p class="hint">完播率 = 完播数 ÷ 浏览量；灰色竖线是对比周的水平</p>
+    <div class="chart" id="ch-comp"></div>
+    <div class="legend" id="lg-comp"></div>
+  </section>
+
+  <section class="card c-6">
+    <h2>每周趋势 <span id="trend-metric-name" style="color:var(--text2);font-weight:400"></span></h2>
+    <p class="hint">全部周次的走势（最多显示 5 个页面，其余合并为「其他」）</p>
+    <div class="chart" id="ch-trend"></div>
+    <div class="legend" id="lg-trend"></div>
+  </section>
+
+  <section class="card c-12">
+    <h2>明细数据</h2>
+    <p class="hint" id="table-hint">本期各页面汇总，括号内为对比周变化</p>
+    <div class="tablewrap"><table id="tbl">
+      <thead><tr>
+        <th>页面</th><th>浏览量</th><th>互动数</th><th>互动率</th>
+        <th>完播数</th><th>完播率</th><th>浏览量占比</th><th>操作</th>
+      </tr></thead>
+      <tbody></tbody><tfoot></tfoot>
+    </table></div>
+  </section>
+
+</div>
+
+<footer>
+  数据只保存在你当前这台设备的浏览器里（localStorage），不会上传。换设备请用「导出 CSV / 导入 CSV」搬运。<br>
+  完播率的口径可自定义：视频类可填「播放完成次数」，图文页可填「读完页面的人数」。
+</footer>
+</div>
+
+<!-- 录入 / 编辑 -->
+<div class="backdrop" id="md-entry">
+  <div class="modal">
+    <h3 id="entry-title">录入数据</h3>
+    <form class="form" id="form-entry">
+      <div>
+        <label for="f-date">日期（自动归入所在周）</label>
+        <input type="date" id="f-date" required>
+        <div class="note" id="f-week-hint"></div>
+      </div>
+      <div>
+        <label for="f-page">页面名称</label>
+        <input type="text" id="f-page" list="dl-pages" placeholder="例：首页 / NVDA 追踪" required>
+        <datalist id="dl-pages"></datalist>
+      </div>
+      <div><label for="f-views">浏览量</label><input type="number" id="f-views" min="0" step="1" required></div>
+      <div><label for="f-completions">完播数（完整播放 / 读完）</label><input type="number" id="f-completions" min="0" step="1" value="0"></div>
+      <div><label for="f-likes">点赞</label><input type="number" id="f-likes" min="0" step="1" value="0"></div>
+      <div><label for="f-comments">评论</label><input type="number" id="f-comments" min="0" step="1" value="0"></div>
+      <div><label for="f-shares">分享</label><input type="number" id="f-shares" min="0" step="1" value="0"></div>
+      <div><label for="f-saves">收藏</label><input type="number" id="f-saves" min="0" step="1" value="0"></div>
+      <div class="note full" id="f-warn" style="color:var(--bad); display:none"></div>
+      <div class="foot full">
+        <button type="button" class="ghost" data-close>取消</button>
+        <button type="submit" class="primary">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 导入 / 导出 -->
+<div class="backdrop" id="md-csv">
+  <div class="modal">
+    <h3 id="csv-title">导入 CSV</h3>
+    <div id="csv-import-only">
+      <input type="file" id="f-file" accept=".csv,text/csv,text/plain">
+      <div class="note">或直接把 CSV 内容粘贴到下面：</div>
+    </div>
+    <textarea id="f-csv" spellcheck="false"></textarea>
+    <div class="note" id="csv-note"></div>
+    <div class="foot">
+      <button type="button" class="ghost" data-close>关闭</button>
+      <button type="button" class="ghost" id="btn-csv-copy">复制</button>
+      <button type="button" class="ghost" id="btn-csv-download">下载文件</button>
+      <button type="button" class="primary" id="btn-csv-do">导入</button>
+    </div>
+  </div>
+</div>
+
+<div id="tip"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ============================== 数据层 ============================== */
+const KEY = 'pageEngagement.v1';
+const FIELDS = ['views','likes','comments','shares','saves','completions'];
+const METRICS = {
+  views:       {name:'浏览量', get:a=>a.views,       fmt:fmtInt},
+  eng:         {name:'互动数', get:a=>a.eng,         fmt:fmtInt},
+  completions: {name:'完播数', get:a=>a.completions, fmt:fmtInt}
+};
+
+let state = { records: [], weekA:'', weekB:null, metric:'views', page:'', editId:null };
+
+function load(){
+  try{
+    const raw = localStorage.getItem(KEY);
+    state.records = raw ? JSON.parse(raw) : [];
+    if(!Array.isArray(state.records)) state.records = [];
+  }catch(e){ state.records = []; }
+}
+function save(){
+  try{ localStorage.setItem(KEY, JSON.stringify(state.records)); }
+  catch(e){ alert('本地保存失败（可能是浏览器隐私模式或空间已满），数据只在本次会话有效。'); }
+}
+
+/* --------- ISO 周工具 --------- */
+function isoWeekKey(d){
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = (t.getUTCDay() + 6) % 7;          // 周一 = 0
+  t.setUTCDate(t.getUTCDate() - day + 3);       // 移到当周周四
+  const year = t.getUTCFullYear();
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const week = 1 + Math.round(((t - jan4) / 86400000 - 3 + ((jan4.getUTCDay() + 6) % 7)) / 7);
+  return year + '-W' + String(week).padStart(2, '0');
+}
+function weekMonday(key){
+  const m = /^(\d{4})-W(\d{1,2})$/.exec(key);
+  if(!m) return null;
+  const year = +m[1], week = +m[2];
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const mondayW1 = new Date(jan4);
+  mondayW1.setUTCDate(jan4.getUTCDate() - ((jan4.getUTCDay() + 6) % 7));
+  const d = new Date(mondayW1);
+  d.setUTCDate(mondayW1.getUTCDate() + (week - 1) * 7);
+  return d;
+}
+function weekLabel(key){
+  const mon = weekMonday(key);
+  if(!mon) return key;
+  const sun = new Date(mon); sun.setUTCDate(mon.getUTCDate() + 6);
+  const p = d => (d.getUTCMonth()+1) + '/' + d.getUTCDate();
+  return key.replace('-W', ' 第') + '周 (' + p(mon) + '–' + p(sun) + ')';
+}
+function weekShort(key){ return key ? key.split('-W')[1] + '周' : '—'; }
+function weekName(key){ return key ? weekLabel(key) : '无对比'; }
+function prevWeekOf(key){                     // 数据里紧邻的上一周
+  const ws = allWeeks(), i = ws.indexOf(key);
+  return i > 0 ? ws[i - 1] : '';
+}
+
+/* --------- 聚合 --------- */
+function allWeeks(){
+  return [...new Set(state.records.map(r => r.week))].sort();
+}
+function allPages(){
+  const seen = [];
+  state.records.forEach(r => { if(!seen.includes(r.page)) seen.push(r.page); });
+  return seen;             // 首次出现顺序 —— 颜色跟着页面走，不跟着排名走
+}
+function blank(){
+  const o = {}; FIELDS.forEach(f => o[f] = 0);
+  o.eng = 0; o.engRate = 0; o.compRate = 0; return o;
+}
+function derive(a){
+  a.eng = a.likes + a.comments + a.shares + a.saves;
+  a.engRate  = a.views > 0 ? a.eng / a.views : 0;
+  a.compRate = a.views > 0 ? a.completions / a.views : 0;
+  return a;
+}
+/** 某一周按页面汇总 → Map<page, agg> */
+function aggWeek(week){
+  const map = new Map();
+  state.records.forEach(r => {
+    if(r.week !== week) return;
+    if(state.page && r.page !== state.page) return;
+    if(!map.has(r.page)) map.set(r.page, blank());
+    const a = map.get(r.page);
+    FIELDS.forEach(f => a[f] += (+r[f] || 0));
+  });
+  map.forEach(derive);
+  return map;
+}
+function totalOf(map){
+  const t = blank();
+  map.forEach(a => FIELDS.forEach(f => t[f] += a[f]));
+  return derive(t);
+}
+
+/* --------- 格式化 --------- */
+function fmtInt(n){ return Math.round(n || 0).toLocaleString('en-US'); }
+function fmtPct(x, d){ return ((x || 0) * 100).toFixed(d === undefined ? 1 : d) + '%'; }
+function pctChange(cur, prev){
+  if(!prev) return cur ? null : 0;      // null = 上期为 0，无法计算倍数
+  return (cur - prev) / prev;
+}
+function deltaHTML(cur, prev, kind){
+  // kind: 'num' 用百分比变化；'rate' 用百分点变化
+  if(prev === undefined || prev === null) return '<span class="flat">对比周无数据</span>';
+  if(kind === 'rate'){
+    const pp = (cur - prev) * 100;
+    const cls = pp > 0.05 ? 'up' : pp < -0.05 ? 'down' : 'flat';
+    const ar  = pp > 0.05 ? '▲' : pp < -0.05 ? '▼' : '—';
+    return '<span class="' + cls + '">' + ar + ' ' + (pp >= 0 ? '+' : '') + pp.toFixed(1) + ' pp</span>';
+  }
+  const c = pctChange(cur, prev);
+  if(c === null) return '<span class="up">▲ 新增</span>';
+  const cls = c > 0.001 ? 'up' : c < -0.001 ? 'down' : 'flat';
+  const ar  = c > 0.001 ? '▲' : c < -0.001 ? '▼' : '—';
+  return '<span class="' + cls + '">' + ar + ' ' + (c >= 0 ? '+' : '') + (c * 100).toFixed(1) + '%</span>';
+}
+
+/* --------- 颜色 --------- */
+function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+const SLOTS = ['--s1','--s2','--s3','--s4','--s5','--s6'];
+let colorMap = new Map();
+function buildColors(){
+  colorMap = new Map();
+  // 颜色跟着页面走（首次出现顺序），色板用尽后一律用中性灰 —— 不循环、不生成新色
+  allPages().forEach((p, i) => colorMap.set(p, i < SLOTS.length ? cssVar(SLOTS[i]) : cssVar('--other')));
+}
+function pageColor(p){ return colorMap.get(p) || cssVar('--other'); }
+/** 填色块里的文字：按填色亮度选白字或深字，保证对比度 */
+function inkOn(hex){
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
+  if(!m) return '#fff';
+  const n = parseInt(m[1], 16);
+  const f = c => { c /= 255; return c <= .03928 ? c / 12.92 : Math.pow((c + .055) / 1.055, 2.4); };
+  const L = .2126 * f(n >> 16 & 255) + .7152 * f(n >> 8 & 255) + .0722 * f(n & 255);
+  return L > .42 ? '#10141c' : '#ffffff';
+}
+
+/* ============================== SVG 小工具 ============================== */
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs){
+  const n = document.createElementNS(NS, tag);
+  for(const k in attrs) if(attrs[k] !== undefined && attrs[k] !== null) n.setAttribute(k, attrs[k]);
+  return n;
+}
+function label(x, y, s, opt){
+  opt = opt || {};
+  const t = el('text', {x:x, y:y, 'font-size':opt.size || 11,
+    'text-anchor':opt.anchor || 'start', fill:opt.fill || cssVar('--text2'),
+    'font-weight':opt.weight || 400, 'dominant-baseline':opt.baseline || 'auto'});
+  t.textContent = s;
+  return t;
+}
+function newSVG(host, w, h){
+  host.textContent = '';
+  const svg = el('svg', {width:w, height:h, viewBox:'0 0 ' + w + ' ' + h, role:'img'});
+  host.appendChild(svg);
+  return svg;
+}
+function niceMax(v){
+  if(!(v > 0)) return 1;
+  const p = Math.pow(10, Math.floor(Math.log10(v)));
+  const n = v / p;
+  const s = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10;
+  return s * p;
+}
+function barV(x, y, w, h, r){          // 顶端 4px 圆角，底部贴基线
+  r = Math.max(0, Math.min(r, w / 2, h));
+  return 'M' + x + ',' + (y + h) + 'L' + x + ',' + (y + r) + 'Q' + x + ',' + y + ' ' + (x + r) + ',' + y +
+         'L' + (x + w - r) + ',' + y + 'Q' + (x + w) + ',' + y + ' ' + (x + w) + ',' + (y + r) +
+         'L' + (x + w) + ',' + (y + h) + 'Z';
+}
+function barH(x, y, w, h, r){          // 右端 4px 圆角，左侧贴基线
+  r = Math.max(0, Math.min(r, h / 2, w));
+  return 'M' + x + ',' + y + 'L' + (x + w - r) + ',' + y + 'Q' + (x + w) + ',' + y + ' ' + (x + w) + ',' + (y + r) +
+         'L' + (x + w) + ',' + (y + h - r) + 'Q' + (x + w) + ',' + (y + h) + ' ' + (x + w - r) + ',' + (y + h) +
+         'L' + x + ',' + (y + h) + 'Z';
+}
+function arc(cx, cy, r0, r1, a0, a1){
+  const P = (r, a) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+  const large = (a1 - a0) > Math.PI ? 1 : 0;
+  const [x0,y0] = P(r1, a0), [x1,y1] = P(r1, a1), [x2,y2] = P(r0, a1), [x3,y3] = P(r0, a0);
+  return 'M' + x0 + ',' + y0 + 'A' + r1 + ',' + r1 + ' 0 ' + large + ' 1 ' + x1 + ',' + y1 +
+         'L' + x2 + ',' + y2 + 'A' + r0 + ',' + r0 + ' 0 ' + large + ' 0 ' + x3 + ',' + y3 + 'Z';
+}
+function ellip(s, maxW, size){         // 粗略按字宽截断（中文按 1em，西文按 0.55em）
+  let w = 0, out = '';
+  for(const ch of String(s)){
+    w += /[一-龥＀-￯]/.test(ch) ? size : size * 0.58;
+    if(w > maxW) return out + '…';
+    out += ch;
+  }
+  return out;
+}
+function hostWidth(host){ return Math.max(280, Math.floor(host.getBoundingClientRect().width || 320)); }
+
+/* --------- 提示气泡 --------- */
+const tip = document.getElementById('tip');
+function tipShow(html, ev){
+  tip.innerHTML = html; tip.classList.add('on');
+  const r = tip.getBoundingClientRect();
+  let x = ev.clientX + 14, y = ev.clientY + 16;
+  if(x + r.width  > innerWidth  - 8) x = ev.clientX - r.width  - 14;
+  if(y + r.height > innerHeight - 8) y = ev.clientY - r.height - 14;
+  tip.style.left = Math.max(8, x) + 'px';
+  tip.style.top  = Math.max(8, y) + 'px';
+}
+function tipHide(){ tip.classList.remove('on'); }
+function tipRow(color, name, val){
+  return '<div class="t-row">' + (color ? '<span class="sw" style="background:' + color + '"></span>' : '') +
+         '<span>' + esc(name) + '</span><span class="v">' + val + '</span></div>';
+}
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function bindTip(node, html){
+  node.addEventListener('mousemove', e => tipShow(html, e));
+  node.addEventListener('mouseleave', tipHide);
+}
+function legend(host, items, shape){
+  host.innerHTML = items.map(i =>
+    '<span class="item"><span class="sw' + (shape === 'line' ? ' line' : '') + '" style="background:' + i.color + '"></span>' +
+    esc(i.label) + (i.extra ? ' <span style="color:var(--text3)">' + esc(i.extra) + '</span>' : '') + '</span>'
+  ).join('');
+}
+function emptyChart(host, msg){
+  host.innerHTML = '<div class="empty">' + esc(msg) + '</div>';
+}
+
+/* ============================== 图表 ============================== */
+
+/* 1) 分组柱状：本期 vs 对比周 */
+function drawCompare(rows){
+  const host = document.getElementById('ch-compare'), lg = document.getElementById('lg-compare');
+  if(!rows.length){ emptyChart(host, '本期还没有数据'); lg.innerHTML = ''; return; }
+  const W = hostWidth(host), H = 300;
+  const m = {t:14, r:14, b:44, l:56};
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const svg = newSVG(host, W, H);
+  const cA = cssVar('--s1'), cB = cssVar('--s2');
+  const hasB = !!state.weekB;
+  const max = niceMax(Math.max(1, ...rows.map(r => Math.max(r.a, hasB ? r.b : 0))));
+  const y = v => m.t + ih - (v / max) * ih;
+
+  for(let i = 0; i <= 4; i++){
+    const v = max * i / 4, yy = y(v);
+    svg.appendChild(el('line', {x1:m.l, x2:m.l + iw, y1:yy, y2:yy, stroke:cssVar('--grid'), 'stroke-width':1}));
+    svg.appendChild(label(m.l - 8, yy + 3, fmtInt(v), {anchor:'end', size:10, fill:cssVar('--text3')}));
+  }
+  const band = iw / rows.length;
+  const bw = hasB ? Math.min(24, Math.max(6, band / 2 - 6)) : Math.min(24, Math.max(8, band - 16));
+  rows.forEach((r, i) => {
+    const cx = m.l + band * i + band / 2;
+    const xA = hasB ? cx - bw - 1 : cx - bw / 2, xB = cx + 1;   // 相邻柱之间留 2px 面板间隙
+    (hasB ? [[xA, r.a, cA], [xB, r.b, cB]] : [[xA, r.a, cA]]).forEach(([x, v, c]) => {
+      const h = Math.max(v > 0 ? 2 : 0, (v / max) * ih);
+      if(h <= 0) return;
+      svg.appendChild(el('path', {d:barV(x, m.t + ih - h, bw, h, 4), fill:c}));
+    });
+    svg.appendChild(label(cx, H - 26, ellip(r.label, band - 6, 11), {anchor:'middle', size:11}));
+    const hit = el('rect', {x:m.l + band * i, y:m.t, width:band, height:ih, fill:'transparent'});
+    bindTip(hit,
+      '<div class="t-title">' + esc(r.label) + '</div>' +
+      tipRow(cA, '本期 ' + weekShort(state.weekA), fmtInt(r.a)) +
+      (hasB ? tipRow(cB, '对比 ' + weekShort(state.weekB), fmtInt(r.b)) +
+        '<div class="t-row" style="margin-top:3px"><span>变化</span><span class="v">' +
+        deltaHTML(r.a, r.b, 'num') + '</span></div>' : ''));
+    svg.appendChild(hit);
+  });
+  svg.appendChild(el('line', {x1:m.l, x2:m.l + iw, y1:m.t + ih, y2:m.t + ih, stroke:cssVar('--border2'), 'stroke-width':1}));
+  legend(lg, hasB ? [{color:cA, label:'本期 ' + weekName(state.weekA)}, {color:cB, label:'对比周 ' + weekName(state.weekB)}] : []);
+}
+
+/* 2) 环形图：本期各页面占比 */
+function drawDonut(items, totalVal, metricName){
+  const host = document.getElementById('ch-donut'), lg = document.getElementById('lg-donut');
+  if(!items.length || totalVal <= 0){ emptyChart(host, '本期还没有数据'); lg.innerHTML = ''; return; }
+  const W = hostWidth(host), H = 300;
+  const svg = newSVG(host, W, H);
+  const cx = W / 2, cy = H / 2 - 6;
+  const r1 = Math.min(W, H) / 2 - 26, r0 = r1 - Math.min(34, r1 * 0.34);
+  const gap = 2 / r1;                             // 2px 面板间隙
+  let a = -Math.PI / 2;
+  items.forEach(it => {
+    const frac = it.value / totalVal;
+    const span = frac * Math.PI * 2;
+    if(span <= 0) return;
+    const a0 = a + (span > gap ? gap / 2 : 0), a1 = a + span - (span > gap ? gap / 2 : 0);
+    const p = el('path', {d:arc(cx, cy, r0, r1, a0, Math.max(a1, a0 + 0.0005)), fill:it.color});
+    bindTip(p, '<div class="t-title">' + esc(it.label) + '</div>' +
+      tipRow(it.color, metricName, fmtInt(it.value)) + tipRow(null, '占比', fmtPct(frac)));
+    svg.appendChild(p);
+    a += span;
+  });
+  svg.appendChild(label(cx, cy - 4, fmtInt(totalVal), {anchor:'middle', size:26, weight:700, fill:cssVar('--text')}));
+  svg.appendChild(label(cx, cy + 16, '本期' + metricName + '合计', {anchor:'middle', size:11, fill:cssVar('--text2')}));
+  legend(lg, items.map(i => ({color:i.color, label:i.label, extra:fmtPct(i.value / totalVal)})));
+}
+
+/* 3) 100% 堆叠条：互动构成占比 */
+function drawMix(t){
+  const host = document.getElementById('ch-mix'), lg = document.getElementById('lg-mix');
+  const parts = [
+    {label:'点赞', value:t.likes,    color:cssVar('--s1')},
+    {label:'评论', value:t.comments, color:cssVar('--s2')},
+    {label:'分享', value:t.shares,   color:cssVar('--s3')},
+    {label:'收藏', value:t.saves,    color:cssVar('--s4')}
+  ];
+  const sum = parts.reduce((s, p) => s + p.value, 0);
+  if(sum <= 0){ emptyChart(host, '本期还没有互动数据'); lg.innerHTML = ''; return; }
+  const W = hostWidth(host), H = 74, bh = 30, y = 16;
+  const svg = newSVG(host, W, H);
+  let x = 0;
+  parts.forEach((p, i) => {
+    const w = (p.value / sum) * W;
+    const gap = i === parts.length - 1 ? 0 : 2;   // 段间 2px 面板间隙
+    const ww = Math.max(0, w - gap);
+    if(ww <= 0){ x += w; return; }
+    const first = i === 0, last = i === parts.length - 1;
+    const d = first || last ? barRounded(x, y, ww, bh, 4, first, last) : 'M' + x + ',' + y + 'h' + ww + 'v' + bh + 'h' + (-ww) + 'Z';
+    const seg = el('path', {d:d, fill:p.color});
+    bindTip(seg, '<div class="t-title">' + p.label + '</div>' +
+      tipRow(p.color, '数量', fmtInt(p.value)) + tipRow(null, '占互动', fmtPct(p.value / sum)));
+    svg.appendChild(seg);
+    const txt = p.label + ' ' + fmtPct(p.value / sum, 0);
+    if(ww > txt.length * 12){        // 放得下才写在段内，放不下交给图例 / 悬浮
+      svg.appendChild(label(x + ww / 2, y + bh / 2 + 4, txt,
+        {anchor:'middle', size:12, weight:600, fill:inkOn(p.color)}));
+    }
+    x += w;
+  });
+  svg.appendChild(label(0, H - 8, '合计互动 ' + fmtInt(sum) + ' 次', {size:11, fill:cssVar('--text3')}));
+  legend(lg, parts.map(p => ({color:p.color, label:p.label, extra:fmtPct(p.value / sum)})));
+}
+function barRounded(x, y, w, h, r, left, right){
+  r = Math.max(0, Math.min(r, h / 2, w / 2));
+  const lr = left ? r : 0, rr = right ? r : 0;
+  return 'M' + (x + lr) + ',' + y +
+    'L' + (x + w - rr) + ',' + y + (rr ? 'Q' + (x + w) + ',' + y + ' ' + (x + w) + ',' + (y + rr) : '') +
+    'L' + (x + w) + ',' + (y + h - rr) + (rr ? 'Q' + (x + w) + ',' + (y + h) + ' ' + (x + w - rr) + ',' + (y + h) : '') +
+    'L' + (x + lr) + ',' + (y + h) + (lr ? 'Q' + x + ',' + (y + h) + ' ' + x + ',' + (y + h - lr) : '') +
+    'L' + x + ',' + (y + lr) + (lr ? 'Q' + x + ',' + y + ' ' + (x + lr) + ',' + y : '') + 'Z';
+}
+
+/* 4) 横向条：完播率排行 */
+function drawCompletion(rows){
+  const host = document.getElementById('ch-comp'), lg = document.getElementById('lg-comp');
+  if(!rows.length){ emptyChart(host, '本期还没有数据'); lg.innerHTML = ''; return; }
+  const W = hostWidth(host);
+  const rowH = 34, m = {t:10, r:56, b:26, l:Math.min(110, Math.max(70, W * 0.26))};
+  const H = m.t + rows.length * rowH + m.b;
+  const svg = newSVG(host, W, H);
+  const iw = W - m.l - m.r;
+  const max = Math.min(1, niceMax(Math.max(0.1, ...rows.map(r => Math.max(r.rate, r.prevRate || 0)))));
+  const x = v => m.l + (v / max) * iw;
+
+  for(let i = 0; i <= 4; i++){
+    const v = max * i / 4, xx = x(v);
+    svg.appendChild(el('line', {x1:xx, x2:xx, y1:m.t, y2:m.t + rows.length * rowH, stroke:cssVar('--grid'), 'stroke-width':1}));
+    svg.appendChild(label(xx, H - 10, fmtPct(v, 0), {anchor:'middle', size:10, fill:cssVar('--text3')}));
+  }
+  rows.forEach((r, i) => {
+    const y = m.t + i * rowH, bh = Math.min(22, rowH - 12), by = y + (rowH - bh) / 2;
+    const w = Math.max(r.rate > 0 ? 2 : 0, (r.rate / max) * iw);
+    if(w > 0) svg.appendChild(el('path', {d:barH(m.l, by, w, bh, 4), fill:r.color}));
+    svg.appendChild(label(m.l - 10, by + bh / 2 + 4, ellip(r.label, m.l - 16, 11), {anchor:'end', size:11, fill:cssVar('--text')}));
+    const hasPrev = r.prevRate !== null && r.prevRate !== undefined && r.prevRate > 0;
+    const labX = Math.max(m.l + w, hasPrev ? x(r.prevRate) : 0) + 9;   // 让开对比周的竖线，不叠字
+    const vlab = label(labX, by + bh / 2 + 4, fmtPct(r.rate), {size:11, weight:600, fill:cssVar('--text')});
+    vlab.setAttribute('stroke', cssVar('--card'));            // 面板色描边当作留白，压住底下的网格线
+    vlab.setAttribute('stroke-width', 3);
+    vlab.setAttribute('paint-order', 'stroke');
+    svg.appendChild(vlab);
+    if(hasPrev){
+      const px = x(r.prevRate);
+      svg.appendChild(el('line', {x1:px, x2:px, y1:by - 3, y2:by + bh + 3, stroke:cssVar('--neutral'), 'stroke-width':2, 'stroke-linecap':'round'}));
+    }
+    const hit = el('rect', {x:0, y:y, width:W, height:rowH, fill:'transparent'});
+    bindTip(hit, '<div class="t-title">' + esc(r.label) + '</div>' +
+      tipRow(r.color, '本期完播率', fmtPct(r.rate)) +
+      tipRow(cssVar('--neutral'), '对比周', r.prevRate === null ? '—' : fmtPct(r.prevRate)) +
+      tipRow(null, '完播 / 浏览', fmtInt(r.completions) + ' / ' + fmtInt(r.views)) +
+      '<div class="t-row" style="margin-top:3px"><span>变化</span><span class="v">' +
+        deltaHTML(r.rate, r.prevRate === null ? null : r.prevRate, 'rate') + '</span></div>');
+    svg.appendChild(hit);
+  });
+  svg.appendChild(el('line', {x1:m.l, x2:m.l, y1:m.t, y2:m.t + rows.length * rowH, stroke:cssVar('--border2'), 'stroke-width':1}));
+  legend(lg, state.weekB ? [{color:cssVar('--neutral'), label:'竖线 = 对比周 ' + weekName(state.weekB) + ' 的完播率'}] : []);
+}
+
+/* 5) 折线：每周趋势 */
+function drawTrend(weeks, series, metricName){
+  const host = document.getElementById('ch-trend'), lg = document.getElementById('lg-trend');
+  if(weeks.length < 2 || !series.length){
+    emptyChart(host, weeks.length < 2 ? '至少需要两周数据才能画趋势' : '暂无数据'); lg.innerHTML = ''; return;
+  }
+  const W = hostWidth(host), H = 300;
+  const m = {t:14, r:16, b:40, l:56};
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const svg = newSVG(host, W, H);
+  const max = niceMax(Math.max(1, ...series.flatMap(s => s.values)));
+  const x = i => m.l + (weeks.length === 1 ? iw / 2 : (i / (weeks.length - 1)) * iw);
+  const y = v => m.t + ih - (v / max) * ih;
+
+  for(let i = 0; i <= 4; i++){
+    const v = max * i / 4, yy = y(v);
+    svg.appendChild(el('line', {x1:m.l, x2:m.l + iw, y1:yy, y2:yy, stroke:cssVar('--grid'), 'stroke-width':1}));
+    svg.appendChild(label(m.l - 8, yy + 3, fmtInt(v), {anchor:'end', size:10, fill:cssVar('--text3')}));
+  }
+  const step = Math.ceil(weeks.length / Math.max(2, Math.floor(iw / 54)));
+  weeks.forEach((w, i) => {
+    if(i % step && i !== weeks.length - 1) return;
+    svg.appendChild(label(x(i), H - 22, weekShort(w), {anchor:'middle', size:10, fill:cssVar('--text3')}));
+  });
+  const cross = el('line', {x1:0, x2:0, y1:m.t, y2:m.t + ih, stroke:cssVar('--border2'), 'stroke-width':1, opacity:0});
+  svg.appendChild(cross);
+  series.forEach(s => {
+    const d = s.values.map((v, i) => (i ? 'L' : 'M') + x(i) + ',' + y(v)).join('');
+    svg.appendChild(el('path', {d:d, fill:'none', stroke:s.color, 'stroke-width':2,
+      'stroke-linejoin':'round', 'stroke-linecap':'round'}));
+    const last = s.values.length - 1;
+    svg.appendChild(el('circle', {cx:x(last), cy:y(s.values[last]), r:4, fill:s.color,
+      stroke:cssVar('--card'), 'stroke-width':2}));      // 2px 面板色描边环
+  });
+  // 悬浮：竖向准星 + 该周全部系列
+  weeks.forEach((w, i) => {
+    const half = weeks.length === 1 ? iw : iw / (weeks.length - 1) / 2;
+    const hit = el('rect', {x:Math.max(m.l, x(i) - half), y:m.t,
+      width:Math.min(half * 2, iw), height:ih, fill:'transparent'});
+    const html = '<div class="t-title">' + weekLabel(w) + '</div>' +
+      series.map(s => tipRow(s.color, s.label, METRICS[state.metric].fmt(s.values[i]))).join('');
+    hit.addEventListener('mousemove', e => {
+      cross.setAttribute('x1', x(i)); cross.setAttribute('x2', x(i)); cross.setAttribute('opacity', 1);
+      tipShow(html, e);
+    });
+    hit.addEventListener('mouseleave', () => { cross.setAttribute('opacity', 0); tipHide(); });
+    svg.appendChild(hit);
+  });
+  svg.appendChild(el('line', {x1:m.l, x2:m.l + iw, y1:m.t + ih, y2:m.t + ih, stroke:cssVar('--border2'), 'stroke-width':1}));
+  legend(lg, series.map(s => ({color:s.color, label:s.label})), 'line');
+  host.setAttribute('aria-label', metricName + '每周趋势');
+}
+
+/* ============================== 渲染 ============================== */
+function renderWeekPickers(){
+  const weeks = allWeeks();
+  const a = document.getElementById('sel-a'), b = document.getElementById('sel-b');
+  if(!weeks.includes(state.weekA)) state.weekA = weeks[weeks.length - 1] || '';
+  // weekB: null = 还没定（自动取上一周）；'' = 用户明确选了「无对比」
+  if(state.weekB === null || state.weekB === state.weekA ||
+     (state.weekB && !weeks.includes(state.weekB))) state.weekB = prevWeekOf(state.weekA);
+  const opts = sel => weeks.map(w => '<option value="' + w + '"' + (sel === w ? ' selected' : '') + '>' + esc(weekLabel(w)) + '</option>').join('');
+  a.innerHTML = opts(state.weekA);
+  b.innerHTML = '<option value=""' + (state.weekB ? '' : ' selected') + '>— 无对比 —</option>' + opts(state.weekB);
+  const ps = allPages();
+  document.getElementById('sel-page').innerHTML =
+    '<option value="">全部页面</option>' +
+    ps.map(p => '<option value="' + esc(p) + '"' + (state.page === p ? ' selected' : '') + '>' + esc(p) + '</option>').join('');
+  document.getElementById('dl-pages').innerHTML = ps.map(p => '<option value="' + esc(p) + '">').join('');
+}
+
+function renderKPIs(A, B){
+  const ta = totalOf(A), tb = totalOf(B);
+  const hasB = B.size > 0;
+  const cards = [
+    {label:'总浏览量', value:fmtInt(ta.views), d:deltaHTML(ta.views, hasB ? tb.views : null, 'num')},
+    {label:'总互动数', value:fmtInt(ta.eng),   d:deltaHTML(ta.eng,   hasB ? tb.eng   : null, 'num')},
+    {label:'平均互动率', value:fmtPct(ta.engRate),  d:deltaHTML(ta.engRate,  hasB ? tb.engRate  : null, 'rate')},
+    {label:'平均完播率', value:fmtPct(ta.compRate), d:deltaHTML(ta.compRate, hasB ? tb.compRate : null, 'rate')}
+  ];
+  document.getElementById('kpis').innerHTML = cards.map(c =>
+    '<div class="kpi"><div class="k-label">' + c.label + '</div><div class="k-value">' + c.value +
+    '</div><div class="k-delta">' + (state.weekB ? c.d + ' vs ' + esc(weekLabel(state.weekB))
+                                                 : '<span class="flat">未选对比周</span>') +
+    '</div></div>').join('');
+}
+
+function renderTable(A, B, metricTotal){
+  const tb = document.querySelector('#tbl tbody'), tf = document.querySelector('#tbl tfoot');
+  const rows = [...A.entries()].sort((p, q) => q[1].views - p[1].views);
+  if(!rows.length){
+    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:22px">本期没有数据，点右上角「录入数据」或「载入示例」。</td></tr>';
+    tf.innerHTML = ''; return;
+  }
+  const tot = totalOf(A);
+  tb.innerHTML = rows.map(([page, a]) => {
+    const b = B.get(page);
+    const rec = state.records.find(r => r.week === state.weekA && r.page === page);
+    return '<tr>' +
+      '<td><span class="dot" style="background:' + pageColor(page) + '"></span>' + esc(page) + '</td>' +
+      '<td>' + fmtInt(a.views) + ' <small>' + deltaHTML(a.views, b ? b.views : null, 'num') + '</small></td>' +
+      '<td>' + fmtInt(a.eng) + ' <small>' + deltaHTML(a.eng, b ? b.eng : null, 'num') + '</small></td>' +
+      '<td>' + fmtPct(a.engRate) + ' <small>' + deltaHTML(a.engRate, b ? b.engRate : null, 'rate') + '</small></td>' +
+      '<td>' + fmtInt(a.completions) + '</td>' +
+      '<td>' + fmtPct(a.compRate) + ' <small>' + deltaHTML(a.compRate, b ? b.compRate : null, 'rate') + '</small></td>' +
+      '<td>' + (tot.views ? fmtPct(a.views / tot.views) : '—') + '</td>' +
+      '<td><button class="rowbtn ghost" data-edit="' + esc(rec ? rec.id : '') + '">编辑</button> ' +
+          '<button class="rowbtn ghost danger" data-del="' + esc(page) + '">删除</button></td>' +
+    '</tr>';
+  }).join('');
+  tf.innerHTML = '<tr><td>合计</td><td>' + fmtInt(tot.views) + '</td><td>' + fmtInt(tot.eng) + '</td><td>' +
+    fmtPct(tot.engRate) + '</td><td>' + fmtInt(tot.completions) + '</td><td>' + fmtPct(tot.compRate) +
+    '</td><td>100.0%</td><td></td></tr>';
+}
+
+function render(){
+  buildColors();
+  renderWeekPickers();
+  const M = METRICS[state.metric];
+  document.getElementById('cmp-metric-name').textContent = '· ' + M.name;
+  document.getElementById('trend-metric-name').textContent = '· ' + M.name;
+  document.getElementById('donut-hint').textContent = '本期各页面' + M.name + '占总量的比例';
+  document.getElementById('cmp-hint').textContent = state.weekB
+    ? '本期 vs 对比周，按本期数值排序（最多 8 个页面）' : '本期各页面数值，按大小排序（当前未选对比周）';
+
+  const A = aggWeek(state.weekA), B = aggWeek(state.weekB);
+  renderKPIs(A, B);
+
+  // 周对比
+  const cmp = [...A.keys()].map(p => ({label:p, a:M.get(A.get(p)), b:B.has(p) ? M.get(B.get(p)) : 0}))
+    .sort((x, y) => y.a - x.a).slice(0, 8);
+  drawCompare(cmp);
+
+  // 占比（前 5 + 其他）
+  const share = [...A.entries()].map(([p, a]) => ({label:p, value:M.get(a), color:pageColor(p)}))
+    .filter(i => i.value > 0).sort((x, y) => y.value - x.value);
+  let items = share;
+  if(share.length > 5){
+    const rest = share.slice(5).reduce((s, i) => s + i.value, 0);
+    items = share.slice(0, 5).concat([{label:'其他 (' + (share.length - 5) + ' 个页面)', value:rest, color:cssVar('--other')}]);
+  }
+  drawDonut(items, items.reduce((s, i) => s + i.value, 0), M.name);
+
+  // 互动构成
+  drawMix(totalOf(A));
+
+  // 完播率
+  const comp = [...A.entries()].filter(([, a]) => a.views > 0)
+    .map(([p, a]) => ({label:p, rate:a.compRate, views:a.views, completions:a.completions,
+      color:pageColor(p), prevRate:B.has(p) ? B.get(p).compRate : null}))
+    .sort((x, y) => y.rate - x.rate).slice(0, 8);
+  drawCompletion(comp);
+
+  // 趋势
+  const weeks = allWeeks();
+  const rank = [...A.entries()].map(([p, a]) => [p, M.get(a)]).sort((x, y) => y[1] - x[1]).map(x => x[0]);
+  const pages = (rank.length ? rank : allPages());
+  const top = pages.slice(0, 5), rest = pages.slice(5);
+  const byWeek = weeks.map(w => aggWeek(w));
+  const series = top.map(p => ({label:p, color:pageColor(p),
+    values:byWeek.map(mp => mp.has(p) ? M.get(mp.get(p)) : 0)}));
+  if(rest.length) series.push({label:'其他 (' + rest.length + ' 个页面)', color:cssVar('--other'),
+    values:byWeek.map(mp => rest.reduce((s, p) => s + (mp.has(p) ? M.get(mp.get(p)) : 0), 0))});
+  drawTrend(weeks, series, M.name);
+
+  renderTable(A, B);
+}
+
+/* ============================== 交互 ============================== */
+function openModal(id){ document.getElementById(id).classList.add('on'); }
+function closeModal(id){ document.getElementById(id).classList.remove('on'); }
+document.querySelectorAll('[data-close]').forEach(b =>
+  b.addEventListener('click', () => b.closest('.backdrop').classList.remove('on')));
+document.querySelectorAll('.backdrop').forEach(b =>
+  b.addEventListener('click', e => { if(e.target === b) b.classList.remove('on'); }));
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') document.querySelectorAll('.backdrop.on').forEach(b => b.classList.remove('on'));
+});
+
+document.getElementById('sel-a').addEventListener('change', e => { state.weekA = e.target.value; state.weekB = null; render(); });
+document.getElementById('sel-b').addEventListener('change', e => { state.weekB = e.target.value; render(); });
+document.getElementById('sel-page').addEventListener('change', e => { state.page = e.target.value; render(); });
+document.getElementById('seg-metric').addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  state.metric = b.dataset.metric;
+  [...e.currentTarget.children].forEach(c => c.setAttribute('aria-pressed', c === b ? 'true' : 'false'));
+  render();
+});
+
+/* --------- 录入 / 编辑 --------- */
+const F = id => document.getElementById(id);
+function openEntry(rec){
+  state.editId = rec ? rec.id : null;
+  F('entry-title').textContent = rec ? '编辑数据' : '录入数据';
+  const mon = rec ? weekMonday(rec.week) : new Date();
+  F('f-date').value = rec ? mon.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
+  F('f-page').value = rec ? rec.page : '';
+  FIELDS.forEach(f => F('f-' + f).value = rec ? (rec[f] || 0) : (f === 'views' ? '' : 0));
+  F('f-warn').style.display = 'none';
+  updateWeekHint();
+  openModal('md-entry');
+  setTimeout(() => F('f-page').focus(), 30);
+}
+function updateWeekHint(){
+  const v = F('f-date').value;
+  F('f-week-hint').textContent = v ? '归入：' + weekLabel(isoWeekKey(new Date(v + 'T00:00:00'))) : '';
+}
+F('f-date').addEventListener('change', updateWeekHint);
+document.getElementById('btn-add').addEventListener('click', () => openEntry(null));
+
+document.getElementById('form-entry').addEventListener('submit', e => {
+  e.preventDefault();
+  const week = isoWeekKey(new Date(F('f-date').value + 'T00:00:00'));
+  const page = F('f-page').value.trim();
+  if(!page) return;
+  const rec = {id:state.editId || (Date.now() + '-' + Math.random().toString(36).slice(2, 7)), week:week, page:page};
+  FIELDS.forEach(f => rec[f] = Math.max(0, Math.round(+F('f-' + f).value || 0)));
+  if(rec.completions > rec.views){
+    F('f-warn').textContent = '完播数不能大于浏览量（完播率会超过 100%）。'; F('f-warn').style.display = 'block'; return;
+  }
+  if(state.editId){
+    const i = state.records.findIndex(r => r.id === state.editId);
+    if(i >= 0) state.records[i] = rec; else state.records.push(rec);
+  }else{
+    // 同一周同一页面已存在 → 直接覆盖，避免重复计数
+    const i = state.records.findIndex(r => r.week === week && r.page === page);
+    if(i >= 0 && !confirm('「' + page + '」在 ' + weekLabel(week) + ' 已有数据，覆盖它吗？（取消则作为新增一条累加）')){
+      state.records.push(rec);
+    }else if(i >= 0){
+      rec.id = state.records[i].id; state.records[i] = rec;
+    }else{
+      state.records.push(rec);
+    }
+  }
+  save();
+  state.weekA = week;
+  closeModal('md-entry');
+  render();
+});
+
+document.querySelector('#tbl').addEventListener('click', e => {
+  const ed = e.target.closest('[data-edit]'), dl = e.target.closest('[data-del]');
+  if(ed){
+    const rec = state.records.find(r => r.id === ed.dataset.edit);
+    if(rec) openEntry(rec);
+    else alert('这一行由多条记录汇总而来，请在下方 CSV 导出中查看或删除后重录。');
+  }
+  if(dl){
+    const page = dl.dataset.del;
+    if(!confirm('删除「' + page + '」在 ' + weekLabel(state.weekA) + ' 的全部记录？')) return;
+    state.records = state.records.filter(r => !(r.week === state.weekA && r.page === page));
+    save(); render();
+  }
+});
+
+/* --------- CSV --------- */
+const CSV_HEAD = ['week','page','views','likes','comments','shares','saves','completions'];
+const CSV_CN = {'周次':'week','周':'week','页面':'page','页面名称':'page','浏览量':'views','浏览':'views',
+  '点赞':'likes','评论':'comments','分享':'shares','收藏':'saves','完播数':'completions','完播':'completions'};
+function toCSV(){
+  const head = CSV_HEAD.join(',');
+  const body = state.records.slice()
+    .sort((a, b) => a.week === b.week ? a.page.localeCompare(b.page) : a.week.localeCompare(b.week))
+    .map(r => CSV_HEAD.map(k => {
+      const v = r[k] === undefined ? '' : r[k];
+      return /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : v;
+    }).join(',')).join('\n');
+  return head + '\n' + body + '\n';
+}
+function parseCSV(text){
+  const rows = [];
+  let row = [], cell = '', q = false;
+  const s = text.replace(/\r\n?/g, '\n');
+  for(let i = 0; i < s.length; i++){
+    const c = s[i];
+    if(q){
+      if(c === '"' && s[i + 1] === '"'){ cell += '"'; i++; }
+      else if(c === '"') q = false;
+      else cell += c;
+    }else if(c === '"') q = true;
+    else if(c === ','){ row.push(cell); cell = ''; }
+    else if(c === '\n'){ row.push(cell); rows.push(row); row = []; cell = ''; }
+    else cell += c;
+  }
+  if(cell.length || row.length){ row.push(cell); rows.push(row); }
+  return rows.filter(r => r.some(c => String(c).trim() !== ''));
+}
+function importCSV(text, mode){
+  const rows = parseCSV(text);
+  if(rows.length < 2) return alert('没读到有效数据行。');
+  const head = rows[0].map(h => { const k = h.trim(); return CSV_CN[k] || k.toLowerCase(); });
+  if(!head.includes('page')) return alert('缺少 page（页面）列。');
+  const out = [];
+  for(let i = 1; i < rows.length; i++){
+    const o = {}; head.forEach((h, j) => o[h] = (rows[i][j] || '').trim());
+    const page = o.page; if(!page) continue;
+    let week = o.week;
+    if(week && /^\d{4}-\d{2}-\d{2}/.test(week)) week = isoWeekKey(new Date(week.slice(0, 10) + 'T00:00:00'));
+    if(!/^\d{4}-W\d{1,2}$/.test(week || '')) continue;
+    week = week.replace(/W(\d)$/, 'W0$1');
+    const rec = {id:Date.now() + '-' + i + '-' + Math.random().toString(36).slice(2, 6), week:week, page:page};
+    FIELDS.forEach(f => rec[f] = Math.max(0, Math.round(+o[f] || 0)));
+    out.push(rec);
+  }
+  if(!out.length) return alert('没有可导入的行（检查 week 列是否为 2026-W35 或 2026-08-24 这样的格式）。');
+  state.records = mode === 'replace' ? out : state.records.concat(out);
+  save(); state.weekA = ''; state.weekB = null;
+  closeModal('md-csv'); render();
+  alert('已导入 ' + out.length + ' 条记录。');
+}
+document.getElementById('btn-import').addEventListener('click', () => {
+  F('csv-title').textContent = '导入 CSV';
+  F('csv-import-only').style.display = '';
+  F('f-csv').value = '';
+  F('csv-note').textContent = '列：week,page,views,likes,comments,shares,saves,completions（week 支持 2026-W35 或任意日期 2026-08-24；中文表头也可以）。';
+  F('btn-csv-do').style.display = ''; F('btn-csv-copy').style.display = 'none'; F('btn-csv-download').style.display = 'none';
+  openModal('md-csv');
+});
+document.getElementById('btn-export').addEventListener('click', () => {
+  F('csv-title').textContent = '导出 CSV';
+  F('csv-import-only').style.display = 'none';
+  F('f-csv').value = toCSV();
+  F('csv-note').textContent = '共 ' + state.records.length + ' 条记录。可直接复制，或下载为文件。';
+  F('btn-csv-do').style.display = 'none'; F('btn-csv-copy').style.display = ''; F('btn-csv-download').style.display = '';
+  openModal('md-csv');
+});
+document.getElementById('f-file').addEventListener('change', e => {
+  const f = e.target.files[0]; if(!f) return;
+  const rd = new FileReader();
+  rd.onload = () => { F('f-csv').value = rd.result; };
+  rd.readAsText(f, 'utf-8');
+});
+document.getElementById('btn-csv-do').addEventListener('click', () => {
+  const text = F('f-csv').value.trim();
+  if(!text) return alert('请先选择文件或粘贴内容。');
+  const mode = state.records.length && confirm('确定要「覆盖」现有数据吗？\n确定 = 覆盖，取消 = 追加到现有数据。') ? 'replace' : 'append';
+  importCSV(text, mode);
+});
+document.getElementById('btn-csv-copy').addEventListener('click', async () => {
+  const ta = F('f-csv');
+  try{ await navigator.clipboard.writeText(ta.value); F('csv-note').textContent = '已复制到剪贴板。'; }
+  catch(e){ ta.select(); F('csv-note').textContent = '已选中，请按 Ctrl/⌘+C 复制。'; }
+});
+document.getElementById('btn-csv-download').addEventListener('click', () => {
+  const blob = new Blob(['﻿' + F('f-csv').value], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'page-engagement-' + new Date().toISOString().slice(0, 10) + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+});
+
+/* --------- 示例数据 / 清空 --------- */
+function demoData(){
+  const pages = [
+    {name:'首页',        v:5200, e:.062, c:.48},
+    {name:'NVDA 追踪',   v:3800, e:.091, c:.61},
+    {name:'SPCX 记分卡', v:2100, e:.074, c:.55},
+    {name:'棋牌游戏厅',  v:1600, e:.130, c:.72},
+    {name:'太阳系 3D',   v:1150, e:.108, c:.66},
+    {name:'F1 展厅',     v:820,  e:.085, c:.58},
+    {name:'清水玻璃',    v:430,  e:.052, c:.40}
+  ];
+  const out = [];
+  const today = new Date();
+  for(let back = 5; back >= 0; back--){
+    const d = new Date(today); d.setDate(today.getDate() - back * 7);
+    const week = isoWeekKey(d);
+    pages.forEach((p, pi) => {
+      const wave = 1 + Math.sin((5 - back + pi) * 0.9) * 0.16 + (5 - back) * 0.045;
+      const views = Math.round(p.v * wave * (0.94 + ((pi * 7 + back * 13) % 11) / 90));
+      const eng   = Math.round(views * p.e * (0.9 + ((back * 5 + pi * 3) % 9) / 40));
+      const comp  = Math.round(views * Math.min(0.95, p.c * (0.93 + ((pi + back * 2) % 7) / 45)));
+      const likes = Math.round(eng * 0.62), comments = Math.round(eng * 0.14),
+            shares = Math.round(eng * 0.15), saves = Math.max(0, eng - likes - comments - shares);
+      out.push({id:'demo-' + week + '-' + pi, week:week, page:p.name, views:views,
+        likes:likes, comments:comments, shares:shares, saves:saves, completions:comp});
+    });
+  }
+  return out;
+}
+document.getElementById('btn-demo').addEventListener('click', () => {
+  if(state.records.length && !confirm('载入示例会覆盖当前数据，继续吗？')) return;
+  state.records = demoData(); save();
+  state.weekA = ''; state.weekB = null; state.page = '';
+  render();
+});
+document.getElementById('btn-clear').addEventListener('click', () => {
+  if(!state.records.length) return;
+  if(!confirm('确定清空全部记录？建议先导出 CSV 备份。')) return;
+  state.records = []; save(); state.weekA = ''; state.weekB = null; state.page = '';
+  render();
+});
+
+/* --------- 启动 --------- */
+let t = null;
+addEventListener('resize', () => { clearTimeout(t); t = setTimeout(render, 150); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => setTimeout(render, 60));
+
+load();
+if(!state.records.length) state.records = demoData();   // 首次访问先给一份示例，方便看懂
+render();
+
+})();
+</script>
+</body>
+</html>
