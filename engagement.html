@@ -500,7 +500,8 @@ function keyOf(r){
 }
 function blank(){
   const o = {}; FIELDS.forEach(f => o[f] = 0);
-  o.eng = 0; o.engBase = 0; o.engRate = 0; o.compRate = 0; o.hookRate = 0; o.avgSec = 0; return o;
+  o.eng = 0; o.engBase = 0; o.hookBase = 0; o.compBase = 0;
+  o.engRate = 0; o.compRate = 0; o.hookRate = 0; o.avgSec = 0; return o;
 }
 function derive(a){
   // 有拆分就用拆分之和；平台只给「互动总数」时用那个总数
@@ -508,8 +509,9 @@ function derive(a){
   // 分母逐条累计：有曝光的用曝光、没有的用播放，避免「一条有曝光」把整体互动率抬高
   const base = a.engBase > 0 ? a.engBase : (a.impressions > 0 ? a.impressions : a.views);
   a.engRate  = base > 0 ? a.eng / base : 0;
-  a.compRate = a.views > 0 ? a.completions / a.views : 0;
-  a.hookRate = a.views > 0 ? a.views3s / a.views : 0;      // 3 秒留存率
+  // 比率的分母只算「报了这个指标」的那部分播放量，没报的品牌不该把整体拉低
+  a.compRate = (a.compBase || a.views) > 0 ? a.completions / (a.compBase || a.views) : 0;
+  a.hookRate = (a.hookBase || a.views) > 0 ? a.views3s / (a.hookBase || a.views) : 0;
   a.avgSec   = a.views > 0 ? a.watchSec / a.views : 0;     // 均播秒数
   return a;
 }
@@ -524,13 +526,18 @@ function aggWeek(week){
     const a = map.get(k);
     FIELDS.forEach(f => a[f] += (+r[f] || 0));
     a.engBase += (+r.impressions || 0) > 0 ? (+r.impressions || 0) : (+r.views || 0);
+    if((+r.views3s || 0) > 0) a.hookBase += (+r.views || 0);
+    if((+r.completions || 0) > 0) a.compBase += (+r.views || 0);
   });
   map.forEach(derive);
   return map;
 }
 function totalOf(map){
   const t = blank();
-  map.forEach(a => { FIELDS.forEach(f => t[f] += a[f]); t.engBase += a.engBase || 0; });
+  map.forEach(a => {
+    FIELDS.forEach(f => t[f] += a[f]);
+    t.engBase += a.engBase || 0; t.hookBase += a.hookBase || 0; t.compBase += a.compBase || 0;
+  });
   return derive(t);
 }
 
@@ -1000,12 +1007,21 @@ function renderBrandCards(){
       if(state.platform && r.platform !== state.platform) return;
       FIELDS.forEach(f => t[f] += (+r[f] || 0));
       t.engBase += (+r.impressions || 0) > 0 ? (+r.impressions || 0) : (+r.views || 0);
+      if((+r.views3s || 0) > 0) t.hookBase += (+r.views || 0);
+      if((+r.completions || 0) > 0) t.compBase += (+r.views || 0);
     });
     return derive(t);
   };
   host.innerHTML = brands.map(b => {
     const a = sum(b, state.weekA), prev = state.weekB ? sum(b, state.weekB) : null;
     const plats = platformsOfBrand(b, state.weekA);
+    if(!a.views && !a.impressions && !a.eng){          // 本期这个品牌没有数据 —— 不是 0，是没报
+      return '<div class="bcard">' +
+        '<div class="bname"><span class="sw" style="background:' + brandColor(b) + '"></span>' + esc(b) + '</div>' +
+        '<div class="bplat">本期没有数据</div>' +
+        '<div class="brow"><span>上期播放量</span><b>' + (prev ? fmtInt(prev.views) : '—') + '</b>' +
+        '<span class="d"></span></div></div>';
+    }
     const row = (name, val, cur, old, kind) =>
       '<span>' + name + '</span><b>' + val + '</b>' +
       '<span class="d">' + (prev && kind !== 'none' ? deltaHTML(cur, old, kind) : '') + '</span>';
@@ -1080,6 +1096,17 @@ function render(){
 
   F('bp-metric-name').textContent = '· ' + M.name;
   F('brands-week').textContent = state.weekA ? '· ' + weekLabel(state.weekA) : '';
+
+  // 一条完播数据都没有时，「完播数」这个指标按钮点进去必然是空图，直接收起来
+  const anyComp = state.records.some(r => (+r.completions || 0) > 0);
+  const compBtn = document.querySelector('#seg-metric [data-metric="completions"]');
+  compBtn.style.display = anyComp ? '' : 'none';
+  if(!anyComp && state.metric === 'completions'){
+    state.metric = 'views';
+    [...F('seg-metric').children].forEach(c =>
+      c.setAttribute('aria-pressed', c.dataset.metric === 'views' ? 'true' : 'false'));
+    return render();
+  }
 
   const A = aggWeek(state.weekA), B = aggWeek(state.weekB);
   renderKPIs(A, B);
@@ -1260,12 +1287,13 @@ F('tbl').addEventListener('click', e => {
 });
 
 /* --------- CSV --------- */
-const CSV_HEAD = ['week','brand','platform','content','impressions','views','completions','likes','comments','shares','saves','follows','interactions'];
+const CSV_HEAD = ['week','brand','platform','content'].concat(FIELDS);   // 指标列直接跟着 FIELDS 走，加了新指标不会漏
 const CSV_CN = {'周次':'week','周':'week','日期':'week','品牌':'brand','账号':'brand','brand':'brand','平台':'platform','渠道':'platform',
   '内容':'content','帖子':'content','标题':'content','作品':'content',
   '曝光量':'impressions','曝光':'impressions','触达':'impressions','展示':'impressions',
   '播放量':'views','播放':'views','观看':'views','浏览量':'views',
-  '完播数':'completions','完播':'completions','点赞':'likes','评论':'comments',
+  '完播数':'completions','完播':'completions','3秒观看':'views3s','三秒观看':'views3s',
+  '总观看秒数':'watchSec','观看秒数':'watchSec','点赞':'likes','评论':'comments','留言':'comments',
   '分享':'shares','转发':'shares','收藏':'saves','涨粉':'follows','新增粉丝':'follows',
   '互动总数':'interactions','互动':'interactions','互动次数':'interactions'};
 function toCSV(){
@@ -1307,7 +1335,13 @@ function normWeek(v){
 function importCSV(text, mode){
   const rows = parseCSV(text);
   if(rows.length < 2) return alert('没读到有效数据行。');
-  const head = rows[0].map(h => { const k = h.trim(); return CSV_CN[k] || k.toLowerCase(); });
+  // 表头小写化后要能对回原名（watchSec → watchsec 否则读不到）
+  const canon = {};
+  CSV_HEAD.forEach(k => canon[k.toLowerCase()] = k);
+  const head = rows[0].map(h => {
+    const k = h.trim();
+    return CSV_CN[k] || canon[k.toLowerCase()] || k.toLowerCase();
+  });
   if(!head.includes('platform')) return alert('缺少 platform（平台）列。');
   if(!head.includes('brand')) return alert('缺少 brand（品牌）列 —— 每条记录都要写明属于哪个品牌。');
   const out = [];
@@ -1498,7 +1532,7 @@ function norm(t){
   // NFKC 把康熙部首/兼容汉字折回正常汉字：留⾔→留言、⽇期→日期、全角数字→半角
   return String(t || '').normalize('NFKC').toLowerCase().replace(/[\s:：（）()【】\[\]]/g, '');
 }
-function nfkc(t){ return String(t || '').normalize('NFKC'); }
+function nfkc(t){ return String(t || '').normalize('NFKC').replace(/\u2212/g, '-'); }
 /** 一段文字命中哪个指标（整词优先，避免「完播率」被「播放」抢走） */
 function matchMetric(text){
   const t = norm(text);
@@ -1541,10 +1575,14 @@ const SECTION_NO = /^[一二三四五六七八九十0-9]+\s*[、.．)）]/;     
 function sectionTitle(rows, headerIndex){
   for(let i = headerIndex - 1; i >= Math.max(0, headerIndex - 6); i--){
     const r = rows[i];
-    if(r.cells.length !== 1) continue;
-    const t = r.cells[0];
-    if(!t || t.length > 40 || isNumCell(t) || SECTION_NO.test(t)) continue;
+    // 标题行里的日期常被 PDF 切成碎片（「JAN'S SECRET · 本周( | 8 | / | 24」），所以按整行文字判断
+    const t = r.cells.join(' ').replace(/\s+/g, ' ').trim();
+    if(!t || t.length > 40 || SECTION_NO.test(t)) continue;
     if(/[。！？；]/.test(t) || /[，,]$/.test(t)) continue;      // 正文换行，不是标题
+    const first = r.cells[0] || '';
+    if(first.length < 2 || isNumCell(first)) continue;         // 数据行
+    if(r.cells.filter(c => cellNum(c)).length >= r.cells.length * 0.6) continue;      // 一整行数字
+    if(r.cells.filter(c => matchMetric(c)).length >= r.cells.length * 0.6) continue;   // 指标标签行
     return t;
   }
   return '';
@@ -1552,8 +1590,9 @@ function sectionTitle(rows, headerIndex){
 /** 文档开头几行里最像品牌名的一行 */
 function docBrand(rows){
   for(const r of rows.slice(0, 4)){
-    if(r.cells.length !== 1) continue;
-    const b = cleanBrand(r.cells[0]);
+    const t = r.cells.join(' ').replace(/\s+/g, ' ').trim();
+    if(!t || t.length > 40) continue;
+    const b = cleanBrand(t);
     if(b && b.length >= 2 && !SECTION_NO.test(b)) return b;
   }
   return '';
@@ -1613,6 +1652,11 @@ function findReportDate(rows){
   const re2 = /(\d{1,2})\/(\d{1,2})\/(\d{4})/g;
   while((m = re2.exec(head))) found.push({d:iso(+m[3], +m[1], +m[2]), at:m.index});
   const yr = /(20\d{2})/.exec(head);
+  // 「8/24‒8/30」这种只有月/日的写法，年份从文中别处取
+  if(yr){
+    const re4 = /(?:^|[^\d/])(\d{1,2})\/(\d{1,2})(?![\d/])/g;
+    while((m = re4.exec(head))) found.push({d:iso(+yr[1], +m[1], +m[2]), at:m.index});
+  }
   const re3 = new RegExp('(' + MONTHS.join('|') + ')[a-z]*\\.?\\s+(\\d{1,2})(?:\\D{0,4}(\\d{4}))?', 'gi');
   while((m = re3.exec(head))){
     const y = m[3] ? +m[3] : (yr ? +yr[1] : 0);
@@ -1691,6 +1735,7 @@ async function readPdfFile(file){
 
   // (1) 明细表：一份 PDF 里可能有好几张（每个账号一张）
   const heads = findHeaders(all);
+  const cards = [];
   heads.forEach((h, hi) => {
     const stop = hi + 1 < heads.length ? heads[hi + 1].i : all.length;
     const body = all.slice(h.i + 1, stop)
@@ -1698,6 +1743,13 @@ async function readPdfFile(file){
       .filter(r => r.cells.some(isNumCell))
       .filter(r => r.cells.join('|') !== h.cells.join('|'));       // 跨页重复的表头
     const named = body.filter(r => r.cells.some(c => !isNumCell(c))).length;
+    // 标签行后面只跟一两行数字 → 那是指标卡（如「短视频观看 | 触及 | 互动」＋一行数值），交给卡片处理
+    const metricShare = h.cells.filter(c => matchMetric(c)).length / h.cells.length;
+    const numShare = body.length ? body[0].cells.filter(isNumCell).length / body[0].cells.length : 0;
+    if(body.length && body.length <= 2 && metricShare >= 0.6 && numShare >= 0.6){
+      cards.push({labels:h.cells, values:body[0].cells, i:h.i});
+      return;
+    }
     if(!body.length || named < body.length / 2) return;            // 没有名称列 → 那是指标卡不是表
     const title = sectionTitle(all, h.i);
     const src = mk({mode:'table', hits:h.hits, title:title,
@@ -1717,6 +1769,7 @@ async function readPdfFile(file){
       src.brand = cleanBrand(title);
     }
     if(!src.brand) src.brand = fileBrand;
+    if(!src.platform) src.platform = brandPlatform(src.brand);
     // 只有一行、名称像「35 条」的，是账号级汇总行
     if(src.rows.length === 1 && /^\d+\s*条$/.test(String(src.rows[0].cells[src.map.name] || '').trim())){
       src.rows[0].name = '账号整体';
@@ -1741,12 +1794,42 @@ async function readPdfFile(file){
     });
   });
 
-  // 同一个品牌+平台，既有账号汇总（1 行）又有明细表时，汇总默认不勾 —— 两者会重复计算
+  // 指标卡：一行标签配一行数值，汇总成一条「账号整体」
+  cards.forEach(card => {
+    const values = {};
+    card.labels.forEach((lab, ci) => {
+      const f = matchMetric(lab);
+      if(!f || f === 'name' || values[f] !== undefined) return;
+      const n = cellNum(card.values[ci]);
+      if(!n) return;
+      values[f] = (f === 'compRatePct' || f === 'hookRatePct')
+        ? (n.pct ? n.v : (n.v <= 1 ? n.v * 100 : n.v)) : n.v;
+    });
+    const hits = Object.keys(values).length;
+    if(hits < 2) return;
+    const title = sectionTitle(all, card.i);
+    const src = mk({mode:'kv', hits:hits, title:title, brand:cleanBrand(title) || fileBrand,
+      rows:[{name:'账号整体', values:values, pick:true, raw:card.labels.join(' / ') + ' 的一行汇总'}]});
+    if(title){
+      const pf = guessPlatform([{raw:title}], '');
+      if(pf) src.platform = pf;
+    }
+    if(!src.platform) src.platform = brandPlatform(src.brand);
+    out.push(src);
+  });
+
+  // 同一个品牌+平台，既有账号汇总又有明细表时，只勾一种 —— 两者会重复计算
   out.forEach(src => {
-    if(src.mode !== 'table' || src.rows.length !== 1) return;
-    const hasDetail = out.some(o => o !== src && o.mode === 'table' && o.rows.length > 1 &&
-      o.brand === src.brand && o.platform === src.platform);
-    if(hasDetail){ src.rows[0].pick = false; src.summaryOf = true; }
+    const isSummary = src.mode === 'kv' || (src.mode === 'table' && src.rows.length === 1);
+    if(!isSummary) return;
+    const detail = out.find(o => o !== src && o.mode === 'table' && o.rows.length > 1 && o.brand === src.brand);
+    if(!detail) return;
+    src.summaryOf = true;
+    // 这个品牌历史上记的是「账号整体」→ 延续账号整体口径，否则用逐条明细
+    const keepSummary = state.records.some(r => brandOf(r) === src.brand && r.content === '账号整体');
+    src.rows.forEach(r => r.pick = keepSummary);
+    detail.rows.forEach(r => r.pick = !keepSummary);
+    detail.overriddenBy = keepSummary ? '账号整体' : '';
   });
   if(out.length) return out;
 
@@ -1768,8 +1851,29 @@ async function readPdfFile(file){
 /** 「JAN'S SECRET（Facebook Page，无 Instagram）」→「JAN'S SECRET」 */
 function cleanBrand(title){
   let t = nfkc(title).split(/[（(|｜]/)[0].trim();
+  t = t.split(/\s+[·・]\s+/)[0].trim();          // 「… · 环比」「… · 本周」这类后缀去掉
   t = t.replace(/(内容)?周报.*$/, '').replace(/[·・|]\s*$/, '').trim();
-  return t.length > 40 ? '' : t;
+  return t.length > 40 ? '' : snapBrand(t);
+}
+/** 往已有品牌上靠：「FANG 芳品沉香」认成已经在用的「FANG」，免得每周多出一个新品牌 */
+function snapBrand(name){
+  if(!name) return '';
+  const exist = allBrands();
+  const n = name.toLowerCase();
+  const hit = exist.find(b => b.toLowerCase() === n) ||
+    exist.find(b => b.length >= 3 && (n.startsWith(b.toLowerCase()) || b.toLowerCase().startsWith(n)));
+  return hit || name;
+}
+/** 这个品牌以前主要发在哪个平台 */
+function brandPlatform(brand){
+  const count = new Map();
+  state.records.forEach(r => {
+    if(brandOf(r) !== brand) return;
+    count.set(r.platform, (count.get(r.platform) || 0) + 1);
+  });
+  let best = '', n = 0;
+  count.forEach((v, k) => { if(v > n){ n = v; best = k; } });
+  return best;
 }
 /** 列标题里的「8/17‒8/23」→ 具体日期（年份取整份报表的年份） */
 function dateFromLabel(labelText, fallbackISO){
@@ -1845,7 +1949,10 @@ function renderPdfSources(){
     }
     const modeNote = src.mode === 'table' ? '认出明细表（表头对上 <b>' + src.hits + '</b> 列），共 ' + src.rows.length + ' 行'
       : src.mode === 'matrix' ? '认出总量表的一列（读到 <b>' + src.hits + '</b> 个指标）—— 和明细表二选一，默认没勾'
-      : src.summaryOf ? '这是账号级汇总（1 行）——下面已有同账号的逐条明细，默认没勾，避免重复计算'
+      : src.summaryOf ? (src.rows[0].pick
+          ? '账号级汇总 —— 这个品牌之前记的就是「账号整体」，所以默认用它；同品牌的逐条明细已取消勾选'
+          : '账号级汇总 —— 同品牌下面有逐条明细，默认用明细，这条没勾（两者会重复计算）')
+      : src.overriddenBy ? '逐条明细 ' + src.rows.length + ' 行 —— 已改用上面的账号整体口径，这块默认没勾'
       : src.mode === 'kv' ? '认出指标卡，自动读到 <b>' + src.hits + '</b> 个指标，汇总成 1 条'
       : '没找到表头，按位置猜的，共 ' + src.rows.length + ' 行 —— 请核对下面每一格';
     const colName = i => '第 ' + (i + 1) + ' 列' + (src.heads[i] ? '（' + src.heads[i].slice(0, 8) + '）' : '');
@@ -2015,8 +2122,8 @@ function seedData(){
        impressions:4966, views:9827, likes:126, comments:11, shares:25, interactions:166});
 
   // 两个 JAN'S 品牌 · 8/17‒8/23 逐条明细（观看 / 3秒观看 / 均播秒 / 留言 / 互动）
-  const posts = (brand, list) => list.forEach(([content, views, v3s, sec, comments, inter]) =>
-    add({week:'2026-W34', brand:brand, platform:'Facebook', content:content,
+  const posts = (brand, list, week) => list.forEach(([content, views, v3s, sec, comments, inter]) =>
+    add({week:week || '2026-W34', brand:brand, platform:'Facebook', content:content,
          views:views, views3s:v3s, watchSec:views * sec, comments:comments, interactions:inter}));
 
   posts("JAN'S SECRET", [
@@ -2029,6 +2136,21 @@ function seedData(){
     ['🍬糖果色珍珠手链 S925银 磁吸扣', 1304, 273, 9, 4, 7],
     ['☁云枕｜天然珍珠耳钉 S925银', 1247, 220, 5, 3, 8]
   ]);
+  // 8/24‒8/30：FANG 仍用账号级（带触及），JAN'S SECRET 用逐条明细
+  add({week:'2026-W35', brand:'FANG', platform:'Facebook', content:'账号整体',
+       impressions:2966, views:6030, comments:17, interactions:111});
+  posts("JAN'S SECRET", [
+    ['Baby珠+和田玉 珍珠手链', 2601, 534, 4, 7, 20],
+    ['百分比Percent·珍珠吊坠', 2104, 323, 5, 3, 14],
+    ['很多女孩的白月光·初心First', 1674, 274, 6, 1, 17],
+    ['🍬糖果色珍珠手链S925银', 1511, 313, 9, 7, 21],
+    ['蝴蝶结珍珠吊坠11-12mm', 1453, 262, 4, 1, 18],
+    ['谁要戴很多年不过时·经典珍珠耳钉', 1195, 218, 13, 1, 8],
+    ['🇭🇰香港大证级别·6A Baby珠戒', 1122, 166, 4, 1, 4],
+    ['🇲🇾四叶草珍珠吊坠', 1104, 205, 7, 1, 8],
+    ['🇲🇾唯一Only·单颗珍珠手环', 1098, 189, 7, 1, 15]
+  ], '2026-W35');
+
   posts("Jan's Cart", [
     ['周年庆【珍珠】仅此一场！（含投流）', 11677, 4461, 29, 881, 1161],
     ['🍬糖果色珍珠手链 S925银 磁吸扣', 1301, 285, 5, 3, 29],
@@ -2062,7 +2184,11 @@ addEventListener('resize', () => { clearTimeout(t); t = setTimeout(render, 150);
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => setTimeout(render, 60));
 
 load();
-if(!state.records.length) state.records = seedData();    // 首次打开先放三个品牌的真实周报数字
+// 只有从没用过这个页面时才放起始数据；清空过（哪怕清成空）就不再自动塞回来
+if(localStorage.getItem(KEY) === null){
+  state.records = seedData();
+  save();
+}
 render();
 
 })();
