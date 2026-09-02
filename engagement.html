@@ -401,6 +401,7 @@ footer{margin-top:28px; color:var(--text3); font-size:12px; line-height:1.8}
 
 /* ============================== 数据层 ============================== */
 const KEY = 'socialEngagement.v3';
+const PLACEHOLDER_BRANDS = ['默认品牌', '未命名', '未分类'];   // 历史遗留的占位品牌名，一律清掉
 
 const FIELDS = ['impressions','views','views3s','completions','watchSec','likes','comments','shares','saves','follows','interactions'];
 const FIELD_CN = {impressions:'曝光/触及', views:'播放量', views3s:'3秒观看', completions:'完播数',
@@ -420,7 +421,10 @@ function load(){
     const raw = localStorage.getItem(KEY);
     state.records = raw ? JSON.parse(raw) : [];
     if(!Array.isArray(state.records)) state.records = [];
-    state.records = state.records.filter(r => r && brandOf(r));   // 没有品牌的记录不收
+    // 没有品牌的不收；早期版本迁移旧数据时打上的「默认品牌」也一并清掉
+    const before = state.records.length;
+    state.records = state.records.filter(r => r && brandOf(r) && !PLACEHOLDER_BRANDS.includes(brandOf(r)));
+    if(state.records.length !== before) save();      // 清理结果落盘，刷新后不会再出现
   }catch(e){ state.records = []; }
 }
 function save(){
