@@ -180,7 +180,7 @@ footer{margin-top:28px; color:var(--text3); font-size:12px; line-height:1.8}
   <div class="btns">
     <button class="primary" id="btn-add">+ 录入数据</button>
     <button class="ghost" id="btn-pdf">导入 PDF</button>
-    <button class="ghost" id="btn-import">导入 CSV</button>
+    <button class="ghost" id="btn-import">导入表格</button>
     <button class="ghost" id="btn-export">导出 CSV</button>
     <button class="ghost" id="btn-demo">载入起始数据</button>
     <button class="ghost danger" id="btn-clear">清空</button>
@@ -350,8 +350,14 @@ footer{margin-top:28px; color:var(--text3); font-size:12px; line-height:1.8}
   <div class="modal">
     <h3 id="csv-title">导入 CSV</h3>
     <div id="csv-import-only">
-      <input type="file" id="f-file" accept=".csv,text/csv,text/plain">
-      <div class="note">或直接把 CSV 内容粘贴到下面：</div>
+      <input type="file" id="f-file" accept=".csv,.xlsx,.xls,text/csv,text/plain">
+      <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:8px">
+        <div class="field"><label for="f-csv-brand">品牌（文件里没有品牌列时用这个）</label>
+          <input type="text" id="f-csv-brand" list="dl-brand" placeholder="例：FANG"></div>
+        <div class="field"><label for="f-csv-plat">平台（文件里没有平台列时用这个）</label>
+          <input type="text" id="f-csv-plat" list="dl-plat" placeholder="例：抖音"></div>
+      </div>
+      <div class="note">支持抖音后台导出的 .xlsx；也可以直接把 CSV 内容粘贴到下面：</div>
     </div>
     <textarea id="f-csv" spellcheck="false"></textarea>
     <div class="note" id="csv-note"></div>
@@ -462,6 +468,13 @@ function weekLabel(key){
 }
 function weekShort(key){ return key ? key.split('-W')[1] + '周' : '—'; }
 function weekName(key){ return key ? weekLabel(key) : '无对比'; }
+/** 默认落在最近一个「有内容」的周：跨过只有一两条记录的零头周（比如刚发一条的新周） */
+function defaultWeek(weeks){
+  const count = {};
+  state.records.forEach(r => count[r.week] = (count[r.week] || 0) + 1);
+  for(let i = weeks.length - 1; i >= 0; i--) if((count[weeks[i]] || 0) >= 3) return weeks[i];
+  return weeks[weeks.length - 1] || '';
+}
 function prevWeekOf(key){
   const ws = allWeeks(), i = ws.indexOf(key);
   return i > 0 ? ws[i - 1] : '';
@@ -504,7 +517,7 @@ function keyOf(r){
 }
 function blank(){
   const o = {}; FIELDS.forEach(f => o[f] = 0);
-  o.eng = 0; o.engBase = 0; o.hookBase = 0; o.compBase = 0;
+  o.eng = 0; o.engBase = 0; o.hookBase = 0; o.compBase = 0; o.secBase = 0;
   o.engRate = 0; o.compRate = 0; o.hookRate = 0; o.avgSec = 0; return o;
 }
 function derive(a){
@@ -516,7 +529,7 @@ function derive(a){
   // 比率的分母只算「报了这个指标」的那部分播放量，没报的品牌不该把整体拉低
   a.compRate = (a.compBase || a.views) > 0 ? a.completions / (a.compBase || a.views) : 0;
   a.hookRate = (a.hookBase || a.views) > 0 ? a.views3s / (a.hookBase || a.views) : 0;
-  a.avgSec   = a.views > 0 ? a.watchSec / a.views : 0;     // 均播秒数
+  a.avgSec   = (a.secBase || a.views) > 0 ? a.watchSec / (a.secBase || a.views) : 0;
   return a;
 }
 function aggWeek(week){
@@ -532,6 +545,7 @@ function aggWeek(week){
     a.engBase += (+r.impressions || 0) > 0 ? (+r.impressions || 0) : (+r.views || 0);
     if((+r.views3s || 0) > 0) a.hookBase += (+r.views || 0);
     if((+r.completions || 0) > 0) a.compBase += (+r.views || 0);
+    if((+r.watchSec || 0) > 0) a.secBase += (+r.views || 0);
   });
   map.forEach(derive);
   return map;
@@ -540,7 +554,8 @@ function totalOf(map){
   const t = blank();
   map.forEach(a => {
     FIELDS.forEach(f => t[f] += a[f]);
-    t.engBase += a.engBase || 0; t.hookBase += a.hookBase || 0; t.compBase += a.compBase || 0;
+    t.engBase += a.engBase || 0; t.hookBase += a.hookBase || 0;
+    t.compBase += a.compBase || 0; t.secBase += a.secBase || 0;
   });
   return derive(t);
 }
@@ -958,7 +973,7 @@ const F = id => document.getElementById(id);
 function renderPickers(){
   const weeks = allWeeks();
   const a = F('sel-a'), b = F('sel-b');
-  if(!weeks.includes(state.weekA)) state.weekA = weeks[weeks.length - 1] || '';
+  if(!weeks.includes(state.weekA)) state.weekA = defaultWeek(weeks);
   // weekB: null = 还没定（自动取上一周）；'' = 用户明确选了「无对比」
   if(state.weekB === null || state.weekB === state.weekA ||
      (state.weekB && !weeks.includes(state.weekB))) state.weekB = prevWeekOf(state.weekA);
@@ -1013,6 +1028,7 @@ function renderBrandCards(){
       t.engBase += (+r.impressions || 0) > 0 ? (+r.impressions || 0) : (+r.views || 0);
       if((+r.views3s || 0) > 0) t.hookBase += (+r.views || 0);
       if((+r.completions || 0) > 0) t.compBase += (+r.views || 0);
+      if((+r.watchSec || 0) > 0) t.secBase += (+r.views || 0);
     });
     return derive(t);
   };
@@ -1296,6 +1312,9 @@ const CSV_CN = {'周次':'week','周':'week','日期':'week','品牌':'brand','�
   '内容':'content','帖子':'content','标题':'content','作品':'content',
   '曝光量':'impressions','曝光':'impressions','触达':'impressions','展示':'impressions',
   '播放量':'views','播放':'views','观看':'views','浏览量':'views',
+  '作品名称':'content','作品':'content','视频标题':'content','发布时间':'week',
+  '完播率':'compRatePct','平均播放时长':'avgSec','点赞量':'likes','分享量':'shares',
+  '评论量':'comments','收藏量':'saves','粉丝增量':'follows','新增粉丝数':'follows',
   '完播数':'completions','完播':'completions','3秒观看':'views3s','三秒观看':'views3s',
   '总观看秒数':'watchSec','观看秒数':'watchSec','点赞':'likes','评论':'comments','留言':'comments',
   '分享':'shares','转发':'shares','收藏':'saves','涨粉':'follows','新增粉丝':'follows',
@@ -1346,31 +1365,43 @@ function importCSV(text, mode){
     const k = h.trim();
     return CSV_CN[k] || canon[k.toLowerCase()] || k.toLowerCase();
   });
-  if(!head.includes('platform')) return alert('缺少 platform（平台）列。');
-  if(!head.includes('brand')) return alert('缺少 brand（品牌）列 —— 每条记录都要写明属于哪个品牌。');
+  const fbBrand = F('f-csv-brand').value.trim(), fbPlat = F('f-csv-plat').value.trim();
+  if(!head.includes('platform') && !fbPlat) return alert('文件里没有平台列 —— 请在上面「平台」里填一个（例：抖音）。');
+  if(!head.includes('brand') && !fbBrand) return alert('文件里没有品牌列 —— 请在上面「品牌」里填一个（例：FANG）。');
   const out = [];
-  let skipped = 0;
+  let skipped = 0, empty = 0;
   for(let i = 1; i < rows.length; i++){
     const o = {}; head.forEach((h, j) => o[h] = (rows[i][j] || '').trim());
-    const platform = o.platform; if(!platform) continue;
+    const platform = (o.platform || fbPlat).trim(); if(!platform) continue;
     const week = normWeek(o.week); if(!week) continue;
-    const brand = (o.brand || '').trim();
+    const brand = (o.brand || fbBrand).trim();
     if(!brand){ skipped++; continue; }
     const rec = {id:uid() + i, week:week, brand:brand, platform:platform, content:o.content || ''};
     FIELDS.forEach(f => rec[f] = Math.round(+String(o[f] || '').replace(/,/g, '') || 0));
+    // 比率列换算成绝对值：完播率 × 播放量 = 完播数；平均播放时长 × 播放量 = 总观看秒数
+    const rate = v => { const n = +String(v || '').replace(/[,%]/g, ''); return !n ? 0 : (n <= 1 ? n : n / 100); };
+    if(o.compRatePct && !rec.completions) rec.completions = Math.round(rec.views * rate(o.compRatePct));
+    if(o.hookRatePct && !rec.views3s)     rec.views3s     = Math.round(rec.views * rate(o.hookRatePct));
+    if(o.avgSec && !rec.watchSec)         rec.watchSec    = Math.round(rec.views * (+String(o.avgSec).replace(/[^\d.]/g, '') || 0));
+    if(rec.completions > rec.views) rec.completions = rec.views;
+    // 没有播放也没有曝光的行不收（例如抖音里转成「自见」的作品：还留着点赞，但播放量归零）
+    if(!rec.views && !rec.impressions){ empty++; continue; }
     out.push(rec);
   }
   if(!out.length) return alert('没有可导入的行（检查 week 列是否为 2026-W35 或 2026-08-24 这样的格式）。');
   state.records = mode === 'replace' ? out : state.records.concat(out);
   save(); state.weekA = ''; state.weekB = null;
   closeModal('md-csv'); render();
-  alert('已导入 ' + out.length + ' 条记录。' + (skipped ? '\n有 ' + skipped + ' 行没填品牌，已跳过。' : ''));
+  alert('已导入 ' + out.length + ' 条记录。' +
+    (skipped ? '\n有 ' + skipped + ' 行没填品牌，已跳过。' : '') +
+    (empty ? '\n有 ' + empty + ' 行既没有播放也没有曝光（未公开 / 无数据），已跳过。' : ''));
 }
 F('btn-import').addEventListener('click', () => {
-  F('csv-title').textContent = '导入 CSV';
+  F('csv-title').textContent = '导入表格（CSV / Excel）';
   F('csv-import-only').style.display = '';
   F('f-csv').value = '';
-  F('csv-note').textContent = '列：' + CSV_HEAD.join(',') + '（week 支持 2026-W35 或任意日期 2026-08-24；中文表头也认）。';
+  F('csv-note').textContent = '认得抖音后台导出的表头（作品名称 / 发布时间 / 播放量 / 完播率 / 平均播放时长 / 点赞量 …），' +
+    '也认标准列：' + CSV_HEAD.join(',') + '。week 支持 2026-W35 或任意日期。';
   F('btn-csv-do').style.display = ''; F('btn-csv-copy').style.display = 'none'; F('btn-csv-download').style.display = 'none';
   openModal('md-csv');
 });
@@ -1383,8 +1414,36 @@ F('btn-export').addEventListener('click', () => {
   F('btn-csv-download').style.display = embedded ? 'none' : '';
   openModal('md-csv');
 });
-F('f-file').addEventListener('change', e => {
+const XLSX_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+function loadXlsx(){
+  if(window.XLSX) return Promise.resolve(window.XLSX);
+  return new Promise((ok, no) => {
+    const sc = document.createElement('script');
+    sc.src = XLSX_LIB;
+    sc.onload = () => window.XLSX ? ok(window.XLSX) : no(new Error('表格解析库加载了但没生效'));
+    sc.onerror = () => no(new Error('表格解析库下载失败（需要联网加载一次）'));
+    document.head.appendChild(sc);
+  });
+}
+F('f-file').addEventListener('change', async e => {
   const f = e.target.files[0]; if(!f) return;
+  if(/\.xlsx?$/i.test(f.name)){
+    F('csv-note').textContent = '正在读取 ' + f.name + ' …';
+    try{
+      const XLSX = await loadXlsx();
+      const wb = XLSX.read(new Uint8Array(await f.arrayBuffer()), {type:'array'});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      F('f-csv').value = XLSX.utils.sheet_to_csv(sheet);
+      const cols = (F('f-csv').value.split('\n')[0] || '').split(',').length;
+      F('csv-note').textContent = '已读出「' + wb.SheetNames[0] + '」工作表（' + cols + ' 列）。' +
+        '确认下面的品牌 / 平台后点「导入」。';
+      if(!F('f-csv-plat').value.trim() && /抖音|douyin/i.test(f.name)) F('f-csv-plat').value = '抖音';
+    }catch(err){
+      F('csv-note').textContent = '读取失败：' + (err && err.message ? err.message : err) +
+        '。可以在 Excel 里另存为 CSV 再试。';
+    }
+    return;
+  }
   const rd = new FileReader();
   rd.onload = () => { F('f-csv').value = rd.result; };
   rd.readAsText(f, 'utf-8');
@@ -2163,6 +2222,143 @@ function seedData(){
     ['💫行星款｜星轨Orbit 5-6mm 珍珠', 1030, 242, 6, 3, 17],
     ['🇲🇾月半 天然珍珠吊坠 7-8mm', 921, 167, 4, 4, 17]
   ]);
+
+  // FANG 抖音逐条作品（抖音后台导出，2025-11-25 ‒ 2026-09-01；「自见」未公开的 18 条播放量为 0，未收录）
+  // [标题, 发布日期, 播放量, 完播率, 平均播放秒, 赞, 分享, 评论, 收藏, 涨粉]
+  const douyin = [
+    ["🇲🇾当代人解压神器｜线香","2026-09-01",180,0.0377,9.5,5,2,0,0,0],
+    ["🇲🇾男人少的是纪念自己的一个物件 男人的故事，从来都不会挂在嘴边 那","2026-08-31",444,0.0763,9.5,11,2,5,1,1],
+    ["🇲🇾｜救命！Bukit Jalil这家木质香馆，直接爱上","2026-08-29",63,0.0526,11.8,4,0,1,1,1],
+    ["放弃新加坡令人羡慕的高薪工作🇸🇬 毅然回到马来西亚，开了一间属于自己","2026-08-28",77,0.0762,7.7,3,2,1,1,1],
+    ["🇲🇾还在找适合自己的木质手串？","2026-08-27",224,0.0347,7.1,7,0,2,1,2],
+    ["🇲🇾30岁以后，不需要再完美包装自己","2026-08-26",167,0.0594,11.4,10,0,2,1,0],
+    ["不是所有的伤痕，都需要被隐藏✨ 我们总被教育，要呈现完美的一面。 外","2026-08-24",173,0.0097,5.9,7,0,1,2,0],
+    ["🇲🇾Bukit Jalil有质感的木质香体验馆🪵","2026-08-23",135,0.027,5.8,5,0,0,1,0],
+    ["🇲🇾选对沐浴露真的很重要重要！","2026-08-22",66,0.0488,7.9,2,0,0,1,0],
+    ["🇲🇾你多久没有找回自己的状态？","2026-08-21",125,0.0494,10.7,6,0,0,1,0],
+    ["🇲🇾还在找着合适自己的木质手串？想看更多款式细节记得留言","2026-08-20",503,0.0846,10.2,15,0,2,2,3],
+    ["🇲🇾我发现一个规律：70%来沉香体验馆的人，都有这个烦恼","2026-08-19",420,0.0655,10.4,9,2,2,3,5],
+    ["🇲🇾你多久没有拥有10分钟，让自己归零？","2026-08-18",137,0.0167,6.3,9,0,1,3,0],
+    ["🇲🇾用Vlog介绍一下我的“傻老板”","2026-08-17",355,0.0302,13.7,8,0,2,2,3],
+    ["🇲🇾揭㊙️这行暴利的秘密","2026-08-15",266,0.0595,14.1,7,1,0,1,0],
+    ["🇲🇾沉香不只是拿来拜拜的","2026-08-14",215,0.0592,13.3,7,1,4,2,2],
+    ["团队评测沐浴露真实用后感🧴🥲","2026-08-13",123,0.0178,13.6,6,2,0,1,1],
+    ["圈内老板私藏，低调不张扬","2026-08-13",96,0.041,7.7,5,0,0,0,0],
+    ["一室清香，是成年人最舒服的状态","2026-08-12",98,0.096,8.5,6,0,0,1,0],
+    ["纯天然🈚️化学香精的线香","2026-08-12",156,0.0585,11.1,4,0,1,0,0],
+    ["天然🈚️化学稳定剂的沐浴露🧴","2026-08-12",37,0.0755,8.8,4,0,0,0,0],
+    ["🇲🇾温暖感言：距离不是问题✈️老板的感激告白","2026-08-07",35,0.1154,23.9,2,0,0,0,0],
+    ["🇲🇾 温暖感言：来自各地客户给我们的惊喜✨🫶🏻","2026-08-07",30,0.0,6.9,3,0,0,1,0],
+    ["🇲🇾温暖感言：来自每一位客户的支持✨🫶🏻","2026-08-07",159,0.0594,11.0,8,0,0,2,1],
+    ["🇲🇾 追求了N年的天然香味手串","2026-08-06",45,0.0556,6.9,2,0,0,0,0],
+    ["🇲🇾 木质手串保🐑小分享✨","2026-08-06",156,0.0748,12.7,6,2,0,0,0],
+    ["🇲🇾 木质手串不沉水不代表不🦪","2026-08-06",106,0.1,10.6,2,0,0,1,1],
+    ["🇲🇾 寓意🈵🈵的木质手串✨🎉","2026-08-05",41,0.0364,7.8,4,2,0,1,0],
+    ["🇲🇾 GET住自己的明星同款🎉✨","2026-08-05",29,0.0435,10.1,3,0,0,0,0],
+    ["🇲🇾 我不敢卖泡精油的手串🥲🙅🏻‍♀️","2026-08-04",50,0.0725,10.4,4,2,0,2,0],
+    ["🇲🇾被问💥的手串系列🫶🏻💕","2026-08-01",341,0.0671,10.2,16,1,3,2,3],
+    ["🇲🇾 你们也拥有明星同款啦！😍✨","2026-08-01",44,0.0164,4.6,4,0,3,1,0],
+    ["🇲🇾 香味的天花板 - 木质香🧴🛁","2026-08-01",44,0.0484,6.1,1,0,0,0,0],
+    ["🇲🇾你们喜欢的手串款式都在他家🏠🤭✨","2026-07-31",242,0.0769,13.4,8,0,4,0,0],
+    ["🇲🇾2周年的工作室小碎片🧩🫶🏻✨","2026-07-31",132,0.0857,7.0,7,2,0,1,0],
+    ["🇲🇾通勤神器｜淡淡的木质香，舒缓一整天焦虑 常年在都市奔波，生活总充","2026-07-25",41,0.1515,21.6,5,0,0,1,0],
+    ["FANG 从来不只想成为一个“卖香味”的。我们更在意的是—— 当你洗","2026-07-23",46,0.1045,3.6,4,0,0,1,0],
+    ["🇲🇾明星私戴同款｜自带幽香的高级沉香手串 为什么很多明星私下，几乎不","2026-07-21",36,0.0678,6.1,3,0,0,1,0],
+    ["🇲🇾｜明星私藏同款✨自带香味的高级手串 为什么很多明星私下，几乎不离","2026-07-18",49,0.0606,7.1,4,0,0,0,0],
+    ["🇲🇾通勤女孩本命搭配，举手投足自带清雅香","2026-07-17",45,0.0533,7.7,5,0,3,1,0],
+    ["🇲🇾｜希望我们能让你静下来","2026-07-16",376,0.0436,6.7,11,1,3,2,3],
+    ["🇲🇾谢谢这两年所有顾客的支持❤️","2026-07-15",45,0.0448,5.9,2,0,0,1,0],
+    ["🇲🇾芳品沉香｜两周年纪念 历经岁月，坚守本心 只做天然好香，不负每份","2026-07-14",59,0.0326,14.3,5,0,1,1,0],
+    ["芳品沉香2周年庆典｜如期而至，以香致谢，礼遇全城✨ 两年光阴，一炉沉","2026-07-13",70,0.0796,7.6,2,0,0,1,1],
+    ["🇲🇾｜两年时光，一香相伴 打磨每一串手串，甄选每一缕线香 喧嚣世间，","2026-07-11",40,0.04,6.6,2,0,0,1,0],
+    ["🇲🇾｜两年沉香路，感恩所有香友偏爱。从空荡工作室到满室木香，从无人问","2026-07-11",43,0.0526,8.9,3,2,0,1,0],
+    ["🇲🇾｜我们竟然已经两岁了🥹 一晃两年，芳品沉香走到第二个年头。 还记","2026-07-09",49,0.025,7.1,3,2,1,2,0],
+    ["🇲🇾我的老板不会PUA我、但他会笑我！😆","2026-07-07",397,0.0694,9.7,8,0,0,1,1],
+    ["🇲🇾会有同款助理吗😆","2026-07-04",2423,0.0463,14.3,49,1,0,1,8],
+    ["🇲🇾这个助理泰操心了","2026-07-02",127,0.0279,10.3,6,0,1,1,1],
+    ["我们会做得更好","2026-06-19",79,0.1681,12.3,4,0,3,0,0],
+    ["618回馈","2026-06-16",199,0.1304,9.0,7,0,1,0,0],
+    ["618圆珠超狂福利","2026-06-16",50,0.1585,11.8,3,0,0,0,0],
+    ["解压沐浴露","2026-06-16",87,0.0787,7.2,4,0,3,0,0],
+    ["小精灵的故事🧚","2026-06-15",34,0.0,3.0,2,0,0,0,0],
+    ["戴腻了千篇一律的圆珠？🫣 今年618，我们正式推出全新 Vittra","2026-06-14",37,0.069,9.7,4,2,2,1,0],
+    ["🇲🇾｜能好眠的一支沐浴露 ✨生活充斥忙碌与嘈杂，总要找个方式和自己和","2026-06-13",28,0.02,3.4,2,0,0,0,0],
+    ["🇲🇾【芳品沉香】开业首回正式开启618年度活动💛 🌳深耕沉香多年，一","2026-06-12",24,0.0286,8.3,4,4,0,0,0],
+    ["我来咯我来咯","2026-06-06",251,0.07,9.6,9,0,4,1,1],
+    ["🇲🇾｜一个关于状态的品牌 以前，我们做沉香 后来慢慢发现， 真正吸引","2026-06-05",15,0.0645,16.2,3,0,0,0,0],
+    ["🇲🇾｜自带香味得木质手串","2026-05-15",137,0.0392,11.7,9,0,0,1,1],
+    ["🇲🇾琼脂算盘珠","2026-05-15",65,0.06,5.4,4,0,0,0,0],
+    ["🇲🇾琼脂沐浴露","2026-05-15",46,0.0278,4.9,3,0,0,0,0],
+    ["真的美😍。","2026-05-14",63,0.1458,2.8,3,0,0,0,0],
+    ["沉香沐浴露 | 每日舒缓仪式 它不仅是必需品，更是感官的庇护所 温暖","2026-05-14",40,0.0462,4.4,5,0,0,0,0],
+    ["我是可以的 你也可以","2026-05-14",26,0.1282,2.2,4,0,0,0,0],
+    ["男人啊","2026-05-14",47,0.2292,3.5,3,0,0,0,0],
+    ["养养眼👀","2026-05-14",28,0.1957,3.1,2,0,0,0,0],
+    ["🇲🇾 自带伪体香的沐浴时刻🛁💦 奔赴浴室一隅温柔 卸下整日喧嚣与疲惫","2026-05-13",37,0.0702,3.7,2,0,0,0,0],
+    ["🇲🇾 当代低能量打工人续命好物🤭🫶🏻 纯天然植物萃取线香 无添加无杂","2026-05-12",60,0.0952,7.1,2,0,0,0,0],
+    ["🇲🇾东方风雅，一腕沉香✨ 天然沉香圆珠手串 珠体圆润饱满，纹理清晰内","2026-05-09",42,0.0645,4.5,3,0,0,0,0],
+    ["🇲🇾 生活是一场接一场的忙碌，而我们需要一个 “暂停键” 芳品沉香沐","2026-05-08",22,0.027,3.9,5,0,0,0,0],
+    ["🇲🇾 谁懂啊！被沉香沐浴露治愈了一整个四季🌙 忙碌奔波的日子，就靠这","2026-05-07",58,0.012,4.8,5,0,1,0,0],
+    ["🇲🇾 当一抹沉香遇到沐浴露是怎么样的体验","2026-05-06",46,0.0725,4.3,3,0,0,0,0],
+    ["🇲🇾小助理打包的一天｜简单又充实 😍","2026-05-06",43,0.0351,6.7,2,0,0,0,0],
+    ["精致女💕","2026-05-03",71,0.1284,5.9,5,0,1,0,0],
+    ["沉香缓解压力","2026-04-30",198,0.015,8.0,5,2,1,1,0],
+    ["🇲🇾沉香是没有拜拜味的","2026-04-30",33,0.0385,6.8,2,0,0,0,0],
+    ["沉香","2026-04-29",125,0.0058,6.9,4,0,0,0,0],
+    ["长期佩戴沉香的好处","2026-04-29",77,0.0206,5.5,6,0,0,0,0],
+    ["🇲🇾算盘珠🪵","2026-04-27",24,0.0244,4.0,3,0,0,0,0],
+    ["被幸福包围的一天🙈❤️","2026-04-25",167,0.0167,10.8,8,0,0,0,1],
+    ["🇲🇾我们在Bukit Jalil有了工作室🎉","2026-04-25",23,0.0204,6.7,3,0,0,1,0],
+    ["🇲🇾小助理的一天","2026-04-20",1056,0.0287,12.5,15,1,1,1,3],
+    ["🇲🇾｜小助理的一天都在干嘛🤭","2026-04-19",445,0.0261,11.1,14,0,0,0,3],
+    ["🇲🇾｜小🐷理上班第一视角","2026-04-19",221,0.0401,7.9,4,0,0,0,0],
+    ["🇲🇾谁懂啊！女生戴沉香手串真的自带温柔氛围感✨ 沉香不止是香气，更是","2026-04-16",374,0.0377,11.9,14,3,3,0,4],
+    ["🇲🇾｜你们也有这样的傻老板吗？","2026-04-09",581,0.0213,9.3,9,0,0,1,2],
+    ["108沉香🤭","2026-04-09",490,0.1727,22.1,11,1,2,0,1],
+    ["感谢粉丝们的支持😍🫶🏻","2026-04-06",513,0.0429,9.1,11,2,1,0,1],
+    ["🇲🇾｜为什么本地都不欣赏马来西亚好物？","2026-03-30",820,0.0351,9.6,8,0,1,0,0],
+    ["🇲🇾｜很多人都不理解的沉香🪵 总有人问： 不就是一串木头吗，怎么那么","2026-03-27",1008,0.063,17.7,25,0,7,5,6],
+    ["🇲🇾｜这是我的憨憨老板 在沉香行业乱象横生的当下 总有人守着初心，慢","2026-03-26",15675,0.0384,16.9,340,32,32,81,250],
+    ["🇲🇾被问800遍的沉香伪体香！ 谁懂啊！这瓶沉香沐浴露直接焊在身上了","2026-03-25",877,0.0312,10.4,13,5,11,3,3],
+    ["【📿 每一颗，都是时间结的香】 市面上的沉香手串很多—— ❌ 泡油的","2026-02-14",1049,0.038,20.5,18,1,14,2,11],
+    ["🇲🇾｜❌避雷化学香精沐浴露🧴 【🌿 整瓶都是天然沉香精油 · 不只是","2026-02-12",287,0.0291,8.7,6,2,0,2,0],
+    ["🇲🇾｜🉐开运Body Shampo.💡 要知道，人与人之间的联结，不","2026-02-11",188,0.275,4.3,5,0,1,0,2],
+    ["🇲🇾｜天然线香让你远离压力💆🏻‍♀️ 【🌿 一缕沉香，一间静室｜每天","2026-02-11",247,0.0694,15.2,9,0,3,0,2],
+    ["稀不稀饭⁉️😆反正📪问爆胎了👀","2026-02-10",306,0.0622,3.5,6,0,3,0,2],
+    ["🇲🇾｜Bukit Jalil最全沉香工作室 💯 今天来跟大家介绍我们","2026-02-08",354,0.0498,10.9,12,1,0,1,7],
+    ["🇲🇾沉香手串系列 - 铜钱珠 寓意满满呐、财富满满呐🪙","2026-02-07",254,0.0944,3.2,6,1,2,1,2],
+    ["🇲🇾打包视频｜沉浸式打包lucky沐浴露🧴","2026-02-05",511,0.0793,4.1,9,0,0,2,0],
+    ["🇲🇾打包记录｜沉浸式打包挂件🛒📿","2026-02-04",291,0.0189,4.3,6,0,0,1,2],
+    ["🇲🇾打包记录｜沉浸式打包📦","2026-02-03",409,0.0574,5.7,9,0,2,0,1],
+    ["🇲🇾｜自带体香💝移动香囊。","2026-01-29",189,0.0895,2.3,3,0,0,0,1],
+    ["🇲🇾｜百元沉香手串get✔️","2026-01-25",485,0.048,8.7,8,1,0,1,4],
+    ["🇲🇾｜想不到真的想不到💭","2026-01-24",1061,0.0279,8.6,13,2,1,0,6],
+    ["🇲🇾｜怎么看手串品质🪵 很多人都会被市面上的沉香手串价格迷惑😳 从几","2026-01-22",274,0.0235,9.0,6,0,1,0,2],
+    ["🇲🇾｜有新东西到了🔥🤩","2026-01-22",1318,0.0064,7.9,16,7,11,1,8],
+    ["🇲🇾｜沉香工厂打工一日 我也有今天啦 终于被知名博主访问啦 他们今天","2026-01-21",674,0.0328,10.1,13,0,2,1,1],
+    ["🇲🇾｜沉香天选打工人💪🏻","2026-01-20",212,0.0312,5.6,6,0,0,0,0],
+    ["大家一起加油💪🏻","2026-01-20",130,0.0296,85.2,4,0,0,0,0],
+    ["🇲🇾｜满满能量的一天✨ 每天都会有不一样的合作伙伴会来参观我们的工厂","2026-01-19",866,0.0087,10.6,13,1,1,0,5],
+    ["🇲🇾｜沉香博主的一天Vlog🪵 今天有海外伙伴到我们园区和工厂来考察","2026-01-18",729,0.0071,12.8,7,2,0,0,1],
+    ["🇲🇾｜带你们偷窥制作过程👀 原本属于我们家秘密㊙️的东西现在也公开出","2026-01-17",68,0.0123,8.3,3,0,1,0,0],
+    ["不可以错过的性价比手串🪵","2026-01-10",510,0.0128,5.7,8,0,0,0,1],
+    ["🇲🇾｜今日份开箱","2026-01-08",403,0.033,10.2,5,0,0,0,1],
+    ["🇲🇾｜终于推出沉香挂件了‼️🔥","2026-01-06",353,0.0309,6.9,9,1,0,1,4],
+    ["🇲🇾｜百元级挖到宝！这串沉香的质感说千元都有人信！","2026-01-05",600,0.0269,7.6,14,0,0,4,6],
+    ["🇲🇾｜㊙️新品上架几乎秒🈳😱","2026-01-03",459,0.0143,9.3,9,1,1,1,2],
+    ["🇲🇾｜新款性价比沉香手串🪵","2025-12-31",75,0.0133,8.7,5,0,0,1,0],
+    ["🇲🇾沉香人坦白局 《天然香和化学香的差别》","2025-12-16",363,0.0694,11.5,7,0,1,1,1],
+    ["🇲🇾 【沉香】cai神最钟意😻✨","2025-12-12",346,0.0234,6.1,7,1,0,2,0],
+    ["🇲🇾 《第一次听沉香树也会受伤⁉️》","2025-12-10",450,0.0189,6.0,3,0,0,1,0],
+    ["🇲🇾 【沉香】比黄金还要贵⁉️","2025-11-29",819,0.0834,17.4,15,0,0,2,4],
+    ["🇲🇾 什么原因沉香如此受欢迎⁉️","2025-11-27",69,0.0563,9.2,3,1,0,0,1],
+    ["🇲🇾芳品沉香入驻抖音爸爸啦","2025-11-25",213,0.05,14.0,6,1,1,0,2]
+  ];
+  douyin.forEach(([t, d, v, cr, sec, l, sh, cm, sv, fo]) => add({
+    week:isoWeekKey(new Date(d + 'T00:00:00')), brand:'FANG', platform:'抖音', content:t,
+    views:v, completions:Math.round(v * cr), watchSec:Math.round(v * sec),
+    likes:l, shares:sh, comments:cm, saves:sv, follows:fo}));
+
   return rows;
 }
 F('btn-demo').addEventListener('click', () => {
