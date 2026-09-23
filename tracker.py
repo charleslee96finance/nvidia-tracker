@@ -1474,6 +1474,14 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       </div>
       <div class="plugin-arrow" style="color:var(--amber)">→</div>
     </a>
+    <a href="./engagement.html" target="_blank" class="plugin-card" style="background:linear-gradient(135deg,var(--bg2) 0%,rgba(77,166,255,0.06) 100%);border-color:rgba(77,166,255,0.22)">
+      <div class="plugin-icon">📈</div>
+      <div class="plugin-body">
+        <div class="plugin-name">社交平台数据分析 <span class="plugin-tag" style="background:rgba(77,166,255,0.18);color:var(--blue)">SOCIAL</span></div>
+        <div class="plugin-desc">各平台曝光/播放/互动 · 每周对比 · 完播率 · 占比图表</div>
+      </div>
+      <div class="plugin-arrow" style="color:var(--blue)">→</div>
+    </a>
   </div>
 
   <div class="section-label">📈 股价 · 1 个月走势</div>
