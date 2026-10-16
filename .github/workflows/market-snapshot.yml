@@ -1,9 +1,15 @@
 name: Market Data Snapshot
 
+# Refreshes data/market_snapshot.json (real daily closes for the AUTO-PILOT page).
+# autopilot.html fetches this file at runtime on GitHub Pages, so a refresh here
+# updates the live page without regenerating it.
+
 on:
-  workflow_dispatch:          # manual trigger
+  workflow_dispatch:
+  schedule:
+    - cron: '15 22 * * 1-5'   # ~2h after US close (EDT), weekdays
   push:
-    branches: [claude/web-page-artifact-l4x7yl]
+    branches: [main, claude/web-page-artifact-l4x7yl]
     paths:
       - 'scripts/fetch_market_snapshot.py'
       - '.github/workflows/market-snapshot.yml'
@@ -38,7 +44,13 @@ jobs:
           git add data/market_snapshot.json
           if git diff --cached --quiet; then
             echo "No changes to commit."
-          else
-            git commit -m "auto: market data snapshot $(date -u +'%Y-%m-%d %H:%MZ')"
-            git push
+            exit 0
           fi
+          git commit -m "auto: market data snapshot $(date -u +'%Y-%m-%d %H:%MZ')"
+          # other auto-updaters push to the same branch; rebase and retry on a race
+          for i in 1 2 3; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push && exit 0
+            sleep $((i * 3))
+          done
+          echo "push failed after retries" >&2
+          exit 1

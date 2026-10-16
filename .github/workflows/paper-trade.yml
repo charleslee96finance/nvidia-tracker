@@ -34,6 +34,9 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Test trading logic (offline)
+        run: python scripts/test_autopilot_trade.py
+
       - name: Run paper-trading bot
         env:
           ALPACA_API_KEY_ID: ${{ secrets.ALPACA_API_KEY_ID }}
