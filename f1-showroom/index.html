@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>F1 暗夜车库实景 3D · 法拉利 F1-75 vs 红牛 RB21</title>
+<title>F1 暗夜车库实景 3D · 法拉利 × 迈凯伦 × 红牛</title>
 <style>
   html, body { margin: 0; padding: 0; overflow: hidden; height: 100%;
                background: #0a0d13; -webkit-tap-highlight-color: transparent;
@@ -33,8 +33,9 @@
   #title p { margin: 4px 0 0; font-size: 12px; color: #aab2c8;
              text-shadow: 0 1px 6px rgba(0,0,0,0.8); }
 
-  #panel { top: 70px; left: 14px; padding: 12px 14px; width: 188px; }
-  #panel .grp { margin-bottom: 10px; }
+  #panel { top: 70px; left: 14px; padding: 12px 14px; width: 196px;
+           max-height: calc(100vh - 88px); overflow-y: auto; scrollbar-width: thin; }
+  #panel .grp { margin-bottom: 9px; }
   #panel .grp:last-of-type { margin-bottom: 6px; }
   #panel label { display: block; font-size: 11px; color: #8d96b2;
                  margin: 0 0 5px 2px; letter-spacing: 2px; }
@@ -49,9 +50,37 @@
   body[data-focus="redbull"] button.seg.active {
                       background: rgba(46, 84, 214, 0.34);
                       border-color: rgba(110, 150, 255, 0.8); }
+  body[data-focus="mclaren"] button.seg.active {
+                      background: rgba(255, 128, 0, 0.30);
+                      border-color: rgba(255, 168, 80, 0.85); }
   .seg3 { display: flex; gap: 4px; }
-  button.seg.s3 { flex: 1; padding: 7px 2px; text-align: center; font-size: 12px; margin: 4px 0; }
+  .seg2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 4px; }
+  button.seg.s3 { flex: 1; padding: 7px 1px; text-align: center; font-size: 12px; margin: 4px 0; white-space: nowrap; }
+  .seg2 button.seg { padding: 7px 4px; text-align: center; font-size: 12px; margin: 3px 0; white-space: nowrap; }
   #hint { margin: 8px 2px 0; font-size: 11px; line-height: 1.65; color: #8d96b2; }
+
+  /* 进站计时 HUD（转播风格） */
+  #pitHud { top: 14px; right: 14px; padding: 10px 16px 11px; min-width: 176px; text-align: right;
+            border-color: rgba(255, 210, 60, 0.45); }
+  #pitHud .ph-top { display: flex; justify-content: space-between; gap: 10px; align-items: center;
+                    font-size: 11px; font-weight: 800; letter-spacing: 1.5px; color: #ffd23c; }
+  #pitHud #phRep { color: #ff5a5a; letter-spacing: 1px; animation: blink 1s steps(2) infinite; }
+  #pitHud .ph-time { font: 800 40px/1.05 "SF Mono", Menlo, Consolas, monospace; color: #fff;
+                     font-variant-numeric: tabular-nums; margin-top: 4px; }
+  #pitHud .ph-time small { font-size: 18px; margin-left: 3px; color: #aab2c8; }
+  #pitHud.waiting .ph-time { color: #6c7590; }
+  #pitHud.done .ph-time { color: #4cf07a; }
+  #pitHud .ph-sub { font-size: 11px; color: #97a0bd; margin-top: 2px; }
+  #pitHud .ph-tyre { font-size: 12px; color: #dfe4f2; margin-top: 6px; }
+  #pitHud .ph-tyre b { margin-left: 2px; }
+  #pitHud .ph-rate { font-size: 13px; font-weight: 700; color: #ffd23c; margin-top: 4px; min-height: 17px; }
+  .tdot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin: 0 4px 0 6px;
+          box-shadow: 0 0 0 2px rgba(20,20,24,0.9), 0 0 0 3px rgba(255,255,255,0.35); vertical-align: 0; }
+  @keyframes blink { 50% { opacity: 0.35; } }
+  #pitFlash { position: fixed; inset: 0; z-index: 30; pointer-events: none; background: #fff;
+              opacity: 0; transition: opacity .35s ease-out; }
+  #pitFlash.on { opacity: 0.85; transition: none; }
+  body.photo #pitHud, body.pitting #spec { display: none !important; }
 
   #photoBar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
               z-index: 20; display: none; gap: 10px; }
@@ -77,11 +106,15 @@
 
   @media (max-width: 720px) {
     #title h1 { font-size: 16px; } #title p { display: none; }
-    #panel { top: auto; bottom: 12px; left: 10px; width: 152px; padding: 9px 10px; }
+    #panel { top: auto; bottom: 12px; left: 10px; width: 160px; padding: 9px 10px;
+             max-height: 58vh; }
     button.seg { padding: 6px 8px; font-size: 12px; }
+    .seg2 button.seg { padding: 6px 2px; font-size: 11px; }
     #hint { display: none; }
     #spec { display: none; }
-    #cockpitTip { bottom: auto; top: 58px; font-size: 11px; }
+    #cockpitTip { bottom: auto; top: 58px; font-size: 11px; white-space: normal; width: 86vw; text-align: center; }
+    #pitHud { top: 52px; right: 10px; min-width: 0; padding: 7px 11px 8px; }
+    #pitHud .ph-time { font-size: 28px; }
   }
 </style>
 </head>
@@ -91,7 +124,7 @@
 
 <header id="title">
   <h1><span id="tTitle">F1 暗夜车库 3D 实景</span><span class="scale" id="tBadge">实拍还原</span></h1>
-  <p id="tSub">法拉利 F1-75 × 红牛 RB21 — 360° 自由旋转 · 驾驶舱第一视角 · 分层拆解引擎</p>
+  <p id="tSub">法拉利 F1-75 × 迈凯伦 MCL39 × 红牛 RB21 — 360° 环绕 · 驾驶舱 / T-cam / 航拍机位 · 进站换胎 · 分层拆解</p>
 </header>
 
 <div id="panel" class="panel">
@@ -108,27 +141,37 @@
   </div>
   <div class="grp"><label id="lblCar">车 辆</label>
     <button class="seg active" data-car="ferrari">🟥 法拉利 F1-75</button>
+    <button class="seg" data-car="mclaren">🟧 迈凯伦 MCL39</button>
     <button class="seg" data-car="redbull">🟦 红牛 RB21</button>
   </div>
   <div class="grp"><label id="lblView">视 角</label>
-    <button class="seg active" data-view="orbit">360° 环绕展示</button>
-    <button class="seg" data-view="cockpit">驾驶舱第一视角</button>
+    <div class="seg2">
+      <button class="seg active" data-view="orbit">360° 环绕</button>
+      <button class="seg" data-view="cockpit">驾驶舱</button>
+      <button class="seg" data-view="tcam">📹 T-cam</button>
+      <button class="seg" data-view="aerial">🚁 航拍</button>
+    </div>
   </div>
   <div class="grp"><label id="lblLayer">结构层</label>
-    <button class="seg active" data-layer="full">完整车身</button>
-    <button class="seg" data-layer="xray">透视外壳（X 光）</button>
-    <button class="seg" data-layer="open">拆解 · 引擎细节</button>
+    <div class="seg3">
+      <button class="seg s3 active" data-layer="full">完整车身</button>
+      <button class="seg s3" data-layer="xray">X 光透视</button>
+      <button class="seg s3" data-layer="open">拆解引擎</button>
+    </div>
   </div>
-  <div class="grp" id="grpDrive">
-    <button class="seg" id="btnLaunch">🚦 起跑演示</button>
-    <button class="seg" id="btnSound">🔇 引擎声浪：关</button>
+  <div class="grp" id="grpDrive"><label id="lblDrive">演 示</label>
+    <div class="seg2">
+      <button class="seg" id="btnLaunch">🚦 起跑</button>
+      <button class="seg" id="btnPit">🔧 进站换胎</button>
+      <button class="seg" id="btnSound">🔇 声浪：关</button>
+      <button class="seg" id="btnPhoto">📷 拍照模式</button>
+    </div>
   </div>
   <div class="grp">
-    <button class="seg" id="btnPhoto">📷 拍照模式</button>
-  </div>
-  <div class="grp">
-    <button class="seg active" id="btnSpin">⟳ 自动旋转：开</button>
-    <button class="seg" id="btnLang">🌐 English</button>
+    <div class="seg2">
+      <button class="seg active" id="btnSpin">⟳ 旋转：开</button>
+      <button class="seg" id="btnLang">🌐 English</button>
+    </div>
   </div>
   <p id="hint">拖动旋转 · 滚轮 / 双指缩放<br>右键拖动平移 · 点击赛车聚焦</p>
 </div>
@@ -139,6 +182,14 @@
   <button id="btnSnap">📸 保存壁纸</button>
   <button id="btnPhotoExit">✕ 退出拍照</button>
 </div>
+<div id="pitHud" class="panel hidden">
+  <div class="ph-top"><span id="phTag">PIT STOP · 进站</span><span id="phRep" class="hidden">REPLAY · 0.4× 慢放</span></div>
+  <div class="ph-time"><span id="phTime">0.00</span><small>s</small></div>
+  <div class="ph-sub" id="phLbl">停车时间</div>
+  <div class="ph-tyre" id="phTyre"></div>
+  <div class="ph-rate" id="phRate"></div>
+</div>
+<div id="pitFlash"></div>
 
 <script src="three.min.js"></script>
 <script src="app.js"></script>

@@ -23,7 +23,7 @@ var scene = new THREE.Scene();
 scene.background = new THREE.Color(0x07080c);
 scene.fog = new THREE.Fog(0x07080c, 15, 46);
 
-var camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.02, 120);
+var camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.02, 400);
 camera.position.set(16, 8.5, 21);
 
 /* 环境反射贴图（PMREM）：车库 / 赛道正午·黄昏·夜战 */
@@ -79,8 +79,8 @@ var key = new THREE.DirectionalLight(0xeef1f6, 0.9);
 key.position.set(4.5, 7.5, 8.5);
 key.castShadow = true;
 key.shadow.mapSize.set(2048, 2048);
-key.shadow.camera.left = -6.5; key.shadow.camera.right = 6.5;
-key.shadow.camera.top = 6.5;  key.shadow.camera.bottom = -6.5;
+key.shadow.camera.left = -8.5; key.shadow.camera.right = 8.5;    // 三车并排，阴影范围加宽
+key.shadow.camera.top = 8.5;  key.shadow.camera.bottom = -8.5;
 key.shadow.camera.near = 1; key.shadow.camera.far = 30;
 key.shadow.bias = -0.0003; key.shadow.normalBias = 0.02;
 scene.add(key);
@@ -188,28 +188,43 @@ function superPt(t, e) {
   var c = Math.cos(t), s = Math.sin(t);
   return [Math.sign(c) * Math.pow(Math.abs(c), e), Math.sign(s) * Math.pow(Math.abs(s), e)];
 }
-function loft(secs, segs, flip) {
+/* uv=true 时额外生成 UV（u 绕截面一圈，v 沿放样方向），供双色涂装贴图使用 */
+function loft(secs, segs, flip, uv) {
   segs = segs || 28;
-  var pos = [], idx = [], i, j;
+  var ring = uv ? segs + 1 : segs;          // UV 版多一列接缝顶点
+  var pos = [], idx = [], uvs = [], i, j;
   for (i = 0; i < secs.length; i++) {
     var s = secs[i], e = s.e || 1;
-    for (j = 0; j < segs; j++) {
+    for (j = 0; j < ring; j++) {
       var p = superPt(j / segs * Math.PI * 2, e);
       pos.push((s.cx || 0) + p[0] * s.rx, s.cy + p[1] * s.ry, s.z);
+      if (uv) uvs.push(j / segs, i / (secs.length - 1));
     }
   }
   for (i = 0; i < secs.length - 1; i++) {
     for (j = 0; j < segs; j++) {
-      var a = i * segs + j, b = i * segs + (j + 1) % segs,
-          c2 = (i + 1) * segs + j, d = (i + 1) * segs + (j + 1) % segs;
+      var jn = uv ? j + 1 : (j + 1) % segs;
+      var a = i * ring + j, b = i * ring + jn,
+          c2 = (i + 1) * ring + j, d = (i + 1) * ring + jn;
       if (flip) idx.push(a, c2, b, b, c2, d);
       else idx.push(a, b, c2, b, d, c2);
     }
   }
   var g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  if (uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   g.setIndex(idx);
   g.computeVertexNormals();
+  if (uv) {   /* 接缝两列顶点法线取平均，避免出现明暗缝 */
+    var n = g.attributes.normal;
+    for (i = 0; i < secs.length; i++) {
+      var k0 = i * ring, k1 = k0 + segs;
+      var nx = n.getX(k0) + n.getX(k1), ny = n.getY(k0) + n.getY(k1), nz = n.getZ(k0) + n.getZ(k1);
+      var nl = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
+      n.setXYZ(k0, nx / nl, ny / nl, nz / nl);
+      n.setXYZ(k1, nx / nl, ny / nl, nz / nl);
+    }
+  }
   return g;
 }
 /* 弧形翼片：沿展向弯曲 + 弦长/迎角渐变（照片中前翼的连续曲面） */
@@ -332,9 +347,9 @@ function addGlow(x, z, s, op) {
   g.castShadow = false; g.receiveShadow = false;
   garageG.add(g);
 }
-/* 灯组正下方的地面光池（照片中地面亮斑跟随吊灯） */
-addGlow(-3.4, 1.2, 6, 0.09); addGlow(0.3, -0.8, 5, 0.07); addGlow(3.2, 1.0, 6, 0.09);
-addGlow(-1.8, 0, 8, 0.04); addGlow(1.8, 0, 8, 0.04); addGlow(0, -1, 18, 0.025);
+/* 灯组正下方的地面光池（照片中地面亮斑跟随吊灯；三车各一盏） */
+addGlow(-4.4, 1.0, 6, 0.09); addGlow(0.2, -0.8, 5, 0.07); addGlow(4.2, 0.9, 6, 0.09);
+addGlow(-3.8, 0, 8, 0.04); addGlow(0, 0, 8, 0.035); addGlow(3.8, 0, 8, 0.04); addGlow(0, -1, 20, 0.025);
 
 /* 门洞体积光：渐隐光锥 + 地面光带 + 低强度聚光 */
 var shaftTex = canvasTex(64, 256, function (x, w, h) {
@@ -405,23 +420,28 @@ function lightCluster(cx, cy, cz, tubes, aimX) {
   spot.target.position.set(aimX, 0, 0);
   garageG.add(spot); garageG.add(spot.target);
 }
-lightCluster(-3.6, 3.5, 1.8, [
+lightCluster(-4.6, 3.5, 1.6, [
   [-0.6, 0.1, 0, 0, 0.3, 0.35], [0.4, -0.2, 0.3, 0, -0.2, -0.25], [1.1, 0.25, -0.2, 0, 0.5, 0.15]
-], -1.8);
-lightCluster(0.3, 4.1, -1.2, [
+], -4.0);
+lightCluster(0.2, 4.1, -1.2, [
   [-0.4, 0, 0, 0, 0.8, -0.3], [0.6, 0.2, 0.2, 0, -0.4, 0.2]
 ], 0);
-lightCluster(3.4, 3.6, 1.4, [
+lightCluster(4.4, 3.6, 1.4, [
   [-0.5, 0.15, 0.1, 0, -0.6, -0.2], [0.5, -0.1, -0.15, 0, 0.25, 0.3], [1.2, 0.2, 0.15, 0, 0.9, -0.12]
-], 1.8);
+], 4.0);
 
-/* 地面车名指示牌 */
-function buildSign(x, line1, accent) {
+/* 地面车名指示牌（起跑 / 进站时隐藏，免得赛车穿过） */
+var signG = new THREE.Group();
+scene.add(signG);
+function buildSign(x, z, line1, accent) {
   var tex = canvasTex(512, 150, function (c, w, h) {
     c.fillStyle = 'rgba(10,11,15,0.92)'; c.fillRect(0, 0, w, h);
     c.strokeStyle = accent; c.lineWidth = 5; c.strokeRect(7, 7, w - 14, h - 14);
     c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.fillStyle = '#f2f3f7'; c.font = '700 52px Georgia, "PingFang SC", serif';
+    c.fillStyle = '#f2f3f7';
+    var fs = 52;                              // 长车队名自动缩小字号，避免被牌子裁掉
+    do { c.font = '700 ' + fs + 'px Georgia, "PingFang SC", serif'; fs -= 2; }
+    while (c.measureText(line1).width > w - 44 && fs > 24);
     c.fillText(line1, w / 2, h / 2 + 2);
   });
   var g = new THREE.Group();
@@ -431,8 +451,8 @@ function buildSign(x, line1, accent) {
   var post = box(0.045, 0.30, 0.045, stdMat(0x101216, 0.4, 0.8), 0, 0.14, -0.02);
   var foot = box(0.30, 0.025, 0.18, stdMat(0x101216, 0.4, 0.8), 0, 0.012, -0.02);
   g.add(p, post, foot);
-  g.position.set(x, 0, 3.6);
-  scene.add(g);
+  g.position.set(x, 0, z);
+  signG.add(g);
 }
 
 /* --------------------------------- 摩洛哥赛道（马拉喀什街道赛风格） ---- */
@@ -502,7 +522,7 @@ function setLampsLit(n) {            // 前 n 列亮红，其余熄灭
     kerb.rotation.x = -Math.PI / 2; kerb.castShadow = false;
     tAdd(kerb);
   });
-  /* 起步线（黑白格）+ 两个发车格 */
+  /* 起步线（黑白格）+ 三个发车格 */
   var chkTex = canvasTex(256, 64, function (x, w, h) {
     for (var i = 0; i < 8; i++) for (var j = 0; j < 2; j++) {
       x.fillStyle = (i + j) % 2 ? '#0d0d0f' : '#e8e8e4';
@@ -513,7 +533,7 @@ function setLampsLit(n) {            // 前 n 列亮红，其余熄灭
   chk.rotation.x = -Math.PI / 2; chk.castShadow = false;
   tAdd(chk);
   var gridMat = stdMat(0xd8d8d2, 0.7, 0);
-  [-1.85, 1.85].forEach(function (gx) {
+  [-4.0, 0, 4.0].forEach(function (gx) {
     [-1, 1].forEach(function (s) {
       var l = box(0.08, 0.004, 4.4, gridMat, gx + s * 1.05, 0.0065, 0.2);
       l.castShadow = false; tAdd(l);
@@ -765,6 +785,7 @@ function buildF1Car(spec) {
   var accent = stdMat(spec.accent, 0.4, 0.3);
   var white = phyMat(0xeef0f2, 0.35, 0.2, 0.8, 0.1);
   var tyreBandMat = stdMat(spec.tyreBand, 0.85, 0.05);
+  car.tyreBandMat = tyreBandMat;          // 进站换胎时切换胎色（软/中/硬）
 
   /* ---- 底板 / 扩散器（常驻） ---- */
   var floor = box(1.58, 0.035, 2.65, M.carbonM, 0, 0.075, -0.35);
@@ -781,7 +802,7 @@ function buildF1Car(spec) {
     { z: 0.45,  cy: 0.325, rx: 0.305, ry: 0.265, e: 0.62 },
     { z: 0.95,  cy: 0.33, rx: 0.295, ry: 0.255, e: 0.66 },
     { z: 1.36,  cy: 0.345, rx: 0.245, ry: 0.205, e: 0.72 }
-  ]), paint);
+  ], 28, false, !!spec.tubMat), spec.tubMat || paint);
   chassis.add(tub);
 
   var deckShape = new THREE.Shape();
@@ -841,7 +862,7 @@ function buildF1Car(spec) {
   car.dash = { canvas: dashCanvas, ctx: dashCanvas.getContext('2d'), tex: dashTex };
 
   /* ---- HALO 保护圈（座舱视角抬头即见） ---- */
-  var haloMat = phyMat(spec.haloColor, 0.45, 0.4, 0.6, 0.2);
+  var haloMat = spec.haloMat || phyMat(spec.haloColor, 0.45, 0.4, 0.6, 0.2);
   var haloRing = mesh(new THREE.TorusGeometry(0.29, 0.024, 10, 36), haloMat, 0, 0.91, 0.52);
   haloRing.geometry.rotateX(Math.PI / 2);
   haloRing.scale.set(1, 1, 1.45);     // 更纤细贴身的 halo
@@ -874,7 +895,7 @@ function buildF1Car(spec) {
     { z: 2.35, cy: 0.340, rx: 0.114 * nrx, ry: 0.085, e: 0.92 },
     { z: 2.70, cy: 0.326, rx: 0.072 * nrx, ry: 0.052, e: 1 },
     { z: 2.92, cy: 0.318, rx: 0.013, ry: 0.011, e: 1 }
-  ]), paint);
+  ], 28, false, !!spec.noseMat), spec.noseMat || paint);
   noseG.add(nose);
   var noseTip = mesh(new THREE.SphereGeometry(0.052, 14, 10), spec.noseTipMat, 0, 0.319, 2.86);
   noseTip.scale.set(1.05 * nrx, 0.78, 1.7);
@@ -923,7 +944,8 @@ function buildF1Car(spec) {
     var secs = spec.podSecs.map(function (s) {
       return { z: s.z, cx: sx * s.cx, cy: s.cy, rx: s.rx, ry: s.ry, e: s.e };
     });
-    var body = mesh(loft(secs), paint);
+    /* 截面由前往后（z 递减）排列，需 flip 让法线朝外，否则看到的是箱体内壁 */
+    var body = mesh(loft(secs, 28, true, !!spec.podMat), spec.podMat || paint);
     /* 进气口：开放截面内衬深色椭圆 */
     var s0 = spec.podSecs[0];
     var inlet = mesh(new THREE.CircleGeometry(1, 22), M.innerDark, sx * s0.cx, s0.cy, s0.z - 0.03);
@@ -948,7 +970,7 @@ function buildF1Car(spec) {
     { z: -1.20, cy: 0.545, rx: 0.085, ry: 0.120, e: 1 },
     { z: -1.60, cy: 0.480, rx: 0.050, ry: 0.075, e: 1 },
     { z: -1.95, cy: 0.435, rx: 0.012, ry: 0.020, e: 1 }
-  ]), paint);
+  ], 28, true), paint);                      // z 递减排列 → flip 保证法线朝外
   cover.add(spine);
   /* 进气口内衬 */
   var airIn = mesh(new THREE.CircleGeometry(1, 20), M.innerDark, 0, 0.795, 0.085);
@@ -1215,8 +1237,8 @@ function buildF1Car(spec) {
   var ghostCache = new Map();
   function ghostOf(m) {
     if (!ghostCache.has(m)) {
-      var g = new THREE.MeshPhysicalMaterial({
-        color: m.color ? m.color.clone() : new THREE.Color(0x888888),
+      var g = new THREE.MeshPhysicalMaterial({   // 贴图双色材质取主漆色
+        color: m.map ? paint.color.clone() : (m.color ? m.color.clone() : new THREE.Color(0x888888)),
         roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.16,
         depthWrite: false, clearcoat: 0.5 });
       ghostCache.set(m, g);
@@ -1239,6 +1261,12 @@ function buildF1Car(spec) {
   car.eye.position.set(0, 0.825, 0.40);
   car.eye.rotation.y = Math.PI;
   root.add(car.eye);
+  /* 车载 T-cam 锚点：进气箱顶的经典转播机位，朝车头略俯视 */
+  car.tcam = new THREE.Object3D();
+  car.tcam.position.set(0, 0.985, 0.06);
+  car.tcam.quaternion.setFromAxisAngle(V_Y, Math.PI)
+    .multiply(new THREE.Quaternion().setFromAxisAngle(V_X, -0.085));
+  root.add(car.tcam);
 
   return car;
 }
@@ -1271,6 +1299,50 @@ var PODS_RB = [
   { z: -1.05, cx: 0.420, cy: 0.200, rx: 0.110, ry: 0.055, e: 1 },
   { z: -1.38, cx: 0.290, cy: 0.115, rx: 0.018, ry: 0.010, e: 1 }
 ];
+var PODS_MCL = [
+  { z: 0.60,  cx: 0.505, cy: 0.392, rx: 0.118, ry: 0.108, e: 0.62 }, // MCL39 高窄进气口
+  { z: 0.32,  cx: 0.560, cy: 0.345, rx: 0.192, ry: 0.142, e: 0.82 },
+  { z: 0.00,  cx: 0.572, cy: 0.300, rx: 0.214, ry: 0.130, e: 0.92 },
+  { z: -0.45, cx: 0.522, cy: 0.248, rx: 0.172, ry: 0.092, e: 1 },   // 大幅下洗斜坡
+  { z: -0.95, cx: 0.412, cy: 0.188, rx: 0.108, ry: 0.054, e: 1 },
+  { z: -1.36, cx: 0.288, cy: 0.112, rx: 0.018, ry: 0.010, e: 1 }
+];
+
+/* ---- 迈凯伦 MCL39：木瓜橙 × 炭黑 ----
+   双色分界用 UV 贴图画出硬边：t∈[-δ, π+δ] 段（截面上半圈）涂木瓜橙，其余炭黑；
+   δ 随放样方向 v 变化，就能画出侧箱上那道向后扬起的斜分界 */
+var PAPAYA_CSS = '#ff7700', ANTHRACITE_CSS = '#16171b';     // 比 #ff8000 略深，抵消正午高光泛白
+function srgbCol(hex) { return new THREE.Color(hex).convertSRGBToLinear(); }
+function twoToneTex(deltaFn) {
+  return canvasTex(512, 256, function (x, w, h) {
+    x.fillStyle = ANTHRACITE_CSS; x.fillRect(0, 0, w, h);
+    x.fillStyle = PAPAYA_CSS;
+    var N = 48;
+    [-1, 0, 1].forEach(function (off) {         // 平移三份处理 u 方向绕接
+      x.beginPath();
+      for (var k = 0; k <= N; k++) {
+        var v = k / N, d = deltaFn(v) / (Math.PI * 2);
+        var px = (-d + off) * w, py = (1 - v) * h;
+        if (k === 0) x.moveTo(px, py); else x.lineTo(px, py);
+      }
+      for (var k2 = N; k2 >= 0; k2--) {
+        var v2 = k2 / N, d2 = deltaFn(v2) / (Math.PI * 2);
+        x.lineTo((0.5 + d2 + off) * w, (1 - v2) * h);
+      }
+      x.closePath(); x.fill();
+    });
+  });
+}
+function mclTwoTone(deltaFn) {
+  var m = phyMat(0xffffff, 0.36, 0.2, 1.0, 0.08, { envMapIntensity: 0.75 });
+  m.map = twoToneTex(deltaFn);
+  return m;
+}
+var mclPaint = phyMat(0xffffff, 0.36, 0.2, 1.0, 0.08, { envMapIntensity: 0.75 });
+mclPaint.color.copy(srgbCol(0xff7700));                                   // 木瓜橙
+var mclBlack = phyMat(0x0c0d10, 0.32, 0.35, 0.9, 0.1);                    // 炭黑亮面
+var mclPapayaStd = stdMat(0xffffff, 0.42, 0.3);
+mclPapayaStd.color.copy(srgbCol(0xff7700));
 
 var SPEC_FERRARI = {
   id: 'ferrari', cnName: '法拉利 F1-75',
@@ -1358,11 +1430,58 @@ var SPEC_REDBULL = {
     '<div class="row"><b>Drivers</b><i>#1 Verstappen · #30 Lawson</i></div>' +
     '<div class="row"><b>Dimensions</b><i>length ≈ 5.6 m · wheelbase 3.6 m</i></div>'
 };
+var SPEC_MCLAREN = {
+  id: 'mclaren', cnName: '迈凯伦 MCL39',
+  paintMat: mclPaint, paint2Mat: mclBlack,
+  tubMat: mclTwoTone(function () { return -0.10; }),          // 座舱：上橙下黑
+  noseMat: mclTwoTone(function () { return -0.30; }),         // 鼻锥：顶面橙、两侧与底面黑
+  podMat: mclTwoTone(function (v) {                           // 侧箱：前段橙为主，向后黑色斜扬
+    var k = THREE.MathUtils.smoothstep(v, 0.42, 1.0);
+    return 0.32 - 0.95 * k;
+  }),
+  accent: 0xff8000,
+  haloMat: mclPaint,
+  beltColor: 0xff4a00,
+  number: '4', numColor: '#16171b', numStroke: null, numSize: 176,
+  numPos: [0, 0.502, 1.80],
+  noseRx: 0.95, podSecs: PODS_MCL, podMaxX: 0.787,
+  noseTipMat: mclBlack,                                       // 黑色鼻尖
+  wing3Mat: mclBlack, wing4Mat: mclPaint,                     // 前翼：黑主翼 + 橙色上襟翼
+  endplateMat: mclBlack, epTipMat: mclPaint,
+  finMat: mclPaint,
+  rwMainMat: mclBlack, flapMat: mclPaint,                     // 尾翼：黑主翼 + 橙襟翼
+  rwEndMat: mclBlack, rwEndStripe: 0xff3a00,
+  rwText: 'McLaren', rwTextColor: '#16171b',
+  airboxMat: mclBlack,
+  tyreBand: 0xe9e9e6,                                         // 白圈硬胎
+  camCoverMat: stdMat(0xc6cad1, 0.4, 0.85),                   // 梅赛德斯动力单元银色缸盖
+  rimRingMat: mclPapayaStd,
+  podText: 'McLaren', podTextColor: '#16171b', podItalic: false, podFlash: null,
+  driverTag: 'L. NORRIS  ·  4',
+  labelAccent: 'rgba(255,140,40,0.95)',
+  dashAccent: '#ff8a1c', dashTag: 'MCL39',
+  plaque1: 'McLaren Formula 1 MCL39', plaqueAccent: '#ff8000',
+  specHTML:
+    '<h3>迈凯伦 MCL39<span>McLaren Formula 1 Team · 2025 车队 & 车手双冠</span></h3>' +
+    '<div class="row"><b>动力单元</b><i>Mercedes-AMG M16 · 1.6L V6 涡轮增压混动</i></div>' +
+    '<div class="row"><b>综合功率</b><i>≈ 1,000 hp（内燃机 + ERS）</i></div>' +
+    '<div class="row"><b>变速箱</b><i>8 速序列式半自动</i></div>' +
+    '<div class="row"><b>车手</b><i>#4 诺里斯 · #81 皮亚斯特里</i></div>' +
+    '<div class="row"><b>整车尺寸</b><i>长 ≈ 5.6 m · 轴距 3.6 m</i></div>',
+  specHTMLen:
+    '<h3>McLaren MCL39<span>McLaren Formula 1 Team · 2025 double champions</span></h3>' +
+    '<div class="row"><b>Power unit</b><i>Mercedes-AMG M16 · 1.6L V6 turbo-hybrid</i></div>' +
+    '<div class="row"><b>Output</b><i>≈ 1,000 hp (ICE + ERS)</i></div>' +
+    '<div class="row"><b>Gearbox</b><i>8-speed sequential</i></div>' +
+    '<div class="row"><b>Drivers</b><i>#4 Norris · #81 Piastri</i></div>' +
+    '<div class="row"><b>Dimensions</b><i>length ≈ 5.6 m · wheelbase 3.6 m</i></div>'
+};
+SPEC_FERRARI.simOffset = 0; SPEC_REDBULL.simOffset = 5.2; SPEC_MCLAREN.simOffset = 9.6;   // 仪表模拟错相
 
 /* ------------------------------------------------------ 组装到展台 ---- */
 var cars = [];
 function placeCar(spec, x, ry) {
-  buildSign(x * 1.35, spec.plaque1, spec.plaqueAccent);
+  buildSign(x * 1.08, 3.75, spec.plaque1, spec.plaqueAccent);
   var car = buildF1Car(spec);
   var wrap = new THREE.Group();
   wrap.position.set(x, 0.012, 0);
@@ -1376,12 +1495,16 @@ function placeCar(spec, x, ry) {
     if (o.isMesh && !o.userData.noRay) { o.userData.carRef = car; car.rayMeshes.push(o); }
   });
   car.baseRotY = ry;
+  car.homeX = x;
   car.runZ = 0; car.runV = 0; car.runSteer = 0;
   cars.push(car);
   return car;
 }
-var ferrari = placeCar(SPEC_FERRARI, -1.85, 0.30);
-var redbull = placeCar(SPEC_REDBULL, 1.85, -0.30);
+/* 三车并排：法拉利（左）· 迈凯伦（中）· 红牛（右），两侧车头微向内收 */
+var ferrari = placeCar(SPEC_FERRARI, -4.0, 0.20);
+var mclaren = placeCar(SPEC_MCLAREN, 0, 0);
+var redbull = placeCar(SPEC_REDBULL, 4.0, -0.20);
+var CAR_BY_ID = { ferrari: ferrari, mclaren: mclaren, redbull: redbull };
 var focusCar = ferrari;
 
 /* ------------------------------------------------ 方向盘仪表屏模拟 ---- */
@@ -1427,11 +1550,18 @@ function drawDash(car, sim) {
   x.fillText(String(sim.speed), 52, 66);
   x.font = '600 12px Arial'; x.fillStyle = '#5a6075';
   x.fillText('km/h', 52, 88);
-  /* 圈速增量 */
-  x.font = '700 17px Arial'; x.fillStyle = '#2ecc40';
-  x.fillText('-0.18', 204, 58);
-  x.font = '600 11px Arial'; x.fillStyle = '#5a6075';
-  x.fillText('DELTA', 204, 76);
+  /* 圈速增量（进站时换成闪烁的限速器提示） */
+  if (sim.pit) {
+    x.font = '800 18px Arial'; x.fillStyle = (Math.floor(sim.t * 5) % 2) ? '#4aa3ff' : '#1c4c86';
+    x.fillText('PIT', 204, 58);
+    x.font = '600 11px Arial'; x.fillStyle = '#5a6075';
+    x.fillText('LIMITER', 204, 76);
+  } else {
+    x.font = '700 17px Arial'; x.fillStyle = '#2ecc40';
+    x.fillText('-0.18', 204, 58);
+    x.font = '600 11px Arial'; x.fillStyle = '#5a6075';
+    x.fillText('DELTA', 204, 76);
+  }
   /* ERS 条 */
   x.fillStyle = '#15181f'; x.fillRect(150, 96, 92, 9);
   x.fillStyle = '#2ecc40'; x.fillRect(150, 96, 92 * sim.ers, 9);
@@ -1453,40 +1583,54 @@ function drawDash(car, sim) {
 /* ---------------------------------------------------- 中 / 英 语言包 ---- */
 var I18N = {
   zh: {
-    docTitle: 'F1 暗夜车库实景 3D · 法拉利 F1-75 vs 红牛 RB21',
+    docTitle: 'F1 暗夜车库实景 3D · 法拉利 × 迈凯伦 × 红牛',
     title: 'F1 暗夜车库 3D 实景', badge: '实拍还原',
-    sub: '法拉利 F1-75 × 红牛 RB21 — 360° 自由旋转 · 驾驶舱第一视角 · 分层拆解引擎',
+    sub: '法拉利 F1-75 × 迈凯伦 MCL39 × 红牛 RB21 — 360° 环绕 · 驾驶舱 / T-cam / 航拍机位 · 进站换胎 · 分层拆解',
     lblScene: '场 景', sceneTrack: '🏜️ 摩洛哥赛道', sceneGarage: '🌃 暗夜车库',
     lblTime: '时 段', timeNoon: '☀️ 正午', timeSunset: '🌅 黄昏', timeNight: '🌙 夜战',
     photo: '📷 拍照模式', photoSave: '📸 保存壁纸', photoExit: '✕ 退出拍照',
-    lblCar: '车 辆', lblView: '视 角', lblLayer: '结构层',
-    carF: '🟥 法拉利 F1-75', carR: '🟦 红牛 RB21',
-    viewOrbit: '360° 环绕展示', viewCockpit: '驾驶舱第一视角',
-    layerFull: '完整车身', layerXray: '透视外壳（X 光）', layerOpen: '拆解 · 引擎细节',
-    spinOn: '⟳ 自动旋转：开', spinOff: '⟳ 自动旋转：关',
-    launch: '🚦 起跑演示', launchStop: '■ 结束起跑',
-    soundOn: '🔊 引擎声浪：开', soundOff: '🔇 引擎声浪：关',
+    lblCar: '车 辆', lblView: '视 角', lblLayer: '结构层', lblDrive: '演 示',
+    carF: '🟥 法拉利 F1-75', carM: '🟧 迈凯伦 MCL39', carR: '🟦 红牛 RB21',
+    viewOrbit: '360° 环绕', viewCockpit: '驾驶舱', viewTcam: '📹 T-cam', viewAerial: '🚁 航拍',
+    layerFull: '完整车身', layerXray: 'X 光透视', layerOpen: '拆解引擎',
+    spinOn: '⟳ 旋转：开', spinOff: '⟳ 旋转：关',
+    launch: '🚦 起跑', launchStop: '■ 结束起跑',
+    pit: '🔧 进站换胎', pitStop: '■ 结束进站',
+    soundOn: '🔊 声浪：开', soundOff: '🔇 声浪：关',
     langBtn: '🌐 English',
     hint: '拖动旋转 · 滚轮 / 双指缩放<br>右键拖动平移 · 点击赛车聚焦',
-    tip: '拖动环顾四周 · 方向盘中央即仪表屏（转速灯 / 档位 / 车速 / ERS）· 滚轮调整视野'
+    tip: '拖动环顾四周 · 方向盘中央即仪表屏（转速灯 / 档位 / 车速 / ERS）· 滚轮调整视野',
+    tipTcam: '车载 T-cam：车手头顶的经典转播机位 · 拖动环顾 · 滚轮调整视野 · 试试起跑！',
+    tipAerial: '航拍：左右拖动绕场盘旋 · 上下拖动调高度 · 滚轮推拉 · 点击赛车切换参数卡',
+    pitTag: 'PIT STOP · 进站', pitReplay: 'REPLAY · 0.4× 慢放', pitLbl: '停车时间',
+    pitWait: '赛车进站中…', pitNew: '新胎',
+    tyreSoft: '软胎', tyreMedium: '中性胎', tyreHard: '硬胎',
+    rateTop: '🔥 世界级', rateGood: '✅ 优秀', rateOk: '👍 稳健'
   },
   en: {
-    docTitle: 'F1 Night Garage 3D · Ferrari F1-75 vs Red Bull RB21',
+    docTitle: 'F1 Night Garage 3D · Ferrari × McLaren × Red Bull',
     title: 'F1 Night Garage in 3D', badge: 'PHOTO-MATCHED',
-    sub: 'Ferrari F1-75 × Red Bull RB21 — free 360° orbit · cockpit POV · layered engine teardown',
+    sub: 'Ferrari F1-75 × McLaren MCL39 × Red Bull RB21 — 360° orbit · cockpit / T-cam / aerial · pit stop · engine teardown',
     lblScene: 'SCENE', sceneTrack: '🏜️ Marrakesh Track', sceneGarage: '🌃 Night Garage',
     lblTime: 'TIME', timeNoon: '☀️ Noon', timeSunset: '🌅 Sunset', timeNight: '🌙 Night',
-    photo: '📷 Photo Mode', photoSave: '📸 Save Wallpaper', photoExit: '✕ Exit Photo',
-    lblCar: 'CAR', lblView: 'VIEW', lblLayer: 'LAYERS',
-    carF: '🟥 Ferrari F1-75', carR: '🟦 Red Bull RB21',
-    viewOrbit: '360° Orbit', viewCockpit: 'Cockpit POV',
-    layerFull: 'Full Body', layerXray: 'X-Ray Shell', layerOpen: 'Teardown · Engine',
-    spinOn: '⟳ Auto-rotate: ON', spinOff: '⟳ Auto-rotate: OFF',
-    launch: '🚦 Launch Start', launchStop: '■ Stop Launch',
-    soundOn: '🔊 Engine Sound: ON', soundOff: '🔇 Engine Sound: OFF',
+    photo: '📷 Photo', photoSave: '📸 Save Wallpaper', photoExit: '✕ Exit Photo',
+    lblCar: 'CAR', lblView: 'VIEW', lblLayer: 'LAYERS', lblDrive: 'DEMOS',
+    carF: '🟥 Ferrari F1-75', carM: '🟧 McLaren MCL39', carR: '🟦 Red Bull RB21',
+    viewOrbit: '360° Orbit', viewCockpit: 'Cockpit', viewTcam: '📹 T-Cam', viewAerial: '🚁 Aerial',
+    layerFull: 'Full', layerXray: 'X-Ray', layerOpen: 'Teardown',
+    spinOn: '⟳ Spin: ON', spinOff: '⟳ Spin: OFF',
+    launch: '🚦 Launch', launchStop: '■ Stop',
+    pit: '🔧 Pit Stop', pitStop: '■ Stop',
+    soundOn: '🔊 Sound', soundOff: '🔇 Sound',
     langBtn: '🌐 中文',
     hint: 'Drag to orbit · scroll / pinch to zoom<br>right-drag to pan · click a car to focus',
-    tip: 'Drag to look around · the wheel screen is your dash (RPM LEDs / gear / speed / ERS) · scroll adjusts FOV'
+    tip: 'Drag to look around · the wheel screen is your dash (RPM LEDs / gear / speed / ERS) · scroll adjusts FOV',
+    tipTcam: 'Onboard T-cam: the classic TV shot above the driver · drag to look around · scroll adjusts FOV · try a launch!',
+    tipAerial: 'Aerial: drag sideways to circle · drag up/down for altitude · scroll to zoom · click a car for its spec card',
+    pitTag: 'PIT STOP', pitReplay: 'REPLAY · 0.4×', pitLbl: 'Stationary',
+    pitWait: 'Car entering pits…', pitNew: 'New',
+    tyreSoft: 'Soft', tyreMedium: 'Medium', tyreHard: 'Hard',
+    rateTop: '🔥 World-class', rateGood: '✅ Great', rateOk: '👍 Solid'
   }
 };
 var lang = 'zh';
@@ -1496,19 +1640,23 @@ function specHTMLFor(car) {
 
 /* ------------------------------------------------------ 相机控制 ---- */
 var ctrl = {
-  mode: 'orbit',                       // orbit | cockpit | anim
-  view: 'orbit',
+  mode: 'orbit',                       // orbit | cockpit | tcam | aerial | anim | launch | pit
+  view: 'orbit',                       // orbit | cockpit | tcam | aerial（用户选择的视角）
   target: new THREE.Vector3(0, 0.55, 0),
   targetGoal: new THREE.Vector3(0, 0.55, 0),
-  sph: new THREE.Spherical(15, 1.13, 0.50),
-  sphGoal: new THREE.Spherical(10.5, 1.16, 0.46),
+  sph: new THREE.Spherical(17, 1.13, 0.50),
+  sphGoal: new THREE.Spherical(12.5, 1.16, 0.46),
   yaw: 0, pitch: 0, yawGoal: 0, pitchGoal: 0,
-  fovOrbit: 40, fovCockpit: 66, fovCockpitGoal: 66,
+  fovOrbit: 40, fovCockpit: 66, fovCockpitGoal: 66, fovTcam: 60, fovAerial: 34,
+  /* 航拍机位：绕场方位 / 水平半径 / 高度。俯角 ≈43°，盘旋一圈都能越过看台顶棚 */
+  aer: { theta: 0.25, r: 26, h: 24 },
+  aerGoal: { theta: 0.25, r: 26, h: 24 },
   auto: true
 };
-var R_MIN = 1.1, R_MAX = 16;
+var R_MIN = 1.1, R_MAX = 20;
 var camAnim = null;
 function easeIO(k) { return k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2; }
+function isOnboard(v) { return v === 'cockpit' || v === 'tcam'; }
 function orbitPose() {
   var p = new THREE.Vector3().setFromSpherical(ctrl.sphGoal).add(ctrl.targetGoal);
   var m = new THREE.Matrix4().lookAt(p, ctrl.targetGoal, V_Y);
@@ -1519,6 +1667,37 @@ function cockpitPose(car) {
     p: car.eye.getWorldPosition(new THREE.Vector3()),
     q: car.eye.getWorldQuaternion(new THREE.Quaternion())
   };
+}
+function tcamPose(car) {
+  return {
+    p: car.tcam.getWorldPosition(new THREE.Vector3()),
+    q: car.tcam.getWorldQuaternion(new THREE.Quaternion())
+  };
+}
+function onboardPose(car, v) { return v === 'tcam' ? tcamPose(car) : cockpitPose(car); }
+/* 航拍机位：赛道上是直升机高空盘旋，车库里是顶棚吊臂机位（不穿出屋顶） */
+function aerialCenter() {
+  return sceneMode === 'garage' ? new THREE.Vector3(0, 0.3, 0) : new THREE.Vector3(0, 0.3, 3);
+}
+function aerialLimits() {
+  return sceneMode === 'garage'
+    ? { rMin: 2.5, rMax: 8.5, hMin: 3.6, hMax: 6.2 }
+    : { rMin: 7, rMax: 50, hMin: 5, hMax: 42 };
+}
+function clampAerial(a) {
+  var L = aerialLimits();
+  a.r = THREE.MathUtils.clamp(a.r, L.rMin, L.rMax);
+  a.h = THREE.MathUtils.clamp(a.h, L.hMin, L.hMax);
+}
+function aerialPose(a, bob) {
+  var c = aerialCenter();
+  var p = new THREE.Vector3(c.x + Math.sin(a.theta) * a.r, a.h + (bob || 0), c.z + Math.cos(a.theta) * a.r);
+  var m = new THREE.Matrix4().lookAt(p, c, V_Y);
+  return { p: p, q: new THREE.Quaternion().setFromRotationMatrix(m) };
+}
+/* 近裁剪面随机位切换：贴脸机位要小，高空航拍放大以免远处路肩深度闪烁 */
+function setNear(n) {
+  if (Math.abs(camera.near - n) > 1e-6) { camera.near = n; camera.updateProjectionMatrix(); }
 }
 function flyTo(pose, fovEnd, dur, endMode) {
   camAnim = {
@@ -1547,9 +1726,18 @@ canvas.addEventListener('pointerdown', function (e) {
   if (pointers.size === 2) {
     var pts = Array.from(pointers.values());
     pinchD0 = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
-    pinchR0 = ctrl.sphGoal.radius;
+    pinchR0 = ctrl.mode === 'aerial' ? ctrl.aerGoal.r : ctrl.sphGoal.radius;
+    pinchH0 = ctrl.aerGoal.h;
   }
 });
+var pinchH0 = 0;
+/* 航拍推拉：半径与高度同比缩放（沿视线推近 / 拉远） */
+function aerialZoom(f) {
+  var L = aerialLimits();
+  f = THREE.MathUtils.clamp(f, L.rMin / ctrl.aerGoal.r, L.rMax / ctrl.aerGoal.r);
+  f = THREE.MathUtils.clamp(f, L.hMin / ctrl.aerGoal.h, L.hMax / ctrl.aerGoal.h);
+  ctrl.aerGoal.r *= f; ctrl.aerGoal.h *= f;
+}
 canvas.addEventListener('pointermove', function (e) {
   var pt = pointers.get(e.pointerId);
   if (!pt) return;
@@ -1557,9 +1745,14 @@ canvas.addEventListener('pointermove', function (e) {
   pt.x = e.clientX; pt.y = e.clientY;
   movedPx += Math.abs(dx) + Math.abs(dy);
   if (pointers.size === 1) {
-    if (ctrl.mode === 'cockpit') {
+    if (ctrl.mode === 'cockpit' || ctrl.mode === 'tcam') {
       ctrl.yawGoal = THREE.MathUtils.clamp(ctrl.yawGoal - dx * 0.0042, -2.6, 2.6);
       ctrl.pitchGoal = THREE.MathUtils.clamp(ctrl.pitchGoal - dy * 0.0035, -0.8, 0.55);
+    } else if (ctrl.mode === 'aerial') {
+      ctrl.aerGoal.theta -= dx * 0.0045;
+      ctrl.aerGoal.h += dy * ctrl.aerGoal.h * 0.004;      // 上下拖动调飞行高度
+      clampAerial(ctrl.aerGoal);
+      if (ctrl.auto) setAuto(false);
     } else if (ctrl.mode === 'orbit') {
       if (pt.b === 2) {
         panBy(dx, dy);
@@ -1574,6 +1767,11 @@ canvas.addEventListener('pointermove', function (e) {
     var d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
     ctrl.sphGoal.radius = THREE.MathUtils.clamp(pinchR0 * pinchD0 / d, R_MIN, R_MAX);
     panBy(dx * 0.5, dy * 0.5);
+  } else if (pointers.size === 2 && ctrl.mode === 'aerial') {
+    var pts2 = Array.from(pointers.values());
+    var d2 = Math.hypot(pts2[0].x - pts2[1].x, pts2[0].y - pts2[1].y) || 1;
+    ctrl.aerGoal.r = pinchR0; ctrl.aerGoal.h = pinchH0;
+    aerialZoom(pinchD0 / d2);
   }
 });
 function panBy(dx, dy) {
@@ -1587,7 +1785,8 @@ function panBy(dx, dy) {
 function endPointer(e) {
   if (pointers.has(e.pointerId)) {
     pointers.delete(e.pointerId);
-    if (movedPx < 7 && performance.now() - downTime < 350 && ctrl.mode === 'orbit' && e.button !== 2) {
+    if (movedPx < 7 && performance.now() - downTime < 350 &&
+        (ctrl.mode === 'orbit' || ctrl.mode === 'aerial') && e.button !== 2) {
       clickFocus(e);
     }
   }
@@ -1596,8 +1795,10 @@ canvas.addEventListener('pointerup', endPointer);
 canvas.addEventListener('pointercancel', endPointer);
 canvas.addEventListener('wheel', function (e) {
   e.preventDefault();
-  if (ctrl.mode === 'cockpit') {
+  if (ctrl.mode === 'cockpit' || ctrl.mode === 'tcam') {
     ctrl.fovCockpitGoal = THREE.MathUtils.clamp(ctrl.fovCockpitGoal + e.deltaY * 0.02, 35, 80);
+  } else if (ctrl.mode === 'aerial') {
+    aerialZoom(Math.exp(e.deltaY * 0.0011));
   } else {
     ctrl.sphGoal.radius = THREE.MathUtils.clamp(
       ctrl.sphGoal.radius * Math.exp(e.deltaY * 0.0011), R_MIN, R_MAX);
@@ -1611,15 +1812,20 @@ function clickFocus(e) {
     (e.clientX / window.innerWidth) * 2 - 1,
     -(e.clientY / window.innerHeight) * 2 + 1);
   raycaster.setFromCamera(ndc, camera);
-  var all = ferrari.rayMeshes.concat(redbull.rayMeshes);
+  var all = [];
+  cars.forEach(function (c) { all = all.concat(c.rayMeshes); });
   var hits = raycaster.intersectObjects(all, false);
   if (hits.length) setFocus(hits[0].object.userData.carRef, true);
 }
 
 /* ---------------------------------------------------------- 状态机 ---- */
 var layerMode = 'full';
-function setLayer(mode) {
+function stopDemos() {                 // 起跑 / 进站演示互斥，任何手动操作都先结束演示
   if (launchActive) stopLaunch(true);
+  if (pitActive) stopPit(true);
+}
+function setLayer(mode) {
+  stopDemos();
   layerMode = mode;
   cars.forEach(function (car) {
     car.openGoal = (mode === 'open') ? 1 : 0;
@@ -1636,25 +1842,36 @@ function setLayer(mode) {
     b.classList.toggle('active', b.getAttribute('data-layer') === mode);
   });
 }
+/* 视角提示条：驾驶舱 / T-cam / 航拍各有操作说明；演示进行时隐藏 */
+function updateViewTip() {
+  var tip = document.getElementById('cockpitTip');
+  var v = ctrl.view, t = I18N[lang];
+  tip.textContent = v === 'tcam' ? t.tipTcam : (v === 'aerial' ? t.tipAerial : t.tip);
+  tip.classList.toggle('hidden', v === 'orbit' || launchActive || pitActive);
+}
 function setView(mode) {
-  if (launchActive) stopLaunch(true);
+  stopDemos();
   if (ctrl.view === mode) return;
   ctrl.view = mode;
-  if (mode === 'cockpit') {
+  if (isOnboard(mode)) {
     ctrl.yaw = ctrl.yawGoal = 0;
     ctrl.pitch = ctrl.pitchGoal = 0;
-    ctrl.fovCockpitGoal = 66;
-    flyTo(cockpitPose(focusCar), 66, 1.25, 'cockpit');
+    ctrl.fovCockpitGoal = mode === 'tcam' ? ctrl.fovTcam : ctrl.fovCockpit;
+    flyTo(onboardPose(focusCar, mode), ctrl.fovCockpitGoal, 1.25, mode);
+  } else if (mode === 'aerial') {
+    clampAerial(ctrl.aerGoal);
+    ctrl.aer.theta = ctrl.aerGoal.theta; ctrl.aer.r = ctrl.aerGoal.r; ctrl.aer.h = ctrl.aerGoal.h;
+    flyTo(aerialPose(ctrl.aer), ctrl.fovAerial, 1.9, 'aerial');
   } else {
     flyTo(orbitPose(), ctrl.fovOrbit, 1.05, 'orbit');
   }
   document.querySelectorAll('[data-view]').forEach(function (b) {
     b.classList.toggle('active', b.getAttribute('data-view') === mode);
   });
-  document.getElementById('cockpitTip').classList.toggle('hidden', mode !== 'cockpit');
+  updateViewTip();
 }
 function setFocus(car, fromClick) {
-  if (launchActive) stopLaunch(true);
+  stopDemos();
   if (focusCar === car && fromClick) return;
   focusCar = car;
   document.body.setAttribute('data-focus', car.spec.id);
@@ -1662,13 +1879,13 @@ function setFocus(car, fromClick) {
   document.querySelectorAll('[data-car]').forEach(function (b) {
     b.classList.toggle('active', b.getAttribute('data-car') === car.spec.id);
   });
-  if (ctrl.view === 'cockpit') {
+  if (isOnboard(ctrl.view)) {
     ctrl.yaw = ctrl.yawGoal = 0; ctrl.pitch = ctrl.pitchGoal = 0;
-    flyTo(cockpitPose(car), ctrl.fovCockpitGoal, 1.1, 'cockpit');
-  } else {
+    flyTo(onboardPose(car, ctrl.view), ctrl.fovCockpitGoal, 1.1, ctrl.view);
+  } else if (ctrl.view === 'orbit') {
     ctrl.targetGoal.copy(car.center);
     ctrl.sphGoal.radius = 7.2;
-  }
+  }                                    // 航拍视角保持全景，只切换参数卡
 }
 /* 赛道时段配置：正午 / 黄昏 / 夜战 */
 var TRACK_TIME = {
@@ -1722,11 +1939,18 @@ function applyTrackTime(tt) {
 /* 场景切换：摩洛哥赛道（含时段）/ 暗夜车库 */
 var sceneMode = 'track';
 function applyScene(s) {
-  if (launchActive && s !== sceneMode) stopLaunch(true);
+  if (s !== sceneMode) stopDemos();
   sceneMode = s;
   try { localStorage.setItem('f1scene', s); } catch (e) {}
   garageG.visible = (s === 'garage');
   trackG.visible = (s === 'track');
+  /* 航拍机位换场景：车库里降到顶棚下，赛道上升回高空 */
+  if (ctrl.view === 'aerial') {
+    if (s === 'garage') { ctrl.aerGoal.r = 6.4; ctrl.aerGoal.h = 5.6; }
+    else if (ctrl.aerGoal.h < 9) { ctrl.aerGoal.r = 26; ctrl.aerGoal.h = 24; }
+    clampAerial(ctrl.aerGoal);
+    ctrl.aer.r = ctrl.aerGoal.r; ctrl.aer.h = ctrl.aerGoal.h;
+  }
   var grp = document.getElementById('grpTime');
   if (grp) grp.style.display = (s === 'track') ? '' : 'none';
   if (s === 'garage') {
@@ -1777,7 +2001,7 @@ window.addEventListener('keydown', function (e) {
 });
 document.querySelectorAll('[data-car]').forEach(function (b) {
   b.addEventListener('click', function () {
-    setFocus(b.getAttribute('data-car') === 'ferrari' ? ferrari : redbull, false);
+    setFocus(CAR_BY_ID[b.getAttribute('data-car')] || ferrari, false);
   });
 });
 document.querySelectorAll('[data-view]').forEach(function (b) {
@@ -1812,17 +2036,26 @@ function applyLang(l) {
   document.getElementById('lblView').textContent = t.lblView;
   document.getElementById('lblLayer').textContent = t.lblLayer;
   document.querySelector('[data-car="ferrari"]').textContent = t.carF;
+  document.querySelector('[data-car="mclaren"]').textContent = t.carM;
   document.querySelector('[data-car="redbull"]').textContent = t.carR;
   document.querySelector('[data-view="orbit"]').textContent = t.viewOrbit;
   document.querySelector('[data-view="cockpit"]').textContent = t.viewCockpit;
+  document.querySelector('[data-view="tcam"]').textContent = t.viewTcam;
+  document.querySelector('[data-view="aerial"]').textContent = t.viewAerial;
   document.querySelector('[data-layer="full"]').textContent = t.layerFull;
   document.querySelector('[data-layer="xray"]').textContent = t.layerXray;
   document.querySelector('[data-layer="open"]').textContent = t.layerOpen;
   document.getElementById('btnLaunch').textContent = launchActive ? t.launchStop : t.launch;
+  document.getElementById('btnPit').textContent = pitActive ? t.pitStop : t.pit;
   document.getElementById('btnSound').textContent = soundOn ? t.soundOn : t.soundOff;
   document.getElementById('btnLang').textContent = t.langBtn;
   document.getElementById('hint').innerHTML = t.hint;
-  document.getElementById('cockpitTip').textContent = t.tip;
+  document.getElementById('lblDrive').textContent = t.lblDrive;
+  document.getElementById('phTag').textContent = t.pitTag;
+  document.getElementById('phLbl').textContent = t.pitLbl;
+  document.getElementById('phRep').textContent = t.pitReplay;
+  if (pitActive) pitHudTyres();
+  updateViewTip();
   setAuto(ctrl.auto);
   document.getElementById('spec').innerHTML = specHTMLFor(focusCar);
   cars.forEach(function (car) {
@@ -1901,18 +2134,22 @@ var launchCam = { p: new THREE.Vector3(), look: new THREE.Vector3(), init: false
 var btnLaunch = document.getElementById('btnLaunch');
 
 function startLaunch() {
+  if (pitActive) stopPit(true);
   if (sceneMode !== 'track') applyScene('track');
   setLayer('full');
-  if (ctrl.view === 'cockpit') setView('orbit');
   launchActive = true; launchPhase = 'lights'; launchT = 0;
   launchGoT = 3.0 + 0.7 + Math.random() * 1.1;     // 五灯亮完后随机熄灯（反应时间）
-  cars.forEach(function (c) { c.runZ = 0; c.runV = 0; c.runSteer = 0; c.wrap.position.z = 0; });
+  cars.forEach(function (c) {
+    c.runZ = 0; c.runV = 0; c.runSteer = 0; c.wrap.position.z = 0;
+    c.grip = 0.96 + Math.random() * 0.1;          // 每次起跑抓地随机，谁领先看临场发挥
+  });
   setAuto(false);
   ctrl.mode = 'launch'; launchCam.init = false;
-  camera.fov = 40; camera.updateProjectionMatrix();
+  if (!isOnboard(ctrl.view)) { camera.fov = 40; camera.updateProjectionMatrix(); }
   btnLaunch.classList.add('active');
   btnLaunch.textContent = I18N[lang].launchStop;
-  document.getElementById('cockpitTip').classList.add('hidden');
+  signG.visible = false;
+  updateViewTip();
 }
 function stopLaunch(keepCam) {
   if (!launchActive) return;
@@ -1925,22 +2162,42 @@ function stopLaunch(keepCam) {
   });
   btnLaunch.classList.remove('active');
   btnLaunch.textContent = I18N[lang].launch;
-  if (keepCam) {
+  signG.visible = true;
+  restoreViewAfterDemo(keepCam);
+}
+/* 演示（起跑 / 进站）结束后回到用户所选视角；传入 car 时环绕视角落回这辆车 */
+function restoreViewAfterDemo(keepCam, car) {
+  var v = ctrl.view;
+  var tgt = car ? car.center : new THREE.Vector3(0, 0.55, 0);
+  if (isOnboard(v)) {
+    ctrl.yaw = ctrl.yawGoal = 0; ctrl.pitch = ctrl.pitchGoal = 0;
+    ctrl.mode = v;                                  // 车载机位随赛车一起复位
+  } else if (v === 'aerial') {
+    flyTo(aerialPose(ctrl.aer), ctrl.fovAerial, keepCam ? 0.8 : 1.5, 'aerial');
+  } else if (keepCam) {
     /* 把当前相机平滑接回环绕状态，交给调用方再决定去向 */
-    ctrl.target.set(0, 0.55, 0); ctrl.targetGoal.copy(ctrl.target);
+    ctrl.target.copy(tgt); ctrl.targetGoal.copy(tgt);
     var off = camera.position.clone().sub(ctrl.target);
     ctrl.sph.setFromVector3(off);
     ctrl.sph.radius = THREE.MathUtils.clamp(ctrl.sph.radius, R_MIN, R_MAX);
-    ctrl.sphGoal.set(THREE.MathUtils.clamp(ctrl.sph.radius, 7, 12), ctrl.sph.phi, ctrl.sph.theta);
+    ctrl.sph.phi = THREE.MathUtils.clamp(ctrl.sph.phi, 0.10, 1.52);
+    ctrl.sphGoal.set(THREE.MathUtils.clamp(ctrl.sph.radius, 7, 14), ctrl.sph.phi, ctrl.sph.theta);
     camera.fov = ctrl.fovOrbit; camera.updateProjectionMatrix();
     ctrl.mode = 'orbit';
   } else {
-    ctrl.targetGoal.set(0, 0.55, 0); ctrl.sphGoal.radius = 10.5;
+    ctrl.targetGoal.copy(tgt); ctrl.sphGoal.radius = car ? 7.6 : 12.5;
+    ctrl.sphGoal.phi = THREE.MathUtils.clamp(ctrl.sphGoal.phi, 0.10, 1.52);
     flyTo(orbitPose(), ctrl.fovOrbit, 1.1, 'orbit');
   }
+  updateViewTip();
 }
 btnLaunch.addEventListener('click', function () { launchActive ? stopLaunch() : startLaunch(); });
 
+function leadZ() {
+  var z = 0;
+  cars.forEach(function (c) { z = Math.max(z, c.runZ); });
+  return z;
+}
 function updateLaunch(dt) {
   launchT += dt;
   cars.forEach(function (c) { c.wrap.rotation.y = THREE.MathUtils.damp(c.wrap.rotation.y, 0, 6, dt); }); // 拉直朝向
@@ -1949,7 +2206,7 @@ function updateLaunch(dt) {
     if (launchT >= launchGoT) { launchPhase = 'go'; setLampsLit(0); }
   } else if (launchPhase === 'go') {
     cars.forEach(function (c, i) {
-      var grip = c.spec.id === 'redbull' ? 1.05 : 1.0;                          // 轻微差速制造对决
+      var grip = c.grip || 1;                                                     // 轻微差速制造对决
       c.runV = Math.min(c.runV + 9.0 * grip * dt, 47);
       c.runZ += c.runV * dt;
       c.wrap.position.z = c.runZ;
@@ -1965,16 +2222,35 @@ function updateLaunch(dt) {
         });
       }
     });
-    if (Math.max(cars[0].runZ, cars[1].runZ) > 41 || launchT > launchGoT + 8) stopLaunch();
+    if (leadZ() > 41 || launchT > launchGoT + 8) stopLaunch();
   }
 }
 function launchCamTick(dt) {
+  /* 车载机位（驾驶舱 / T-cam）：随所选赛车一起起跑，带路面震动 + 速度感视野 */
+  if (isOnboard(ctrl.view)) {
+    var pose = onboardPose(focusCar, ctrl.view);
+    camera.position.copy(pose.p); camera.quaternion.copy(pose.q);
+    var go = launchPhase === 'go';
+    var sh = go ? 0.0018 + Math.min(1, focusCar.runV / 30) * 0.0035 : 0.0012;
+    camera.position.x += (Math.random() - 0.5) * sh;
+    camera.position.y += (Math.random() - 0.5) * sh;
+    var fGoal = ctrl.fovCockpitGoal + (go ? Math.min(9, focusCar.runV * 0.22) : 0);
+    camera.fov = THREE.MathUtils.damp(camera.fov, fGoal, 3, dt); camera.updateProjectionMatrix();
+    setNear(0.02);
+    return;
+  }
   var tp = new THREE.Vector3(), tl = new THREE.Vector3();
-  if (launchPhase === 'go') {
-    var zb = Math.max(cars[0].runZ, cars[1].runZ);
-    tp.set(2.6, 1.55, zb - 8.6); tl.set(0, 0.7, zb + 4);     // 后方跟拍
+  var zb = leadZ();
+  if (ctrl.view === 'aerial') {                              // 直升机跟拍
+    if (launchPhase === 'go') { tp.set(-10.5, 14.5, zb - 8); tl.set(0, 0.4, zb + 5); }
+    else { tp.set(-13, 16, -14); tl.set(0, 0.5, 3); }
+    setNear(0.3);
+  } else if (launchPhase === 'go') {
+    tp.set(1.6, 1.85, zb - 9.6); tl.set(0, 0.7, zb + 4);    // 后方跟拍（三车同框）
+    setNear(0.03);
   } else {
-    tp.set(0.0, 1.45, -7.8); tl.set(0, 1.5, 9);              // 灯亮阶段：望向车与灯架
+    tp.set(0.0, 1.55, -8.6); tl.set(0, 1.5, 9);              // 灯亮阶段：望向车与灯架
+    setNear(0.03);
   }
   if (!launchCam.init) { launchCam.p.copy(tp); launchCam.look.copy(tl); launchCam.init = true; }
   var L = launchPhase === 'go' ? 4.5 : 3;
@@ -2019,6 +2295,7 @@ function toggleSound() {
 btnSound.addEventListener('click', toggleSound);
 
 function engineState() {
+  if (pitActive) return pitEngine();
   if (launchActive && launchPhase === 'go') {
     var v = focusCar.runV, gf = v / 6.5;
     return { rpm: Math.min(1, 0.4 + (gf - Math.floor(gf)) * 0.6), throttle: 1 };
@@ -2027,8 +2304,587 @@ function engineState() {
     var b = Math.abs(Math.sin(launchT * 6.5));
     return { rpm: 0.3 + 0.45 * b, throttle: 0.35 + 0.35 * b };
   }
-  var s = driveSim(focusCar === ferrari ? elapsed : elapsed + 5.2);
+  var s = driveSim(elapsed + focusCar.spec.simOffset);
   return { rpm: s.rpm, throttle: s.braking ? 0.12 : 0.4 + 0.6 * s.rpm };
+}
+/* 风炮“哒哒哒”：带通噪声 + 方波调幅（仅声浪开启时） */
+var noiseBuf = null;
+function gunBurst(dur) {
+  if (!soundOn || !audioCtx) return;
+  if (!noiseBuf) {
+    noiseBuf = audioCtx.createBuffer(1, audioCtx.sampleRate, audioCtx.sampleRate);
+    var ch = noiseBuf.getChannelData(0);
+    for (var i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
+  }
+  var t0 = audioCtx.currentTime;
+  var src = audioCtx.createBufferSource(); src.buffer = noiseBuf;
+  var bp = audioCtx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1900; bp.Q.value = 0.8;
+  var g = audioCtx.createGain();
+  g.gain.setValueAtTime(0, t0);
+  g.gain.linearRampToValueAtTime(0.16, t0 + 0.012);
+  g.gain.setValueAtTime(0.16, t0 + Math.max(0.03, dur - 0.03));
+  g.gain.linearRampToValueAtTime(0, t0 + dur);
+  var lfo = audioCtx.createOscillator(); lfo.type = 'square'; lfo.frequency.value = 52;
+  var lfoG = audioCtx.createGain(); lfoG.gain.value = 0.09;
+  lfo.connect(lfoG); lfoG.connect(g.gain);
+  src.connect(bp); bp.connect(g); g.connect(audioCtx.destination);
+  src.start(t0); src.stop(t0 + dur + 0.05);
+  lfo.start(t0); lfo.stop(t0 + dur + 0.05);
+}
+
+/* ================= 维修区进站：16 人换胎机组 + 千斤顶 + 风炮 + 放行灯 =========
+   整段进站是时间 t 的纯函数（evalPit）：先实时播放一遍并计停车时间，
+   再换机位 0.4× 慢放回放。赛车以 80 km/h 限速驶入 → 急刹停进维修位 →
+   前后千斤顶抬车 → 四轮同时拆装 → 放车 → 绿灯放行 */
+var pitActive = false;
+var pitG = new THREE.Group();          // 维修位全部道具（局部坐标 = 赛车停稳时的车身坐标）
+pitG.visible = false;
+scene.add(pitG);
+var PIT_TYRES = {
+  soft:   { hex: 0xd8262e, css: '#e8333b', key: 'tyreSoft' },
+  medium: { hex: 0xf2cc0d, css: '#f2cc0d', key: 'tyreMedium' },
+  hard:   { hex: 0xe9e9e6, css: '#f1f1ec', key: 'tyreHard' }
+};
+function tyreKeyOf(hex) {
+  for (var k in PIT_TYRES) if (PIT_TYRES[k].hex === hex) return k;
+  return null;                                     // 红牛实拍为无标识暗色胎
+}
+var CREW_KIT = {                                   // 各队机组服 / 头盔 / 点缀色
+  ferrari: { suit: new THREE.Color(0xa50c14), helmet: new THREE.Color(0xe6e6e8), trim: new THREE.Color(0xf2cc0d) },
+  mclaren: { suit: srgbCol(0xff8000), helmet: new THREE.Color(0x16171b), trim: new THREE.Color(0x16171b) },
+  redbull: { suit: new THREE.Color(0x0e1736), helmet: new THREE.Color(0x0e1736), trim: new THREE.Color(0xd6273a) }
+};
+var crewSuitMat = stdMat(0xa50c14, 0.78, 0.05);
+var crewTrimMat = stdMat(0xf2cc0d, 0.6, 0.1);
+var crewDarkMat = stdMat(0x121317, 0.85, 0.05);   // 手套 / 鞋
+var crewHelmetMat = phyMat(0xe6e6e8, 0.3, 0.2, 0.9, 0.08);
+var crewVisorMat = phyMat(0x0a0c12, 0.06, 0.7, 1.0, 0.04, { envMapIntensity: 1.4 });
+var gunBodyMat = stdMat(0x2a2d33, 0.45, 0.7);
+var hoseMat = stdMat(0x111215, 0.7, 0.1);
+var jackMat = stdMat(0xf2cc0d, 0.5, 0.4);
+
+/* ---- 机组人员：关节层级（胯 → 脊柱 → 头 / 肩 → 肘；髋 → 膝 → 踝），面朝 +Z ---- */
+function tGeo(g, x, y, z) { g.translate(x, y, z); return g; }
+var CG = {
+  pelvis: tGeo(new THREE.SphereGeometry(0.15, 10, 8), 0, 0, 0),
+  torso: tGeo(new THREE.CylinderGeometry(0.175, 0.145, 0.52, 12), 0, 0.27, 0),
+  belt: tGeo(new THREE.CylinderGeometry(0.152, 0.152, 0.07, 12), 0, 0.04, 0),
+  shoulder: new THREE.SphereGeometry(0.075, 10, 8),
+  neck: tGeo(new THREE.CylinderGeometry(0.05, 0.062, 0.1, 8), 0, 0.56, 0),
+  helmet: new THREE.SphereGeometry(0.135, 16, 12),
+  visor: new THREE.SphereGeometry(0.139, 16, 6, Math.PI / 2 - 0.85, 1.7, 1.2, 0.55),
+  upper: tGeo(new THREE.CylinderGeometry(0.056, 0.047, 0.30, 8), 0, -0.15, 0),
+  fore: tGeo(new THREE.CylinderGeometry(0.047, 0.04, 0.27, 8), 0, -0.135, 0),
+  hand: tGeo(new THREE.SphereGeometry(0.05, 8, 6), 0, -0.30, 0),
+  thigh: tGeo(new THREE.CylinderGeometry(0.08, 0.065, 0.45, 8), 0, -0.225, 0),
+  shin: tGeo(new THREE.CylinderGeometry(0.063, 0.05, 0.43, 8), 0, -0.215, 0),
+  shoe: tGeo(new THREE.BoxGeometry(0.11, 0.075, 0.25), 0, -0.035, 0.045)
+};
+function buildCrewman() {
+  var root = new THREE.Group();
+  var hips = new THREE.Group(); root.add(hips);
+  var pel = mesh(CG.pelvis, crewSuitMat); pel.scale.set(1.05, 0.7, 0.8); hips.add(pel);
+  var spine = new THREE.Group(); hips.add(spine);
+  spine.add(mesh(CG.torso, crewSuitMat), mesh(CG.belt, crewTrimMat), mesh(CG.neck, crewSuitMat));
+  var head = new THREE.Group(); head.position.y = 0.67; spine.add(head);
+  head.add(mesh(CG.helmet, crewHelmetMat), mesh(CG.visor, crewVisorMat));
+  function arm(sx) {
+    var cap = mesh(CG.shoulder, crewTrimMat, sx * 0.205, 0.50, 0); spine.add(cap);
+    var sh = new THREE.Group(); sh.position.set(sx * 0.215, 0.49, 0); spine.add(sh);
+    sh.add(mesh(CG.upper, crewSuitMat));
+    var el = new THREE.Group(); el.position.y = -0.30; sh.add(el);
+    el.add(mesh(CG.fore, crewSuitMat), mesh(CG.hand, crewDarkMat));
+    return { sh: sh, el: el };
+  }
+  function leg(sx) {
+    var hp = new THREE.Group(); hp.position.set(sx * 0.095, -0.02, 0); hips.add(hp);
+    hp.add(mesh(CG.thigh, crewSuitMat));
+    var kn = new THREE.Group(); kn.position.y = -0.45; hp.add(kn);
+    kn.add(mesh(CG.shin, crewSuitMat));
+    var an = new THREE.Group(); an.position.y = -0.43; kn.add(an);
+    an.add(mesh(CG.shoe, crewDarkMat));
+    return { hp: hp, kn: kn, an: an };
+  }
+  var c = { root: root, hips: hips, spine: spine, head: head,
+            aL: arm(1), aR: arm(-1), lL: leg(1), lR: leg(-1) };
+  /* 小部件不投影：16 人机组约 320 个网格，省下阴影通道的绘制调用 */
+  var small = [CG.pelvis, CG.belt, CG.shoulder, CG.neck, CG.visor, CG.hand, CG.shoe];
+  root.traverse(function (o) { if (o.isMesh && small.indexOf(o.geometry) >= 0) o.castShadow = false; });
+  return c;
+}
+/* 姿势库（弧度）：sh=[前后摆, 外展]，负值向前；hp 同理；kn 正值向后屈膝 */
+var POSES = {
+  stand: { y: 0.93, lean: 0.03, shL: [0.06, 0.10], shR: [0.06, -0.10], elL: -0.18, elR: -0.18,
+           hpL: [0, 0.04], hpR: [0, -0.04], knL: 0.02, knR: 0.02 },
+  ready: { y: 0.74, lean: 0.50, shL: [-0.85, 0.16], shR: [-0.85, -0.16], elL: -0.55, elR: -0.55,
+           hpL: [-0.85, 0.14], hpR: [-0.85, -0.14], knL: 1.45, knR: 1.45 },
+  kneel: { y: 0.52, lean: 0.62, shL: [-0.95, 0.10], shR: [-0.95, -0.10], elL: -0.45, elR: -0.45,
+           hpL: [-1.45, 0.16], hpR: [0.20, -0.10], knL: 1.5, knR: 1.37 },
+  carry: { y: 0.66, lean: 0.45, shL: [-0.75, 0.34], shR: [-0.75, -0.34], elL: -0.6, elR: -0.6,
+           hpL: [-1.0, 0.16], hpR: [-0.75, -0.16], knL: 1.65, knR: 1.3 },
+  jack:  { y: 0.88, lean: 0.20, shL: [-1.05, 0.12], shR: [-1.05, -0.12], elL: -0.25, elR: -0.25,
+           hpL: [-0.30, 0.05], hpR: [0.22, -0.05], knL: 0.32, knR: 0.12 },
+  push:  { y: 0.80, lean: 0.62, shL: [-1.35, 0.10], shR: [-1.35, -0.10], elL: -0.05, elR: -0.05,
+           hpL: [-0.60, 0.05], hpR: [0.35, -0.05], knL: 0.75, knR: 0.40 },
+  hold:  { y: 0.84, lean: 0.38, shL: [-1.0, 0.24], shR: [-1.0, -0.24], elL: -0.35, elR: -0.35,
+           hpL: [-0.32, 0.12], hpR: [-0.32, -0.12], knL: 0.55, knR: 0.55 }
+};
+function mixPose(a, b, k, out) {
+  out = out || {};
+  for (var key in a) {
+    var va = a[key], vb = b[key];
+    if (Array.isArray(va)) out[key] = [va[0] + (vb[0] - va[0]) * k, va[1] + (vb[1] - va[1]) * k];
+    else out[key] = va + (vb - va) * k;
+  }
+  return out;
+}
+function applyPose(c, P) {
+  c.hips.position.y = P.y;
+  c.spine.rotation.x = P.lean;
+  c.head.rotation.x = -P.lean * 0.7;               // 头部回正看向工作点
+  c.aL.sh.rotation.set(P.shL[0], 0, P.shL[1]); c.aL.el.rotation.x = P.elL;
+  c.aR.sh.rotation.set(P.shR[0], 0, P.shR[1]); c.aR.el.rotation.x = P.elR;
+  c.lL.hp.rotation.set(P.hpL[0], 0, P.hpL[1]); c.lL.kn.rotation.x = P.knL;
+  c.lR.hp.rotation.set(P.hpR[0], 0, P.hpR[1]); c.lR.kn.rotation.x = P.knR;
+  c.lL.an.rotation.x = -(P.hpL[0] + P.knL);       // 脚掌保持贴地
+  c.lR.an.rotation.x = -(P.hpR[0] + P.knR);
+}
+
+/* ---- 器材：风炮 / 千斤顶 / 放行灯架 / 维修位地标 ---- */
+function buildGun() {                              // 原点 = 套筒尖端，枪身沿 -Z 向后
+  var g = new THREE.Group();
+  var body = mesh(new THREE.CylinderGeometry(0.052, 0.058, 0.22, 12), gunBodyMat, 0, 0, -0.22);
+  body.geometry.rotateX(Math.PI / 2);
+  var band = mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.04, 12), jackMat, 0, 0, -0.16);
+  band.geometry.rotateX(Math.PI / 2);
+  var nose = mesh(new THREE.CylinderGeometry(0.033, 0.04, 0.10, 12), M.silver, 0, 0, -0.06);
+  nose.geometry.rotateX(Math.PI / 2);
+  var socket = mesh(new THREE.CylinderGeometry(0.046, 0.046, 0.03, 6), crewDarkMat, 0, 0, -0.01);
+  socket.geometry.rotateX(Math.PI / 2);
+  var grip = box(0.04, 0.13, 0.05, crewDarkMat, 0, -0.085, -0.27); grip.rotation.x = 0.25;
+  var hose = pipe([[0, -0.03, -0.33], [0, -0.16, -0.48], [0, -0.40, -0.52]], 0.014, hoseMat, 10);
+  g.add(body, band, nose, socket, grip, hose);
+  g.userData.socket = socket;
+  return g;
+}
+function buildJack(tall) {                         // 原点 = 托架下方地面，+Z 指向操作员
+  var g = new THREE.Group();
+  g.add(rod(-0.22, 0.06, 0.32, 0.22, 0.06, 0.32, 0.016, M.steel));
+  [-0.24, 0.24].forEach(function (x) {
+    var w = mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.04, 14), crewDarkMat, x, 0.06, 0.32);
+    w.geometry.rotateZ(Math.PI / 2);
+    g.add(w);
+  });
+  var lever = new THREE.Group();                   // 杠杆：绕轮轴上方枢轴转动，托架端抬起
+  lever.position.set(0, 0.12, 0.32);
+  var cy = tall ? 0.16 : -0.07;                    // 托架相对枢轴高度（后千斤顶要顶尾部防撞梁）
+  lever.add(rod(0, 0, 0, 0, cy, -0.32, 0.024, jackMat));
+  lever.add(box(0.32, 0.035, 0.09, crewDarkMat, 0, cy, -0.32));
+  lever.add(rod(0, 0, 0, 0, 0.83, 0.78, 0.022, jackMat));
+  lever.add(rod(-0.17, 0.83, 0.78, 0.17, 0.83, 0.78, 0.018, crewDarkMat));
+  g.add(lever);
+  g.userData.lever = lever;
+  return g;
+}
+var lampRedMat = stdMat(0x3a0d0d, 0.4, 0.2, { emissive: new THREE.Color(0xff1408), emissiveIntensity: 0 });
+var lampGreenMat = stdMat(0x0d3a16, 0.4, 0.2, { emissive: new THREE.Color(0x18ff52), emissiveIntensity: 0 });
+var gantry = (function () {                        // 立柱在原点，横臂沿 +X 伸向赛车上方
+  var g = new THREE.Group();
+  g.add(mesh(new THREE.CylinderGeometry(0.05, 0.07, 2.75, 10), M.steel, 0, 1.375, 0));
+  g.add(box(1.6, 0.08, 0.08, M.carbonM, 0.78, 2.70, 0));
+  g.add(box(0.26, 0.48, 0.14, crewDarkMat, 1.48, 2.42, 0));
+  var red = mesh(new THREE.CircleGeometry(0.08, 20), lampRedMat, 1.48, 2.54, -0.072);
+  var green = mesh(new THREE.CircleGeometry(0.08, 20), lampGreenMat, 1.48, 2.30, -0.072);
+  red.rotation.y = green.rotation.y = Math.PI;    // 灯面朝向车手（-Z）
+  red.castShadow = green.castShadow = false;
+  g.add(red, green);
+  return g;
+})();
+pitG.add(gantry);
+var pitBox = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 6.6),
+  new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false,
+    polygonOffset: true, polygonOffsetFactor: -3, toneMapped: false }));
+pitBox.rotation.x = -Math.PI / 2;
+pitBox.position.set(0, 0.0085, 0.2);
+pitBox.userData.noRay = true;
+pitG.add(pitBox);
+var pitBoxTex = {};
+function pitBoxTexFor(car) {                       // 车队色维修位地标（含四轮停车标记 + 队名）
+  var id = car.spec.id;
+  if (pitBoxTex[id]) return pitBoxTex[id];
+  var hex = car.spec.plaqueAccent;
+  var r = parseInt(hex.substr(1, 2), 16), gg = parseInt(hex.substr(3, 2), 16), b = parseInt(hex.substr(5, 2), 16);
+  pitBoxTex[id] = canvasTex(256, 560, function (x, w, h) {
+    x.clearRect(0, 0, w, h);
+    x.fillStyle = 'rgba(' + r + ',' + gg + ',' + b + ',0.26)'; x.fillRect(0, 0, w, h);
+    x.strokeStyle = 'rgba(244,244,240,0.95)'; x.lineWidth = 8; x.strokeRect(6, 6, w - 12, h - 12);
+    x.fillStyle = 'rgba(242,210,27,0.95)';         // 车轮停车标记（局部 x=±0.78, z=±1.8）
+    [-1, 1].forEach(function (sx) {
+      [-1, 1].forEach(function (sz) {
+        var px = (sx * 0.78 + 1.5) / 3.0 * w, py = (sz * 1.8 - 0.2 + 3.3) / 6.6 * h;
+        x.fillRect(px - 20, py - 3, 40, 6);
+      });
+    });
+    x.fillStyle = 'rgba(244,244,240,0.92)';
+    x.font = '900 30px "Arial Black", Arial, sans-serif';
+    x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText(car.spec.rwText.toUpperCase(), w / 2, h - 34);   // 车头一端写队名
+  });
+  return pitBoxTex[id];
+}
+
+/* ---- 机组编排：四角各 3 人（风炮手 / 拆胎手 / 装胎手）+ 前后千斤顶 + 2 名扶车手 ---- */
+var crew = [];
+function addCrew(role, i, extra) {
+  var c = buildCrewman();
+  c.role = role; c.i = i; c.pose = {};
+  pitG.add(c.root);
+  if (extra) { c.root.add(extra); c.tool = extra; }
+  crew.push(c);
+  return c;
+}
+for (var ci = 0; ci < 4; ci++) {
+  var gun = buildGun(); gun.position.set(0, 0.40, 0.80);
+  addCrew('gun', ci, gun);
+  addCrew('off', ci); addCrew('on', ci);
+}
+var jackF = buildJack(false), jackR = buildJack(true);
+jackF.position.set(0, 0, 1.30); jackF.rotation.y = Math.PI;   // 挂在操作员前方 1.3 m
+jackR.position.set(0, 0, 1.30); jackR.rotation.y = Math.PI;
+addCrew('jackF', 0, jackF); addCrew('jackR', 0, jackR);
+addCrew('stab', 1); addCrew('stab', -1);
+
+/* ---- 时间轴 ---- */
+var PIT_V = 22.2, PIT_D = 18, PIT_DB = 9;          // 80 km/h 限速 / 起始距离 / 刹停距离
+var PIT_TB = (PIT_D - PIT_DB) / PIT_V;             // 开始刹车
+var PIT_TS = PIT_TB + 2 * PIT_DB / PIT_V;          // 停稳（≈1.22 s）
+var PIT_AB = PIT_V * PIT_V / (2 * PIT_DB);         // 刹车减速度
+var PIT_AGO = 11;                                  // 出站加速度
+var PIT_REPLAY = 0.4;
+var pit = {
+  car: null, phase: 'live', t: 0, S: 1, jit: [0, 0, 0, 0], Tgo: 0,
+  home: new THREE.Vector3(), side: 1, js: 1,
+  oldKey: null, newKey: 'soft', liveCam: 'tv', replayCam: 'top',
+  camP: new THREE.Vector3(), camL: new THREE.Vector3(), camInit: false, fired: {}, clones: null
+};
+function seg(t, a, b) { return t <= a ? 0 : (t >= b ? 1 : (t - a) / (b - a)); }
+function sseg(t, a, b) { var k = seg(t, a, b); return k * k * (3 - 2 * k); }
+function tk(a) { return PIT_TS + a * pit.S; }     // 以停稳时刻为零点的工序时间（随机速度系数 S）
+function pitCarZ(t) {                              // → [位置 z, 速度]
+  if (t < PIT_TB) return [-PIT_D + PIT_V * t, PIT_V];
+  if (t < PIT_TS) { var u = t - PIT_TB; return [-PIT_DB + PIT_V * u - 0.5 * PIT_AB * u * u, PIT_V - PIT_AB * u]; }
+  if (t < pit.Tgo) return [0, 0];
+  var w = t - pit.Tgo;
+  return [0.5 * PIT_AGO * w * w, PIT_AGO * w];
+}
+function pitLifts(t) {                             // 前 / 后千斤顶抬升量（m）
+  return [0.075 * (sseg(t, tk(0.06), tk(0.22)) - sseg(t, tk(1.44), tk(1.54))),
+          0.075 * (sseg(t, tk(0.22), tk(0.38)) - sseg(t, tk(1.48), tk(1.58)))];
+}
+var JACK_ZF = 2.62, JACK_ZR = -2.32;
+function corner(i) {
+  var wr = pit.car.wheels[i];
+  var sx = wr.yawGrp.position.x > 0 ? 1 : -1;
+  return { sx: sx, hx: wr.yawGrp.position.x, hz: wr.yawGrp.position.z,
+           face: wr.yawGrp.position.x + sx * (wr.front ? 0.165 : 0.21) };
+}
+/* 车轮克隆：旧胎（拆下后被拿走）/ 新胎（装胎手捧着等候），放在 pitG 里不随车开走 */
+function ensurePitClones(car) {
+  if (car.pitClones) return car.pitClones;
+  car.pitClones = car.wheels.map(function (wr) {
+    function cl() {
+      /* clone() 会 JSON 深拷贝 userData，carRef 是环形引用，克隆前先摘下 */
+      var saved = [];
+      wr.spin.traverse(function (o) {
+        if (o.userData.carRef) { saved.push([o, o.userData.carRef]); delete o.userData.carRef; }
+      });
+      var c = wr.spin.clone(true);
+      saved.forEach(function (s) { s[0].userData.carRef = s[1]; });
+      var bm = car.tyreBandMat.clone();
+      c.traverse(function (o) { if (o.isMesh && o.material === car.tyreBandMat) o.material = bm; });
+      c.userData.band = bm;
+      c.rotation.set(0, 0, 0); c.visible = false;
+      pitG.add(c);
+      return c;
+    }
+    return { old: cl(), neu: cl() };
+  });
+  return car.pitClones;
+}
+
+function evalPit(t, dts) {
+  var car = pit.car, i;
+  var zv = pitCarZ(t), L = pitLifts(t), hf = L[0], hr = L[1];
+  var span = JACK_ZF - JACK_ZR;
+  car.wrap.position.set(car.homeX, 0.012, zv[0]);
+  car.wrap.rotation.y = 0;
+  car.group.position.y = hr + (hf - hr) * (-JACK_ZR / span);
+  car.group.rotation.x = -Math.atan2(hf - hr, span);
+  car.wheels.forEach(function (wr) { wr.spin.rotation.x -= zv[1] / 0.36 * dts; });
+  function liftAt(z) { return hr + (hf - hr) * (z - JACK_ZR) / span; }
+
+  /* 四个车轮：旧胎拆下 → 新胎装上（新胎色在首个车轮装好时切换，此时四角原车轮均已隐藏） */
+  var firstOn = Infinity;
+  for (i = 0; i < 4; i++) firstOn = Math.min(firstOn, tk(1.06 + pit.jit[i]));
+  car.tyreBandMat.color.setHex(t >= firstOn ? PIT_TYRES[pit.newKey].hex : car.spec.tyreBand);
+  for (i = 0; i < 4; i++) {
+    var cn = corner(i), j = pit.jit[i], wr = car.wheels[i], cl = pit.clones[i];
+    var offA = tk(0.46 + j), offB = tk(0.74 + j), onA = tk(0.74 + j), onB = tk(1.06 + j);
+    var y0 = 0.36 + liftAt(cn.hz);
+    /* 旧胎：先沿轮轴滑出，再向后撤，最后被拿离车边 */
+    var ko = seg(t, offA, offB), kAway = sseg(t, offB, offB + 0.5);
+    var ox = ko < 0.4 ? 0.34 * sseg(ko, 0, 0.4) : 0.34 + 0.02 * sseg(ko, 0.4, 1);
+    var oz = -0.5 * sseg(ko, 0.4, 1);
+    cl.old.visible = t >= offA;
+    cl.old.position.set(cn.hx + cn.sx * (ox + 0.55 * kAway), y0 + 0.04 * kAway, cn.hz + oz - 0.35 * kAway);
+    /* 新胎：从前侧斜向对准轮轴，再推入 */
+    var kn2 = seg(t, onA, onB);
+    var nx = kn2 < 0.55 ? 0.45 - 0.11 * sseg(kn2, 0, 0.55) : 0.34 * (1 - sseg(kn2, 0.55, 1));
+    var nz = 0.55 * (1 - sseg(kn2, 0, 0.55));
+    cl.neu.visible = t < onB;
+    cl.neu.position.set(cn.hx + cn.sx * nx, y0, cn.hz + nz);
+    wr.spin.visible = t < offA || t >= onB;
+    /* 风炮声：松螺母 / 紧螺母（仅实时播放时） */
+    if (pit.phase === 'live') {
+      if (!pit.fired['l' + i] && t >= tk(0.30 + j)) { pit.fired['l' + i] = 1; gunBurst(0.16 * pit.S); }
+      if (!pit.fired['t' + i] && t >= tk(1.06 + j)) { pit.fired['t' + i] = 1; gunBurst(0.2 * pit.S); }
+    }
+  }
+
+  /* 机组 */
+  var out = sseg(t, pit.Tgo - 0.05, pit.Tgo + 0.4);           // 放行后撤离
+  var tmp = {}, tmp2 = {};
+  crew.forEach(function (c) {
+    var P, x = 0, z = 0, ry = 0;
+    if (c.role === 'gun' || c.role === 'off' || c.role === 'on') {
+      var cn2 = corner(c.i), sx = cn2.sx, j2 = pit.jit[c.i];
+      var offA2 = tk(0.46 + j2), offB2 = tk(0.74 + j2), onA2 = tk(0.74 + j2), onB2 = tk(1.06 + j2);
+      if (c.role === 'gun') {
+        var dash = sseg(t, PIT_TS - 0.16, PIT_TS + 0.05);      // 车未停稳就扑上去
+        var back = sseg(t, offA2 - 0.02, offA2 + 0.08) - sseg(t, onB2 - 0.08, onB2);
+        x = cn2.face + sx * (0.80 + 0.32 * (1 - dash) + 0.22 * back + 0.75 * out);
+        z = cn2.hz; ry = Math.atan2(-sx, 0);
+        P = mixPose(POSES.kneel, POSES.stand, out, tmp);
+        var up = sseg(t, tk(1.28 + j2), tk(1.36 + j2)) * (1 - out);   // 举手示意完工
+        P.shR = [P.shR[0] + (-2.85 - P.shR[0]) * up, P.shR[1]];
+        P.elR = P.elR + (-0.1 - P.elR) * up;
+        var spinning = (t > tk(0.30 + j2) && t < tk(0.46 + j2)) || (t > tk(1.06 + j2) && t < tk(1.26 + j2));
+        if (spinning) c.tool.userData.socket.rotation.z += 70 * dts;
+        c.tool.position.set(0, 0.40 + 0.42 * out, 0.80 - 0.42 * out);    // 起身撤离时把风炮提在手里
+      } else if (c.role === 'off') {
+        /* 拆胎手在风炮手身后（-z 侧）等候，旧胎滑出后递到他手上，再一起撤开 */
+        var kA2 = sseg(t, offB2, offB2 + 0.5);
+        x = cn2.hx + sx * (0.88 + 0.55 * kA2);
+        z = cn2.hz - 0.55 - 0.35 * kA2;
+        ry = Math.atan2(-sx, 0.3);
+        P = mixPose(POSES.ready, POSES.carry, sseg(t, offA2 - 0.1, offA2 + 0.05), tmp);
+      } else {
+        /* 装胎手在前侧（+z）捧新胎等候，推胎入轴时斜向贴近，始终不挤占风炮手位置 */
+        var kn3 = seg(t, onA2, onB2), kBack = sseg(t, onB2, onB2 + 0.35);
+        var wx2 = kn3 < 0.55 ? 0.45 - 0.11 * sseg(kn3, 0, 0.55) : 0.34 * (1 - sseg(kn3, 0.55, 1));
+        x = cn2.hx + sx * (wx2 + 0.46 + 0.45 * kBack);
+        z = cn2.hz + 0.55 - 0.17 * sseg(kn3, 0, 1) + 0.25 * kBack;
+        ry = Math.atan2(-sx, -0.5 * sseg(kn3, 0.3, 1));
+        P = mixPose(POSES.carry, POSES.ready, kBack, tmp);
+      }
+    } else if (c.role === 'jackF') {
+      var kf = hf / 0.075, side = sseg(t, tk(1.56), tk(1.56) + 0.3);
+      x = pit.js * 1.8 * side; z = JACK_ZF + 1.30 + 0.25 * side; ry = Math.PI;
+      P = mixPose(POSES.jack, POSES.push, kf, tmp);
+      if (side > 0) P = mixPose(P, POSES.stand, side, tmp2);
+      c.tool.userData.lever.rotation.x = hf / 0.32;
+    } else if (c.role === 'jackR') {
+      var kin = sseg(t, tk(0.0), tk(0.2));                    // 车停稳后从侧面横移到车尾
+      x = pit.js * 1.55 * (1 - kin); z = JACK_ZR - 1.30; ry = 0;
+      P = mixPose(POSES.jack, POSES.push, hr / 0.075, tmp);
+      c.tool.userData.lever.rotation.x = hr / 0.32;
+    } else {                                                  // 扶车手（左右各一）
+      var sxs = c.i, kin2 = sseg(t, PIT_TS - 0.05, PIT_TS + 0.15);
+      x = sxs * (1.62 - 0.38 * kin2 + 0.45 * out); z = 0.45; ry = Math.atan2(-sxs, 0);
+      P = mixPose(POSES.ready, POSES.hold, kin2 * (1 - out), tmp);
+    }
+    c.root.position.set(x, 0, z);
+    c.root.rotation.y = ry;
+    applyPose(c, P);
+  });
+
+  /* 放行灯：停车期间红灯，放行瞬间转绿 */
+  var green = t >= pit.Tgo;
+  lampRedMat.emissiveIntensity = (!green && t > PIT_TS - 0.3) ? 2.6 : 0.2;
+  lampGreenMat.emissiveIntensity = green ? 3.0 : 0.2;
+}
+
+/* ---- HUD：停车计时 + 换胎信息 + 评级 ---- */
+var pitHud = document.getElementById('pitHud');
+function pitHudTyres() {
+  var t = I18N[lang];
+  function dot(k) { return '<i class="tdot" style="background:' + PIT_TYRES[k].css + '"></i>'; }
+  document.getElementById('phTyre').innerHTML = pit.oldKey
+    ? dot(pit.oldKey) + t[PIT_TYRES[pit.oldKey].key] + ' → ' + dot(pit.newKey) + '<b>' + t[PIT_TYRES[pit.newKey].key] + '</b>'
+    : t.pitNew + ' ' + dot(pit.newKey) + '<b>' + t[PIT_TYRES[pit.newKey].key] + '</b>';
+}
+function updatePitHud() {
+  var t = pit.t, el = document.getElementById('phTime'), st = pitHud.classList;
+  var stat = Math.max(0, Math.min(t, pit.Tgo) - PIT_TS);
+  el.textContent = stat.toFixed(2);
+  st.toggle('waiting', t < PIT_TS);
+  st.toggle('done', t >= pit.Tgo);
+  var rate = document.getElementById('phRate'), tx = I18N[lang];
+  if (t >= pit.Tgo) {
+    var s = pit.Tgo - PIT_TS;
+    rate.textContent = s < 2.05 ? tx.rateTop : (s < 2.3 ? tx.rateGood : tx.rateOk);
+  } else {
+    rate.textContent = t < PIT_TS ? tx.pitWait : '';
+  }
+}
+function pitFlash() {
+  var f = document.getElementById('pitFlash');
+  f.classList.add('on');
+  setTimeout(function () { f.classList.remove('on'); }, 90);
+}
+
+var btnPit = document.getElementById('btnPit');
+function startPit() {
+  if (launchActive) stopLaunch(true);
+  if (sceneMode !== 'track') applyScene('track');
+  setLayer('full');
+  var car = focusCar;
+  pit.car = car; pit.phase = 'live'; pit.t = 0; pit.camInit = false; pit.fired = {};
+  pit.S = 1.08 + Math.random() * 0.34;            // 本次机组发挥：停车约 1.9–2.5 s
+  pit.jit = [0, 1, 2, 3].map(function () { return (Math.random() - 0.5) * 0.1; });
+  pit.Tgo = tk(1.74);
+  pit.home.set(car.homeX, 0, 0);
+  pit.side = car.homeX > 0.1 ? -1 : 1;            // 转播机位放在靠场地中央一侧
+  pit.js = pit.side;                              // 前千斤顶朝机位侧撤离；放行灯架在另一侧，不挡镜头
+  pit.oldKey = tyreKeyOf(car.spec.tyreBand);
+  var pool = ['soft', 'medium', 'hard'].filter(function (k) { return k !== pit.oldKey; });
+  pit.newKey = pool[(Math.random() * pool.length) | 0];
+  pit.liveCam = isOnboard(ctrl.view) ? 'onboard' : (ctrl.view === 'aerial' ? 'top' : 'tv');
+  pit.replayCam = pit.liveCam === 'top' ? 'high' : 'top';
+  /* 道具摆放 + 换成本队配色 */
+  pitG.position.copy(pit.home);
+  var kit = CREW_KIT[car.spec.id];
+  crewSuitMat.color.copy(kit.suit); crewHelmetMat.color.copy(kit.helmet); crewTrimMat.color.copy(kit.trim);
+  jackMat.color.copy(car.spec.id === 'mclaren' ? srgbCol(0xff8000) : kit.trim);
+  pitBox.material.map = pitBoxTexFor(car); pitBox.material.needsUpdate = true;
+  gantry.position.set(-pit.side * 1.95, 0, 3.3);
+  gantry.scale.x = pit.side;                       // 横臂始终伸向赛车上方
+  cars.forEach(function (c) { if (c.pitClones) c.pitClones.forEach(function (p) { p.old.visible = p.neu.visible = false; }); });
+  pit.clones = ensurePitClones(car);
+  pit.clones.forEach(function (p) {
+    p.old.userData.band.color.setHex(car.spec.tyreBand);
+    p.neu.userData.band.color.setHex(PIT_TYRES[pit.newKey].hex);
+  });
+  pitActive = true;
+  pitG.visible = true; signG.visible = false;
+  document.body.classList.add('pitting');          // 进站时收起参数卡，给画面让位
+  setAuto(false);
+  ctrl.mode = 'pit';
+  btnPit.classList.add('active');
+  btnPit.textContent = I18N[lang].pitStop;
+  pitHud.classList.remove('hidden');
+  document.getElementById('phRep').classList.add('hidden');
+  pitHudTyres();
+  evalPit(0, 0);
+  updatePitHud();
+  updateViewTip();
+}
+function stopPit(keepCam) {
+  if (!pitActive) return;
+  pitActive = false;
+  var car = pit.car;
+  car.wrap.position.set(car.homeX, 0.012, 0);
+  car.wrap.rotation.y = car.baseRotY;
+  car.group.position.y = 0; car.group.rotation.x = 0;
+  car.tyreBandMat.color.setHex(car.spec.tyreBand);           // 复位为实拍胎色
+  car.wheels.forEach(function (wr) { wr.spin.visible = true; });
+  pitG.visible = false; signG.visible = true;
+  document.body.classList.remove('pitting');
+  btnPit.classList.remove('active');
+  btnPit.textContent = I18N[lang].pit;
+  pitHud.classList.add('hidden');
+  restoreViewAfterDemo(keepCam, car);
+}
+btnPit.addEventListener('click', function () { pitActive ? stopPit() : startPit(); });
+
+function updatePit(dt) {
+  var dts = dt * (pit.phase === 'replay' ? PIT_REPLAY : 1);
+  pit.t += dts;
+  evalPit(pit.t, dts);
+  updatePitHud();
+  if (pit.phase === 'live' && pit.t >= pit.Tgo + 1.7) {        // 实时播完 → 换机位慢放回放
+    pit.phase = 'replay'; pit.t = PIT_TS - 0.55; pit.camInit = false;
+    document.getElementById('phRep').classList.remove('hidden');
+    pitFlash();
+    evalPit(pit.t, 0);
+  } else if (pit.phase === 'replay' && pit.t >= pit.Tgo + 1.05) {
+    stopPit(false);
+  }
+}
+function pitEngine() {
+  var t = pit.t;
+  if (t < PIT_TS) return { rpm: 0.5 + 0.03 * Math.sin(elapsed * 40), throttle: 0.3 };   // 限速器嗡鸣
+  if (t < pit.Tgo) return { rpm: 0.22, throttle: 0.08 };
+  var v = pitCarZ(t)[1], gf = v / 6.5;
+  return { rpm: Math.min(1, 0.4 + (gf - Math.floor(gf)) * 0.6), throttle: 1 };
+}
+function pitCamTick(dt) {
+  var car = pit.car, H = pit.home;
+  var kind = pit.phase === 'replay' ? pit.replayCam : pit.liveCam;
+  if (kind === 'onboard') {
+    var pose = onboardPose(car, ctrl.view);
+    camera.position.copy(pose.p); camera.quaternion.copy(pose.q);
+    camera.fov = THREE.MathUtils.damp(camera.fov, ctrl.fovCockpitGoal, 4, dt); camera.updateProjectionMatrix();
+    setNear(0.02);
+    return;
+  }
+  var cz = car.wrap.position.z, s = pit.side;
+  var tp = new THREE.Vector3(), tl = new THREE.Vector3();
+  if (kind === 'tv') {                              // 转播机位：车头斜前方，出站时甩镜头跟车
+    tp.set(H.x + s * 2.7, 2.75, 7.2);
+    tl.set(H.x, 0.35, THREE.MathUtils.clamp(cz, -7, 12) * 0.6 + 0.3);
+  } else if (kind === 'top') {                      // 顶视：正上方俯拍四角同步作业
+    var fz = THREE.MathUtils.clamp(cz, -5, 5) * 0.55;
+    tp.set(H.x - s * 1.2, 9.6, fz); tl.set(H.x, 0, fz);
+  } else {                                          // 高位斜前方（航拍现场后的回放机位）
+    tp.set(H.x + s * 2.3, 4.7, 5.6);
+    tl.set(H.x, 0.25, THREE.MathUtils.clamp(cz, -6, 8) * 0.5 + 0.1);
+  }
+  if (!pit.camInit) {
+    pit.camP.copy(tp); pit.camL.copy(tl); pit.camInit = true;
+    camera.fov = 40; camera.updateProjectionMatrix();
+  }
+  ['x', 'y', 'z'].forEach(function (a) {
+    pit.camP[a] = THREE.MathUtils.damp(pit.camP[a], tp[a], 5, dt);
+    pit.camL[a] = THREE.MathUtils.damp(pit.camL[a], tl[a], 7, dt);
+  });
+  camera.position.copy(pit.camP);
+  camera.lookAt(pit.camL);
+  setNear(kind === 'top' ? 0.1 : 0.03);
+}
+function pitDashSim(base) {
+  var t = pit.t, v = pitCarZ(t)[1];
+  var stopped = t >= PIT_TS && t < pit.Tgo;
+  var gf = v / 6.5;
+  return { speed: Math.round(v * 3.6), gear: stopped ? 'N' : Math.max(1, Math.min(8, Math.floor(gf) + 1)),
+           rpm: stopped ? 0.22 : (t < PIT_TS ? 0.5 : Math.min(1, 0.4 + (gf - Math.floor(gf)) * 0.6)),
+           ers: base.ers, drs: false, braking: false, t: elapsed, pit: t < pit.Tgo };
+}
+/* 仪表屏数据源：进站 / 起跑时跟随演示，平时走循环模拟 */
+function demoSim(car) {
+  var base = driveSim(elapsed + car.spec.simOffset);
+  if (pitActive && car === pit.car) return pitDashSim(base);
+  if (launchActive) {
+    if (launchPhase === 'go') {
+      var v = car.runV, gf = v / 6.5;
+      return { speed: Math.round(v * 3.6), gear: Math.min(8, Math.floor(gf) + 1),
+               rpm: Math.min(1, 0.4 + (gf - Math.floor(gf)) * 0.6), ers: base.ers,
+               drs: v > 22, braking: false, t: elapsed };
+    }
+    var b = Math.abs(Math.sin(launchT * 6.5));
+    return { speed: 0, gear: 1, rpm: 0.3 + 0.45 * b, ers: 1, drs: false, braking: false, t: elapsed };
+  }
+  return base;
 }
 function updateAudio() {
   if (!eng) return;
@@ -2044,14 +2900,16 @@ function updateAudio() {
 /* ---- 细节动画：DRS 襟翼 / 排气热浪 / 车轮转动 + 前轮转向 ---- */
 function updateDetails(dt) {
   cars.forEach(function (car) {
-    var s = driveSim(car === ferrari ? elapsed : elapsed + 5.2);
+    var s = driveSim(elapsed + car.spec.simOffset);
+    var inPit = pitActive && car === pit.car;
     if (car.rwFlap) {
-      var open = launchActive ? (launchPhase === 'go' && car.runV > 22) : s.drs;
+      var open = inPit ? false : (launchActive ? (launchPhase === 'go' && car.runV > 22) : s.drs);
       car.rwFlap.rotation.x = THREE.MathUtils.damp(car.rwFlap.rotation.x, open ? -0.16 : -0.58, 6, dt);
     }
     if (car.haze) {
-      var thr = launchActive ? (launchPhase === 'go' ? 1 : 0.45) : (s.braking ? 0.12 : 0.45 + 0.5 * s.rpm);
-      var fl = 0.5 + 0.5 * Math.sin(elapsed * 23 + car.baseRotY * 19);
+      var thr = inPit ? pitEngine().throttle
+        : (launchActive ? (launchPhase === 'go' ? 1 : 0.45) : (s.braking ? 0.12 : 0.45 + 0.5 * s.rpm));
+      var fl = 0.5 + 0.5 * Math.sin(elapsed * 23 + car.spec.simOffset * 3.7);
       car.haze.material.opacity = (sceneMode === 'track' ? 0.20 : 0.15) * thr * (0.55 + 0.45 * fl);
       car.haze.scale.set(0.28 + 0.05 * fl, 0.32 + 0.18 * thr + 0.05 * fl, 1);
     }
@@ -2078,8 +2936,27 @@ var qTmp = new THREE.Quaternion();
   }
 })();
 
-/* 开场镜头 */
-flyTo(orbitPose(), 40, 2.0, 'orbit');
+/* 开场镜头；也支持分享链接直达：#car=mclaren&view=tcam（view 可为 orbit / cockpit / tcam / aerial） */
+(function () {
+  var carM = location.hash.match(/car=(ferrari|mclaren|redbull)/);
+  var viewM = location.hash.match(/view=(orbit|cockpit|tcam|aerial)/);
+  if (carM) {
+    focusCar = CAR_BY_ID[carM[1]];
+    document.body.setAttribute('data-focus', focusCar.spec.id);
+    document.getElementById('spec').innerHTML = specHTMLFor(focusCar);
+    document.querySelectorAll('[data-car]').forEach(function (b) {
+      b.classList.toggle('active', b.getAttribute('data-car') === focusCar.spec.id);
+    });
+    ctrl.targetGoal.copy(focusCar.center);
+    if (!/[#&]r=/.test(location.hash)) ctrl.sphGoal.radius = 7.6;
+  }
+  if (viewM && viewM[1] !== 'orbit') {
+    camera.position.set(16, 8.5, 21); camera.lookAt(0, 0.5, 0);
+    setView(viewM[1]);
+  } else {
+    flyTo(orbitPose(), 40, 2.0, 'orbit');
+  }
+})();
 
 function animate() {
   requestAnimationFrame(animate);
@@ -2100,13 +2977,12 @@ function animate() {
     car.noseG.position.z = car.noseBase.z + 0.55 * e;
   });
 
-  /* 仪表屏 */
-  var sim = driveSim(elapsed);
-  drawDash(ferrari, sim);
-  drawDash(redbull, driveSim(elapsed + 5.2));
+  /* 仪表屏（起跑 / 进站时显示演示车速与档位） */
+  cars.forEach(function (c) { drawDash(c, demoSim(c)); });
 
-  /* 起跑 + 细节 + 声浪 + 扬沙 */
+  /* 起跑 + 进站 + 细节 + 声浪 + 扬沙 */
   if (launchActive) updateLaunch(dt);
+  if (pitActive) updatePit(dt);
   updateDetails(dt);
   updateDust(dt);
   updateAudio();
@@ -2114,7 +2990,10 @@ function animate() {
   /* 相机 */
   if (ctrl.mode === 'launch') {
     launchCamTick(dt);
+  } else if (ctrl.mode === 'pit') {
+    pitCamTick(dt);
   } else if (ctrl.mode === 'anim' && camAnim) {
+    setNear(isOnboard(camAnim.endMode) ? 0.02 : 0.05);
     var tt = (performance.now() - camAnim.start) / 1000;
     var k = easeIO(Math.min(1, tt / camAnim.dur));
     camera.position.lerpVectors(camAnim.p0, camAnim.p1, k);
@@ -2143,10 +3022,11 @@ function animate() {
     ctrl.target.z = THREE.MathUtils.damp(ctrl.target.z, ctrl.targetGoal.z, 8, dt);
     camera.position.setFromSpherical(ctrl.sph).add(ctrl.target);
     camera.lookAt(ctrl.target);
-  } else if (ctrl.mode === 'cockpit') {
+    setNear(0.03);
+  } else if (ctrl.mode === 'cockpit' || ctrl.mode === 'tcam') {
     ctrl.yaw = THREE.MathUtils.damp(ctrl.yaw, ctrl.yawGoal, 10, dt);
     ctrl.pitch = THREE.MathUtils.damp(ctrl.pitch, ctrl.pitchGoal, 10, dt);
-    var pose = cockpitPose(focusCar);
+    var pose = onboardPose(focusCar, ctrl.mode);
     pose.p.y += Math.sin(elapsed * 1.6) * 0.0035;    // 轻微呼吸感
     camera.position.copy(pose.p);
     camera.quaternion.copy(pose.q);
@@ -2154,6 +3034,19 @@ function animate() {
     qTmp.setFromAxisAngle(V_X, ctrl.pitch); camera.quaternion.multiply(qTmp);
     var f = THREE.MathUtils.damp(camera.fov, ctrl.fovCockpitGoal, 8, dt);
     if (Math.abs(f - camera.fov) > 0.001) { camera.fov = f; camera.updateProjectionMatrix(); }
+    setNear(0.02);
+  } else if (ctrl.mode === 'aerial') {
+    /* 航拍：缓慢盘旋（自动旋转开启时）+ 直升机式轻微起伏 */
+    if (ctrl.auto) ctrl.aerGoal.theta += dt * 0.07;
+    ctrl.aer.theta = THREE.MathUtils.damp(ctrl.aer.theta, ctrl.aerGoal.theta, 3, dt);
+    ctrl.aer.r = THREE.MathUtils.damp(ctrl.aer.r, ctrl.aerGoal.r, 3, dt);
+    ctrl.aer.h = THREE.MathUtils.damp(ctrl.aer.h, ctrl.aerGoal.h, 3, dt);
+    var ap = aerialPose(ctrl.aer, Math.sin(elapsed * 0.6) * (sceneMode === 'garage' ? 0.04 : 0.18));
+    camera.position.copy(ap.p);
+    camera.quaternion.copy(ap.q);
+    var fa = THREE.MathUtils.damp(camera.fov, ctrl.fovAerial, 6, dt);
+    if (Math.abs(fa - camera.fov) > 0.001) { camera.fov = fa; camera.updateProjectionMatrix(); }
+    setNear(sceneMode === 'garage' ? 0.1 : 0.4);
   }
 
   renderer.render(scene, camera);
