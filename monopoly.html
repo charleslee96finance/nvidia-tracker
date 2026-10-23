@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>大富翁</title>
+<style>
+:root{
+  --felt:#14532d; --felt2:#0c3b1f;
+  --ivory:#faf6ea; --ink:#1f2937;
+  --blue:#1d4ed8; --green:#15803d; --red:#dc2626;
+  --gold:#fbbf24;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;height:100%;overflow:hidden;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:radial-gradient(ellipse at 50% 30%, var(--felt) 0%, var(--felt2) 100%);
+  color:#f0fdf4; touch-action:manipulation;}
+.screen{display:none;height:100%;height:100dvh;flex-direction:column;}
+.screen.active{display:flex;}
+
+/* ===== 首页 / 设置 ===== */
+#scr-home,#scr-setup{align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;}
+#scr-home h1{font-size:42px;margin:0 0 4px;letter-spacing:8px;color:var(--gold);text-shadow:0 2px 8px rgba(0,0,0,.5);}
+#scr-home .sub{opacity:.85;margin-bottom:18px;font-size:14px;line-height:1.7;}
+.bigbtn{display:block;width:min(320px,80vw);padding:16px 0;margin:0;border:none;border-radius:14px;
+  font-size:19px;font-weight:700;cursor:pointer;color:#fff;
+  background:linear-gradient(180deg,#16a34a,#15803d);box-shadow:0 4px 12px rgba(0,0,0,.35);}
+.bigbtn.alt{background:linear-gradient(180deg,#2563eb,#1d4ed8);}
+.bigbtn.gold{background:linear-gradient(180deg,#f59e0b,#d97706);}
+.bigbtn:active{transform:scale(.97);}
+.note{font-size:12px;opacity:.65;max-width:340px;line-height:1.6;}
+.lobbylink{position:fixed;top:calc(8px + env(safe-area-inset-top));left:10px;z-index:5;
+  background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;
+  border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;text-decoration:none;}
+.backbtn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:7px 14px;font-size:14px;cursor:pointer;}
+#scr-setup h2{margin:0;color:var(--gold);font-size:26px;}
+.opt{width:min(360px,90vw);}
+.opt .cap{font-size:14px;opacity:.85;margin-bottom:6px;}
+.seg{display:flex;flex-direction:column;gap:8px;}
+.seg button{padding:13px 10px;border-radius:12px;border:2px solid rgba(255,255,255,.2);background:rgba(0,0,0,.22);
+  color:#fff;font-size:16px;font-weight:600;cursor:pointer;}
+.seg button.on{border-color:var(--gold);background:rgba(251,191,36,.18);}
+.seg.row{flex-direction:row;}
+.seg.row button{flex:1;}
+
+/* ===== 骰子 ===== */
+.die{display:inline-grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
+  width:34px;height:34px;padding:4px;gap:1px;margin:2px;
+  background:linear-gradient(180deg,#fffdf5,var(--ivory));border-radius:8px;border:1px solid #d6cdb4;
+  box-shadow:0 2px 4px rgba(0,0,0,.4);flex:0 0 auto;}
+.die .pip{display:flex;align-items:center;justify-content:center;}
+.die .pip span{display:block;width:6px;height:6px;border-radius:50%;background:var(--ink);}
+
+/* ===== 棋盘 ===== */
+#scr-game{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);}
+#topbar{display:flex;align-items:center;justify-content:space-between;padding:6px 8px;font-size:13px;flex:0 0 auto;}
+#topbar .info{opacity:.9;}
+#topbar button{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;
+  border-radius:8px;padding:5px 12px;font-size:13px;cursor:pointer;margin-left:6px;}
+#topbar button.on{border-color:var(--gold);background:rgba(251,191,36,.2);}
+#gwrap{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:flex-start;padding:0 6px 24px;}
+#boardwrap{--bw:min(96vw,620px);width:var(--bw);flex:0 0 auto;}
+#board{--c:calc(var(--bw)/11);width:var(--bw);height:var(--bw);display:grid;
+  grid-template-columns:repeat(11,1fr);grid-template-rows:repeat(11,1fr);
+  background:#cfe8d3;border:2px solid #14532d;border-radius:6px;overflow:hidden;color:var(--ink);}
+.cell{position:relative;background:var(--ivory);color:var(--ink);border:1px solid #7a8a7c;display:flex;
+  flex-direction:column;align-items:center;justify-content:flex-start;overflow:hidden;cursor:pointer;min-width:0;min-height:0;}
+.cell .band{width:100%;height:26%;flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:1px;}
+.cell .band i{display:block;width:calc(var(--c)*.17);height:calc(var(--c)*.17);background:#16a34a;border:1px solid #fff;}
+.cell .band i.hotel{width:calc(var(--c)*.4);background:#dc2626;}
+.cell .nm{font-weight:700;line-height:1.05;text-align:center;margin-top:4%;white-space:nowrap;}
+.cell .pr{font-size:calc(var(--c)*.19);opacity:.75;line-height:1.1;}
+.cell .ic{font-size:calc(var(--c)*.3);line-height:1;margin-top:5%;}
+.cell.icell .toks{top:1px;bottom:auto;}   /* 图标格：棋子停在上方，不挡名称 */
+.cell .toks{position:absolute;left:0;right:0;bottom:1px;display:flex;flex-wrap:wrap;justify-content:center;gap:1px;}
+.tok{width:calc(var(--c)*.31);height:calc(var(--c)*.31);border-radius:50%;border:1.5px solid #fff;
+  box-shadow:0 1px 2px rgba(0,0,0,.6);font-size:calc(var(--c)*.2);color:#fff;font-weight:800;
+  display:flex;align-items:center;justify-content:center;}
+.cell.own{box-shadow:inset 0 0 0 calc(var(--c)*.07) var(--oc);}
+.cell.mort{background:repeating-linear-gradient(45deg,#e5e7eb 0 4px,#cbd5e1 4px 8px);}
+.cell.cur{outline:3px solid var(--gold);outline-offset:-3px;z-index:2;}
+#center{grid-row:2/11;grid-column:2/11;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:calc(var(--c)*.12);padding:calc(var(--c)*.15);text-align:center;color:var(--ink);min-width:0;min-height:0;}
+#center .ctitle{font-size:calc(var(--c)*.7);font-weight:900;letter-spacing:.15em;color:#b91c1c;line-height:1;}
+#center .cturn{font-size:calc(var(--c)*.4);font-weight:800;}
+#center .cdice{display:flex;}
+#center .cdice .die{width:calc(var(--c)*1.0);height:calc(var(--c)*1.0);padding:calc(var(--c)*.1);border-radius:calc(var(--c)*.18);}
+#center .cdice .die .pip span{width:calc(var(--c)*.2);height:calc(var(--c)*.2);}
+#center .cdice.shake{animation:shake .5s;}
+@keyframes shake{0%{transform:rotate(0) scale(1)}20%{transform:rotate(-18deg) scale(1.25)}40%{transform:rotate(16deg) scale(1.1)}
+  60%{transform:rotate(-10deg) scale(1.2)}80%{transform:rotate(6deg)}100%{transform:rotate(0) scale(1)}}
+#center .cmsg{font-size:calc(var(--c)*.36);line-height:1.35;font-weight:600;}
+#center .cbtns{display:flex;flex-wrap:wrap;gap:calc(var(--c)*.15);justify-content:center;}
+.cbtn{border:none;border-radius:10px;padding:0 calc(var(--c)*.5);min-height:max(34px,calc(var(--c)*.95));
+  font-size:calc(var(--c)*.4);font-weight:800;color:#fff;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.35);
+  background:linear-gradient(180deg,#16a34a,#15803d);}
+.cbtn.gold{background:linear-gradient(180deg,#f59e0b,#d97706);}
+.cbtn.red{background:linear-gradient(180deg,#ef4444,#b91c1c);}
+.cbtn.gray{background:linear-gradient(180deg,#6b7280,#4b5563);}
+.cbtn.blue{background:linear-gradient(180deg,#0ea5e9,#0369a1);}
+.cbtn:disabled{opacity:.4;cursor:default;box-shadow:none;}
+.cbtn:active{transform:scale(.96);}
+#center .clast{font-size:calc(var(--c)*.27);opacity:.8;line-height:1.35;max-height:calc(var(--c)*1.2);overflow:hidden;}
+
+/* ===== 侧栏 ===== */
+#side{flex:1 1 280px;min-width:min(280px,96vw);max-width:620px;display:flex;flex-direction:column;gap:8px;}
+#hintbox{display:none;background:rgba(8,47,73,.92);border:1px solid #38bdf8;border-radius:10px;
+  padding:8px 10px;font-size:13px;line-height:1.55;}
+#hintbox.show{display:block;}
+#hintbox .ttl{color:#7dd3fc;font-weight:700;margin-right:4px;}
+#players{display:flex;flex-direction:column;gap:6px;}
+.pcard{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.25);border-radius:10px;padding:7px 10px;
+  border:2px solid transparent;font-size:14px;flex-wrap:wrap;}
+.pcard.cur{border-color:var(--gold);}
+.pcard.out{opacity:.45;}
+.pcard .dot{width:24px;height:24px;border-radius:50%;background:var(--pc);color:#fff;font-weight:800;
+  display:flex;align-items:center;justify-content:center;font-size:13px;border:2px solid #fff;flex:0 0 auto;}
+.pcard .pn{font-weight:700;}
+.pcard .pcash{margin-left:auto;color:var(--gold);font-weight:800;}
+.pcard .pinfo{width:100%;font-size:12px;opacity:.8;padding-left:32px;margin-top:-4px;}
+#log{background:rgba(0,0,0,.22);border-radius:10px;padding:8px 10px;font-size:12.5px;line-height:1.6;
+  max-height:170px;overflow-y:auto;}
+#log div{opacity:.82;}
+#log div:last-child{opacity:1;color:#fde68a;}
+
+/* ===== 遮罩 ===== */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:50;
+  align-items:center;justify-content:center;flex-direction:column;padding:16px;text-align:center;}
+.overlay.show{display:flex;}
+.overlay .card{background:#1c2a22;border:1px solid rgba(255,255,255,.15);border-radius:16px;
+  padding:18px 16px;max-width:560px;width:100%;max-height:88vh;overflow-y:auto;text-align:left;}
+.overlay h2{margin:0 0 10px;color:var(--gold);text-align:center;}
+.chead{border-radius:8px;padding:10px;text-align:center;font-size:20px;font-weight:800;color:#fff;margin-bottom:8px;text-shadow:0 1px 3px rgba(0,0,0,.5);}
+.rt{font-size:14px;line-height:1.7;}
+.rtab{width:100%;border-collapse:collapse;font-size:14px;margin:6px 0;}
+.rtab td{border-bottom:1px solid rgba(255,255,255,.12);padding:4px 6px;}
+.rtab td:last-child{text-align:right;font-weight:700;color:var(--gold);}
+.mcash{text-align:center;font-size:15px;margin-bottom:8px;}
+.mrow{display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid rgba(255,255,255,.1);flex-wrap:wrap;}
+.mrow .mc{width:14px;height:28px;border-radius:3px;flex:0 0 auto;}
+.mrow .mn{font-size:14px;font-weight:600;flex:1 1 90px;}
+.mrow .macts{display:flex;gap:5px;flex-wrap:wrap;}
+.mbtn{border:none;border-radius:8px;padding:7px 10px;font-size:12.5px;font-weight:700;color:#fff;cursor:pointer;background:#15803d;}
+.mbtn.sell{background:#b45309;} .mbtn.mort{background:#6d28d9;} .mbtn.unmort{background:#0369a1;}
+.mbtn:disabled{opacity:.3;cursor:default;}
+.mfoot{display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap;}
+.rkrow{display:flex;justify-content:space-between;font-size:15px;padding:7px 10px;background:rgba(255,255,255,.06);border-radius:8px;margin:4px 0;}
+
+/* ===== 教学 ===== */
+#scr-tut{padding:10px 12px calc(10px + env(safe-area-inset-bottom));overflow-y:auto;}
+#scr-tut header{display:flex;align-items:center;gap:10px;padding:6px 0 12px;}
+#scr-tut header h1{font-size:22px;margin:0;color:var(--gold);}
+.lesson{background:rgba(0,0,0,.25);border-radius:12px;margin-bottom:10px;overflow:hidden;}
+.lesson>button{width:100%;text-align:left;background:none;border:none;color:#fff;font-size:16px;font-weight:700;
+  padding:14px;cursor:pointer;display:flex;justify-content:space-between;}
+.lesson .body{display:none;padding:0 14px 14px;font-size:14px;line-height:1.8;}
+.lesson.open .body{display:block;}
+.lesson table{border-collapse:collapse;width:100%;font-size:13px;}
+.lesson td,.lesson th{border:1px solid rgba(255,255,255,.2);padding:5px 8px;text-align:left;}
+.sw{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:2px;}
+</style>
+</head>
+<body>
+
+<!-- 首页 -->
+<div id="scr-home" class="screen active">
+  <a class="lobbylink" href="games.html">← 游戏厅</a>
+  <h1>大富翁</h1>
+  <div class="sub">买地 · 收租 · 盖房子<br>2~4 人，破产者出局，家产最多者获胜</div>
+  <button class="bigbtn gold" onclick="openTutorial()">📖 玩法说明（新手必看）</button>
+  <button class="bigbtn" onclick="openSetup('ai')">🤖 人机对战</button>
+  <button class="bigbtn alt" onclick="openSetup('hotseat')">👥 真人对战（同屏轮流）</button>
+  <div class="note">简化规则：没有拍卖和玩家间交易。真人对战为同一台设备轮流操作，所有信息公开，不需要遮挡。支持手机与电脑浏览器。</div>
+</div>
+
+<!-- 设置 -->
+<div id="scr-setup" class="screen">
+  <a class="lobbylink" href="#" onclick="showScreen('home');return false;">← 返回</a>
+  <h2 id="setupTitle"></h2>
+  <div class="opt"><div class="cap">玩家人数</div><div class="seg row" id="segN"></div></div>
+  <div class="opt"><div class="cap">对局长度</div><div class="seg" id="segLen"></div></div>
+  <button class="bigbtn" onclick="startFromSetup()">开始游戏</button>
+</div>
+
+<!-- 教学 -->
+<div id="scr-tut" class="screen">
+  <header>
+    <button class="backbtn" onclick="showScreen('home')">← 返回</button>
+    <h1>大富翁 玩法</h1>
+  </header>
+  <button class="bigbtn gold" style="margin:0 auto 14px" onclick="startGame({mode:'ai',n:2,quick:true,coach:true})">🎓 开始引导对局（边玩边教）</button>
+  <div id="lessons"></div>
+</div>
+
+<!-- 牌局 -->
+<div id="scr-game" class="screen">
+  <div id="topbar">
+    <span class="info" id="roundinfo"></span>
+    <span><button id="coachBtn" onclick="toggleCoach()">💡 教练</button><button onclick="confirmExit()">退出</button></span>
+  </div>
+  <div id="gwrap">
+    <div id="boardwrap"><div id="board"></div></div>
+    <div id="side">
+      <div id="hintbox"></div>
+      <div id="players"></div>
+      <div id="log"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 格子详情 -->
+<div id="ov-info" class="overlay" onclick="if(event.target===this)closeOv('ov-info')">
+  <div class="card" id="info-card"></div>
+</div>
+<!-- 资产管理 -->
+<div id="ov-manage" class="overlay" onclick="if(event.target===this)closeManage()">
+  <div class="card" id="manage-card"></div>
+</div>
+<!-- 结果 -->
+<div id="ov-result" class="overlay">
+  <div class="card" id="res-card"></div>
+</div>
+
+<script>
+'use strict';
+/*===ENGINE-START===*/
+/* ================= 引擎：棋盘与规则 =================
+   40 格环形棋盘：0 起点；10 监狱（探监）；20 免费停车；30 入狱。
+   玩法：掷骰前进 → 买地/付租/缴税/抽卡；同色全拥有可盖房；现金不足可抵押、卖房；付不起则破产。
+   简化：无拍卖、无玩家间交易。
+*/
+const COLORS={brown:'#92400e',lblue:'#38bdf8',pink:'#ec4899',orange:'#f97316',red:'#dc2626',yellow:'#eab308',green:'#16a34a',dblue:'#1d4ed8'};
+const GROUPNAME={brown:'棕色',lblue:'浅蓝',pink:'粉色',orange:'橙色',red:'红色',yellow:'黄色',green:'绿色',dblue:'深蓝'};
+const PCOL=['#ef4444','#3b82f6','#16a34a','#f59e0b'];
+function P(name,price,group,rents,house){return{t:'prop',name,price,group,rents,house};}
+const BOARD=[
+ {t:'go',name:'起点'},
+ P('兰州',60,'brown',[2,10,30,90,160,250],50),
+ {t:'chest',name:'命运'},
+ P('西宁',60,'brown',[4,20,60,180,320,450],50),
+ {t:'tax',name:'所得税',amount:200},
+ {t:'station',name:'北站',price:200},
+ P('南昌',100,'lblue',[6,30,90,270,400,550],50),
+ {t:'chance',name:'机会'},
+ P('贵阳',100,'lblue',[6,30,90,270,400,550],50),
+ P('昆明',120,'lblue',[8,40,100,300,450,600],50),
+ {t:'jail',name:'监狱'},
+ P('长沙',140,'pink',[10,50,150,450,625,750],100),
+ {t:'util',name:'电力公司',price:150},
+ P('合肥',140,'pink',[10,50,150,450,625,750],100),
+ P('武汉',160,'pink',[12,60,180,500,700,900],100),
+ {t:'station',name:'东站',price:200},
+ P('郑州',180,'orange',[14,70,200,550,750,950],100),
+ {t:'chest',name:'命运'},
+ P('济南',180,'orange',[14,70,200,550,750,950],100),
+ P('西安',200,'orange',[16,80,220,600,800,1000],100),
+ {t:'park',name:'免费停车'},
+ P('成都',220,'red',[18,90,250,700,875,1050],150),
+ {t:'chance',name:'机会'},
+ P('杭州',220,'red',[18,90,250,700,875,1050],150),
+ P('南京',240,'red',[20,100,300,750,925,1100],150),
+ {t:'station',name:'南站',price:200},
+ P('天津',260,'yellow',[22,110,330,800,975,1150],150),
+ P('重庆',260,'yellow',[22,110,330,800,975,1150],150),
+ {t:'util',name:'自来水厂',price:150},
+ P('深圳',280,'yellow',[24,120,360,850,1025,1200],150),
+ {t:'gojail',name:'入狱'},
+ P('广州',300,'green',[26,130,390,900,1100,1275],200),
+ P('北京',300,'green',[26,130,390,900,1100,1275],200),
+ {t:'chest',name:'命运'},
+ P('上海',320,'green',[28,150,450,1000,1200,1400],200),
+ {t:'station',name:'西站',price:200},
+ {t:'chance',name:'机会'},
+ P('香港',350,'dblue',[35,175,500,1100,1300,1500],200),
+ {t:'tax',name:'奢侈税',amount:100},
+ P('澳门',400,'dblue',[50,200,600,1400,1700,2000],200),
+];
+const GROUPS={};
+BOARD.forEach((sq,i)=>{ if(sq.t==='prop'){ (GROUPS[sq.group]=GROUPS[sq.group]||[]).push(i); } });
+const STATIONS=[5,15,25,35], UTILS=[12,28];
+function isOwnable(i){ const t=BOARD[i].t; return t==='prop'||t==='station'||t==='util'; }
+function unmortCost(i){ return Math.ceil(BOARD[i].price/2*11/10); }   // 抵押款 +10%，用整数运算避免浮点误差
+
+// 机会/命运 共用一副牌
+const CARDS=[
+ {k:'cash',v:200,text:'银行出错，对你有利，收取 ¥200'},
+ {k:'cash',v:100,text:'股票分红，收取 ¥100'},
+ {k:'cash',v:100,text:'继承遗产，收取 ¥100'},
+ {k:'cash',v:50,text:'退税，收取 ¥50'},
+ {k:'cash',v:150,text:'项目奖金，收取 ¥150'},
+ {k:'cash',v:-50,text:'医药费，支付 ¥50'},
+ {k:'cash',v:-100,text:'学费，支付 ¥100'},
+ {k:'cash',v:-50,text:'违章停车罚款，支付 ¥50'},
+ {k:'cash',v:-150,text:'汽车维修费，支付 ¥150'},
+ {k:'collect',v:25,text:'生日快乐！每位玩家给你 ¥25'},
+ {k:'moveto',v:0,text:'前进到起点，领取 ¥200'},
+ {k:'moveto',v:11,text:'前进到长沙'},
+ {k:'moveto',v:35,text:'前进到西站'},
+ {k:'moveto',v:39,text:'前进到澳门'},
+ {k:'back',v:3,text:'后退三格'},
+ {k:'jail',v:0,text:'直接入狱，不经过起点'},
+ {k:'jailcard',v:0,text:'获得「出狱卡」，可免费出狱一次'},
+];
+const JAILCARD=CARDS.findIndex(c=>c.k==='jailcard');
+
+function logMsg(s,m){ s.log.push(m); if(s.log.length>300)s.log.shift(); }
+function shuffle(a,rand){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(rand()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+
+function newGame(opt){
+  const rand=opt.rand||Math.random;
+  const s={players:[],props:[],turn:0,round:1,phase:'roll',dice:[0,0],rollCount:0,doubles:0,debt:null,
+           log:[],deck:[],maxRounds:opt.maxRounds||30,over:false,result:null,rand};
+  for(let i=0;i<opt.names.length;i++)
+    s.players.push({name:opt.names[i],ai:!!(opt.ai&&opt.ai[i]),pos:0,cash:1500,jail:false,jailTurns:0,cards:0,bankrupt:false});
+  for(let i=0;i<40;i++)s.props.push({owner:-1,houses:0,mortgaged:false});
+  s.deck=shuffle(CARDS.map((c,i)=>i),rand);
+  logMsg(s,'游戏开始！每人 ¥1500，'+s.players[0].name+' 先掷骰');
+  return s;
+}
+function alive(s){ const r=[]; for(let i=0;i<s.players.length;i++)if(!s.players[i].bankrupt)r.push(i); return r; }
+function ownedBy(s,p){ const r=[]; for(let i=0;i<40;i++)if(s.props[i].owner===p)r.push(i); return r; }
+function netWorth(s,p){
+  let w=s.players[p].cash;
+  for(const i of ownedBy(s,p)){ const sq=BOARD[i],pr=s.props[i]; w+=pr.mortgaged?sq.price/2:sq.price; if(sq.t==='prop')w+=pr.houses*sq.house; }
+  return w;
+}
+function ownsAll(s,p,group){ return GROUPS[group].every(j=>s.props[j].owner===p); }
+
+// 过路费
+function rentFor(s,i,diceTotal){
+  const sq=BOARD[i], pr=s.props[i];
+  if(pr.owner<0||pr.mortgaged)return 0;
+  if(sq.t==='station'){ const n=STATIONS.filter(j=>s.props[j].owner===pr.owner).length; return 25*Math.pow(2,n-1); }
+  if(sq.t==='util'){ const n=UTILS.filter(j=>s.props[j].owner===pr.owner).length; return diceTotal*(n===2?10:4); }
+  let r=sq.rents[pr.houses];
+  if(pr.houses===0&&ownsAll(s,pr.owner,sq.group))r*=2;
+  return r;
+}
+
+/* ---------- 资产管理 ---------- */
+function manageOK(s,p,buildPhase){
+  if(s.over||s.turn!==p||s.players[p].bankrupt)return false;
+  return buildPhase?(s.phase==='roll'||s.phase==='after'):(s.phase==='roll'||s.phase==='after'||s.phase==='debt');
+}
+function canBuild(s,p,i){
+  if(!manageOK(s,p,true))return false;
+  const sq=BOARD[i]; if(sq.t!=='prop')return false;
+  const pr=s.props[i];
+  if(pr.owner!==p||pr.mortgaged||pr.houses>=5)return false;
+  const g=GROUPS[sq.group];
+  if(!g.every(j=>s.props[j].owner===p&&!s.props[j].mortgaged))return false;
+  if(pr.houses>Math.min(...g.map(j=>s.props[j].houses)))return false;   // 必须均匀建造
+  return s.players[p].cash>=sq.house;
+}
+function canSellHouse(s,p,i){
+  if(!manageOK(s,p,false))return false;
+  const sq=BOARD[i]; if(sq.t!=='prop')return false;
+  const pr=s.props[i];
+  if(pr.owner!==p||pr.houses<=0)return false;
+  return pr.houses===Math.max(...GROUPS[sq.group].map(j=>s.props[j].houses));
+}
+function canMortgage(s,p,i){
+  if(!manageOK(s,p,false)||!isOwnable(i))return false;
+  const sq=BOARD[i], pr=s.props[i];
+  if(pr.owner!==p||pr.mortgaged)return false;
+  if(sq.t==='prop'&&GROUPS[sq.group].some(j=>s.props[j].houses>0))return false;
+  return true;
+}
+function canUnmortgage(s,p,i){
+  if(!manageOK(s,p,true)||!isOwnable(i))return false;
+  const pr=s.props[i];
+  return pr.owner===p&&pr.mortgaged&&s.players[p].cash>=unmortCost(i);
+}
+function doBuild(s,p,i){
+  if(!canBuild(s,p,i))return false;
+  const sq=BOARD[i], pr=s.props[i];
+  s.players[p].cash-=sq.house; pr.houses++;
+  logMsg(s,s.players[p].name+' 在 '+sq.name+(pr.houses===5?' 建成酒店':' 盖了第 '+pr.houses+' 栋房子')+'（-¥'+sq.house+'）');
+  return true;
+}
+function doSell(s,p,i){
+  if(!canSellHouse(s,p,i))return false;
+  const sq=BOARD[i], pr=s.props[i];
+  pr.houses--; s.players[p].cash+=sq.house/2;
+  logMsg(s,s.players[p].name+' 卖掉 '+sq.name+' 一栋房子（+¥'+sq.house/2+'）');
+  return true;
+}
+function doMortgage(s,p,i){
+  if(!canMortgage(s,p,i))return false;
+  s.props[i].mortgaged=true; s.players[p].cash+=BOARD[i].price/2;
+  logMsg(s,s.players[p].name+' 抵押了 '+BOARD[i].name+'（+¥'+BOARD[i].price/2+'）');
+  return true;
+}
+function doUnmortgage(s,p,i){
+  if(!canUnmortgage(s,p,i))return false;
+  s.props[i].mortgaged=false; s.players[p].cash-=unmortCost(i);
+  logMsg(s,s.players[p].name+' 赎回了 '+BOARD[i].name+'（-¥'+unmortCost(i)+'）');
+  return true;
+}
+
+/* ---------- 回合流程 ---------- */
+function moveBy(s,p,n){
+  const pl=s.players[p], old=pl.pos;
+  pl.pos=(old+n)%40;
+  if(pl.pos<old){ pl.cash+=200; logMsg(s,pl.name+' 经过起点，领取 ¥200'); }
+}
+function sendToJail(s,p){
+  const pl=s.players[p]; pl.pos=10; pl.jail=true; pl.jailTurns=0; s.doubles=0;
+  logMsg(s,pl.name+' 被关进监狱');
+}
+function finishLanding(s){
+  const pl=s.players[s.turn];
+  if(s.doubles>0&&!pl.jail&&!pl.bankrupt){ s.phase='roll'; logMsg(s,pl.name+' 掷出双数，再掷一次！'); }
+  else s.phase='after';
+}
+function afterPay(s,next){ if(next==='finish')finishLanding(s); else s.phase='roll'; }
+// 支付：现金足够立刻付清；否则进入欠款阶段，玩家必须筹款或破产
+function charge(s,p,amt,to,next){
+  const pl=s.players[p];
+  if(pl.cash>=amt){
+    pl.cash-=amt; if(to>=0)s.players[to].cash+=amt;
+    return afterPay(s,next);
+  }
+  s.debt={amount:amt,to,next}; s.phase='debt';
+  logMsg(s,pl.name+' 现金不足，需支付 ¥'+amt+'：请抵押地产或卖房筹款');
+}
+function payDebt(s){
+  if(s.phase!=='debt'||!s.debt)return false;
+  const pl=s.players[s.turn], d=s.debt;
+  if(pl.cash<d.amount)return false;
+  pl.cash-=d.amount; if(d.to>=0)s.players[d.to].cash+=d.amount;
+  logMsg(s,pl.name+' 还清欠款 ¥'+d.amount);
+  s.debt=null; afterPay(s,d.next);
+  return true;
+}
+function landOn(s,p){
+  const pl=s.players[p], sq=BOARD[pl.pos];
+  if(isOwnable(pl.pos)){
+    const pr=s.props[pl.pos];
+    if(pr.owner<0){ s.phase='buy'; logMsg(s,pl.name+' 来到 '+sq.name+'（无人持有，售价 ¥'+sq.price+'）'); return; }
+    if(pr.owner===p){ logMsg(s,pl.name+' 来到自己的 '+sq.name); return finishLanding(s); }
+    if(pr.mortgaged){ logMsg(s,pl.name+' 来到 '+sq.name+'（已抵押，免租）'); return finishLanding(s); }
+    const rent=rentFor(s,pl.pos,s.dice[0]+s.dice[1]);
+    logMsg(s,pl.name+' 来到 '+s.players[pr.owner].name+' 的 '+sq.name+'，付租金 ¥'+rent);
+    return charge(s,p,rent,pr.owner,'finish');
+  }
+  if(sq.t==='tax'){ logMsg(s,pl.name+' 缴纳'+sq.name+' ¥'+sq.amount); return charge(s,p,sq.amount,-1,'finish'); }
+  if(sq.t==='gojail'){ logMsg(s,pl.name+' 踩到「入狱」'); sendToJail(s,p); return finishLanding(s); }
+  if(sq.t==='chance'||sq.t==='chest')return drawCard(s,p);
+  logMsg(s,pl.name+' 来到 '+sq.name);
+  return finishLanding(s);
+}
+function drawCard(s,p){
+  const pl=s.players[p], id=s.deck.shift(), c=CARDS[id];
+  if(c.k!=='jailcard')s.deck.push(id);
+  logMsg(s,pl.name+' 抽到：'+c.text);
+  s.lastCard=c.text;
+  switch(c.k){
+    case 'cash':
+      if(c.v>=0){ pl.cash+=c.v; return finishLanding(s); }
+      return charge(s,p,-c.v,-1,'finish');
+    case 'collect':
+      for(const q of alive(s)){ if(q===p)continue; const t=Math.min(c.v,s.players[q].cash); s.players[q].cash-=t; pl.cash+=t; }
+      return finishLanding(s);
+    case 'moveto': { const old=pl.pos; pl.pos=c.v; if(c.v<old){ pl.cash+=200; logMsg(s,pl.name+' 经过起点，领取 ¥200'); } return landOn(s,p); }
+    case 'back': pl.pos=(pl.pos+40-c.v)%40; return landOn(s,p);
+    case 'jail': sendToJail(s,p); return finishLanding(s);
+    case 'jailcard': pl.cards++; return finishLanding(s);
+  }
+}
+function doRoll(s){
+  if(s.phase!=='roll'||s.over)return false;
+  const p=s.turn, pl=s.players[p];
+  if(pl.jail&&pl.jailTurns>=2)return false;           // 第三回合必须先付钱出狱
+  const d1=1+Math.floor(s.rand()*6), d2=1+Math.floor(s.rand()*6);
+  s.dice=[d1,d2]; s.rollCount++;
+  const dbl=d1===d2;
+  logMsg(s,pl.name+' 掷出 '+d1+' + '+d2+' = '+(d1+d2)+(dbl?'（双数）':''));
+  if(pl.jail){
+    if(dbl){ pl.jail=false; pl.jailTurns=0; s.doubles=0; logMsg(s,pl.name+' 掷出双数，出狱！'); moveBy(s,p,d1+d2); landOn(s,p); return true; }
+    pl.jailTurns++; logMsg(s,pl.name+' 没掷出双数，继续留在监狱'); s.phase='after'; return true;
+  }
+  if(dbl){
+    s.doubles++;
+    if(s.doubles>=3){ logMsg(s,pl.name+' 连续三次双数，被送进监狱！'); sendToJail(s,p); s.phase='after'; return true; }
+  }else s.doubles=0;
+  moveBy(s,p,d1+d2); landOn(s,p);
+  return true;
+}
+function doBuy(s){
+  if(s.phase!=='buy')return false;
+  const p=s.turn, pl=s.players[p], i=pl.pos, sq=BOARD[i];
+  if(pl.cash<sq.price)return false;
+  pl.cash-=sq.price; s.props[i].owner=p;
+  logMsg(s,pl.name+' 买下 '+sq.name+'（-¥'+sq.price+'）');
+  finishLanding(s); return true;
+}
+function doDecline(s){
+  if(s.phase!=='buy')return false;
+  logMsg(s,s.players[s.turn].name+' 放弃购买 '+BOARD[s.players[s.turn].pos].name);
+  finishLanding(s); return true;
+}
+function jailPay(s){
+  if(s.phase!=='roll')return false;
+  const p=s.turn, pl=s.players[p]; if(!pl.jail)return false;
+  pl.jail=false; pl.jailTurns=0;
+  logMsg(s,pl.name+' 付 ¥50 出狱');
+  charge(s,p,50,-1,'roll');
+  return true;
+}
+function jailCard(s){
+  if(s.phase!=='roll')return false;
+  const pl=s.players[s.turn]; if(!pl.jail||pl.cards<=0)return false;
+  pl.cards--; s.deck.push(JAILCARD); pl.jail=false; pl.jailTurns=0;
+  logMsg(s,pl.name+' 使用出狱卡出狱');
+  return true;
+}
+function advanceTurn(s){
+  const n=s.players.length; let q=s.turn;
+  do{ q=(q+1)%n; }while(s.players[q].bankrupt);
+  if(q<=s.turn)s.round++;
+  s.turn=q; s.doubles=0; s.phase='roll'; s.debt=null;
+  if(s.round>s.maxRounds)finishGame(s);
+}
+function endTurn(s){ if(s.phase!=='after'||s.over)return false; advanceTurn(s); return true; }
+function finishGame(s){
+  s.over=true; s.phase='over';
+  const rk=s.players.map((pl,i)=>({p:i,bankrupt:pl.bankrupt,worth:pl.bankrupt?-1:netWorth(s,i)})).sort((a,b)=>b.worth-a.worth);
+  s.result={winner:rk[0].p,ranking:rk};
+  logMsg(s,'游戏结束！'+s.players[rk[0].p].name+' 获胜');
+}
+function declareBankrupt(s,p){
+  const pl=s.players[p]; if(pl.bankrupt||s.over)return false;
+  const to=s.debt?s.debt.to:-1;
+  logMsg(s,pl.name+' 破产出局！'+(to>=0?'资产归 '+s.players[to].name:'资产收归银行'));
+  for(const i of ownedBy(s,p)){
+    const pr=s.props[i];
+    if(to>=0){ pr.owner=to; pr.houses=0; }
+    else{ pr.owner=-1; pr.houses=0; pr.mortgaged=false; }
+  }
+  if(to>=0){ s.players[to].cash+=pl.cash; s.players[to].cards+=pl.cards; }
+  else{ for(let k=0;k<pl.cards;k++)s.deck.push(JAILCARD); }
+  pl.cash=0; pl.cards=0; pl.bankrupt=true; pl.jail=false; s.debt=null;
+  if(alive(s).length<=1){ finishGame(s); return true; }
+  if(s.turn===p)advanceTurn(s);
+  return true;
+}
+
+/* ---------- AI 与建议 ---------- */
+// 买地建议（AI 与教练提示共用）
+function adviseBuy(s,p){
+  const pl=s.players[p], i=pl.pos, sq=BOARD[i];
+  const after=pl.cash-sq.price;
+  if(after<0)return{buy:false,reason:'现金不足（还差 ¥'+(-after)+'）。'};
+  let reserve=sq.t==='station'?80:120;
+  if(sq.t==='prop'){
+    const g=GROUPS[sq.group], mine=g.filter(j=>s.props[j].owner===p).length;
+    if(mine===g.length-1)return{buy:true,reason:'买下它你就集齐整个'+GROUPNAME[sq.group]+'色组：之后可以盖房，空地租金也翻倍！'};
+    const others=g.filter(j=>s.props[j].owner>=0&&s.props[j].owner!==p);
+    if(mine===0&&others.length===g.length-1&&others.every(j=>s.props[j].owner===s.props[others[0]].owner)){
+      if(after>=60)return{buy:true,reason:'对手快集齐这个色组了，买下它能堵住他垄断。'};
+    }
+  }
+  if(after>=reserve)return{buy:true,reason:'买地是赚钱的根本，买完还剩 ¥'+after+'，现金仍然充裕。'};
+  return{buy:false,reason:'买完只剩 ¥'+after+'，现金太紧，下次踩到别人的地可能付不起租金。'};
+}
+function aiManage(s,p){
+  const pl=s.players[p];
+  for(const i of ownedBy(s,p)){ if(s.props[i].mortgaged&&canUnmortgage(s,p,i)&&pl.cash-unmortCost(i)>=400)doUnmortgage(s,p,i); }
+  let guard=0;
+  while(guard++<30){
+    let best=-1;
+    for(const i of ownedBy(s,p)){
+      if(BOARD[i].t!=='prop'||!canBuild(s,p,i))continue;
+      if(pl.cash-BOARD[i].house<200)continue;
+      if(best<0||s.props[i].houses<s.props[best].houses||(s.props[i].houses===s.props[best].houses&&i>best))best=i;
+    }
+    if(best<0)break;
+    doBuild(s,p,best);
+  }
+}
+function aiRaise(s,p){
+  const pl=s.players[p], need=s.debt.amount; let guard=0;
+  while(pl.cash<need&&guard++<200){
+    let done=false;
+    for(const i of ownedBy(s,p)){ if(canSellHouse(s,p,i)){ doSell(s,p,i); done=true; break; } }
+    if(done)continue;
+    for(const i of ownedBy(s,p)){ if(canMortgage(s,p,i)){ doMortgage(s,p,i); done=true; break; } }
+    if(!done)break;
+  }
+}
+// AI 执行当前阶段的一个动作
+function aiStep(s){
+  if(s.over)return;
+  const p=s.turn, pl=s.players[p];
+  if(s.phase==='roll'){
+    aiManage(s,p);
+    if(pl.jail){
+      if(pl.cards>0){ jailCard(s); return; }
+      if(pl.jailTurns>=2||(pl.cash>=400&&s.round<=15)){ jailPay(s); return; }
+    }
+    doRoll(s); return;
+  }
+  if(s.phase==='buy'){
+    if(adviseBuy(s,p).buy&&pl.cash>=BOARD[pl.pos].price)doBuy(s); else doDecline(s);
+    return;
+  }
+  if(s.phase==='debt'){
+    aiRaise(s,p);
+    if(pl.cash>=s.debt.amount)payDebt(s); else declareBankrupt(s,p);
+    return;
+  }
+  if(s.phase==='after'){ aiManage(s,p); endTurn(s); return; }
+}
+/*===ENGINE-END===*/
+
+/* ================= 界面 ================= */
+const $=id=>document.getElementById(id);
+function esc(s){return String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
+function showScreen(n){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $('scr-'+n).classList.add('active');
+}
+function closeOv(id){ $(id).classList.remove('show'); }
+
+let S=null, CFG=null;
+const UI={coach:false,timer:null,lastRoll:0,shake:false,manage:false,resultShown:false};
+let SET={mode:'ai',n:3,quick:true};
+
+/* ---- 设置 ---- */
+function openSetup(mode){
+  SET.mode=mode; SET.n=mode==='ai'?3:3;
+  $('setupTitle').textContent=mode==='ai'?'人机对战':'真人对战（同屏）';
+  renderSetup(); showScreen('setup');
+}
+function renderSetup(){
+  $('segN').innerHTML=[2,3,4].map(n=>'<button class="'+(SET.n===n?'on':'')+'" onclick="setN('+n+')">'
+    +(SET.mode==='ai'?'你 + '+(n-1)+' 电脑':n+' 人')+'</button>').join('');
+  $('segLen').innerHTML=[[true,'⚡ 快速局：30 回合后比家产'],[false,'🏁 经典局：打到只剩一人（最多 200 回合）']]
+    .map(a=>'<button class="'+(SET.quick===a[0]?'on':'')+'" onclick="setQuick('+a[0]+')">'+a[1]+'</button>').join('');
+}
+function setN(n){ SET.n=n; renderSetup(); }
+function setQuick(q){ SET.quick=q; renderSetup(); }
+function startFromSetup(){ startGame({mode:SET.mode,n:SET.n,quick:SET.quick,coach:false}); }
+
+/* ---- 开局 ---- */
+function startGame(cfg){
+  CFG=cfg;
+  const names=[], ai=[], AIN=['阿福','阿旺','阿财'];
+  if(cfg.mode==='ai'){
+    names.push('你'); ai.push(false);
+    for(let i=1;i<cfg.n;i++){ names.push('电脑·'+AIN[i-1]); ai.push(true); }
+  }else{
+    for(let i=0;i<cfg.n;i++){ names.push('玩家'+(i+1)); ai.push(false); }
+  }
+  S=newGame({names,ai,maxRounds:cfg.quick?30:200});
+  UI.coach=!!cfg.coach; UI.lastRoll=0; UI.manage=false; UI.resultShown=false;
+  closeOv('ov-result'); closeOv('ov-manage'); closeOv('ov-info');
+  $('coachBtn').style.display=cfg.mode==='ai'?'':'none';
+  showScreen('game');
+  render(); schedule();
+}
+function toggleCoach(){ UI.coach=!UI.coach; render(); }
+function confirmExit(){ if(confirm('确定退出本局？进度将不会保存。'))exitToHome(); }
+function exitToHome(){
+  clearTimeout(UI.timer); S=null; UI.manage=false;
+  closeOv('ov-result'); closeOv('ov-manage'); closeOv('ov-info');
+  showScreen('home');
+}
+
+/* ---- AI 调度 ---- */
+function schedule(){
+  clearTimeout(UI.timer);
+  if(!S||S.over)return;
+  if(!S.players[S.turn].ai)return;
+  UI.timer=setTimeout(aiTick,S.phase==='roll'?900:700);
+}
+function aiTick(){
+  if(!S||S.over)return;
+  aiStep(S);
+  render(); schedule();
+}
+function human(){ return S&&!S.over&&!S.players[S.turn].ai; }
+function afterAction(){ render(); schedule(); }
+
+/* ---- 玩家操作 ---- */
+function uiRoll(){ if(!human())return; doRoll(S); afterAction(); }
+function uiBuy(){ if(!human())return; doBuy(S); afterAction(); }
+function uiSkip(){ if(!human())return; doDecline(S); afterAction(); }
+function uiEnd(){ if(!human())return; endTurn(S); afterAction(); }
+function uiPay(){ if(!human())return; payDebt(S); afterAction(); }
+function uiJailPay(){ if(!human())return; jailPay(S); afterAction(); }
+function uiJailCard(){ if(!human())return; jailCard(S); afterAction(); }
+function uiBankrupt(){
+  if(!human()||S.phase!=='debt')return;
+  if(!confirm('确定宣告破产？你的所有资产将归债主（或银行），并退出游戏。'))return;
+  closeManage(); declareBankrupt(S,S.turn); afterAction();
+}
+function uiManage(act,i){
+  if(!human())return;
+  const f={build:doBuild,sell:doSell,mort:doMortgage,unmort:doUnmortgage}[act];
+  if(f)f(S,S.turn,i);
+  render();
+}
+function openManage(){ if(!human())return; UI.manage=true; renderManage(); $('ov-manage').classList.add('show'); }
+function closeManage(){ UI.manage=false; closeOv('ov-manage'); render(); }
+
+/* ---- 渲染 ---- */
+function cellPos(i){
+  if(i<=10)return[11,11-i];
+  if(i<=20)return[11-(i-10),1];
+  if(i<=30)return[1,1+(i-20)];
+  return[1+(i-30),11];
+}
+const ICONS={go:'🏁',jail:'🔒',park:'🅿️',gojail:'👮',tax:'💸',chance:'❓',chest:'🎁',station:'🚉'};
+function dieHTML(v){
+  const M={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]}[v]||[];
+  let s='<div class="die">';
+  for(let c=0;c<9;c++)s+='<div class="pip">'+(M.includes(c)?'<span></span>':'')+'</div>';
+  return s+'</div>';
+}
+function nameFont(n,small){ const l=[...n].length, f=l<=2?.34:l===3?.27:.21; return small?f*.9:f; }
+function cellHTML(i){
+  const sq=BOARD[i], pr=S.props[i], pos=cellPos(i);
+  let cls='cell', style='grid-row:'+pos[0]+';grid-column:'+pos[1]+';', inner='';
+  const fs='font-size:calc(var(--c)*'+nameFont(sq.name,sq.t!=='prop')+')';
+  if(sq.t!=='prop')cls+=' icell';
+  if(sq.t==='prop'){
+    let hs=''; if(pr.houses===5)hs='<i class="hotel"></i>'; else for(let k=0;k<pr.houses;k++)hs+='<i></i>';
+    inner='<div class="band" style="background:'+COLORS[sq.group]+'">'+hs+'</div>'
+      +'<div class="nm" style="'+fs+'">'+sq.name+'</div><div class="pr">¥'+sq.price+'</div>';
+  }else if(sq.t==='station'||sq.t==='util'){
+    const ic=sq.t==='station'?'🚉':(sq.name==='电力公司'?'💡':'🚰');
+    inner='<div class="ic">'+ic+'</div><div class="nm" style="'+fs+'">'+sq.name+'</div><div class="pr">¥'+sq.price+'</div>';
+  }else{
+    inner='<div class="ic">'+(ICONS[sq.t]||'')+'</div><div class="nm" style="'+fs+'">'+sq.name+'</div>'
+      +(sq.t==='tax'?'<div class="pr">¥'+sq.amount+'</div>':'');
+  }
+  if(pr.owner>=0){ cls+=' own'; style+='--oc:'+PCOL[pr.owner]+';'; if(pr.mortgaged)cls+=' mort'; }
+  let toks='';
+  S.players.forEach((pl,k)=>{ if(!pl.bankrupt&&pl.pos===i)toks+='<div class="tok" style="background:'+PCOL[k]+'">'+(k+1)+'</div>'; });
+  if(!S.over&&S.players[S.turn].pos===i)cls+=' cur';
+  return '<div class="'+cls+'" style="'+style+'" onclick="showCell('+i+')">'+inner+'<div class="toks">'+toks+'</div></div>';
+}
+function btn(label,fn,cls,dis){ return '<button class="cbtn '+(cls||'')+'" '+(dis?'disabled ':'')+'onclick="'+fn+'">'+label+'</button>'; }
+function centerHTML(){
+  let h='<div class="ctitle">大富翁</div>';
+  if(S.over)return h+'<div class="cmsg">游戏结束</div>';
+  const p=S.turn, pl=S.players[p], sq=BOARD[pl.pos], isH=!pl.ai;
+  h+='<div class="cturn" style="color:'+PCOL[p]+'">● '+esc(pl.name)+(pl.jail?' 🔒':'')+'</div>';
+  if(S.rollCount>0)h+='<div class="cdice'+(UI.shake?' shake':'')+'">'+dieHTML(S.dice[0])+dieHTML(S.dice[1])+'</div>';
+  let msg='', b='';
+  if(!isH){
+    msg=esc(pl.name)+' 思考中…';
+  }else if(S.phase==='roll'){
+    if(pl.jail){
+      msg='你在监狱中'+(pl.jailTurns>=2?'，已满 3 回合，必须付 ¥50 出狱':'：掷出双数即可出狱，或付 ¥50');
+      if(pl.jailTurns<2)b+=btn('🎲 掷骰','uiRoll()','gold');
+      b+=btn('付 ¥50 出狱','uiJailPay()','blue');
+      if(pl.cards>0)b+=btn('🎫 出狱卡','uiJailCard()','gray');
+    }else{
+      msg=S.doubles>0?'双数！再掷一次':'轮到你了，请掷骰子';
+      b+=btn(S.doubles>0?'🎲 再掷一次':'🎲 掷骰子','uiRoll()','gold');
+    }
+    b+=btn('管理资产','openManage()','gray');
+  }else if(S.phase==='buy'){
+    msg='到达「'+sq.name+'」· 售价 ¥'+sq.price+'（你有 ¥'+pl.cash+'）';
+    b+=btn('购买 ¥'+sq.price,'uiBuy()','',pl.cash<sq.price)+btn('放弃','uiSkip()','gray');
+  }else if(S.phase==='debt'){
+    const d=S.debt;
+    msg='欠款 ¥'+d.amount+(d.to>=0?'（付给 '+esc(S.players[d.to].name)+'）':'（付给银行）')+' · 现金 ¥'+pl.cash;
+    b+=btn('还债','uiPay()','',pl.cash<d.amount)+btn('管理资产','openManage()','blue')+btn('宣告破产','uiBankrupt()','red');
+  }else if(S.phase==='after'){
+    msg='本回合行动完毕';
+    b+=btn('结束回合','uiEnd()','gold')+btn('管理资产','openManage()','gray');
+  }
+  h+='<div class="cmsg">'+msg+'</div>';
+  if(b)h+='<div class="cbtns">'+b+'</div>';
+  h+='<div class="clast">'+S.log.slice(-2).map(esc).join('<br>')+'</div>';
+  return h;
+}
+function render(){
+  if(!S)return;
+  UI.shake=S.rollCount!==UI.lastRoll; UI.lastRoll=S.rollCount;
+  $('roundinfo').textContent='第 '+Math.min(S.round,S.maxRounds)+' / '+S.maxRounds+' 回合 · '+(CFG.mode==='ai'?'人机':'同屏')+'对战';
+  $('coachBtn').className=UI.coach?'on':'';
+  let bh='';
+  for(let i=0;i<40;i++)bh+=cellHTML(i);
+  bh+='<div id="center">'+centerHTML()+'</div>';
+  $('board').innerHTML=bh;
+  // 玩家面板
+  $('players').innerHTML=S.players.map((pl,i)=>{
+    const owned=ownedBy(S,i).length;
+    return '<div class="pcard'+(i===S.turn&&!S.over?' cur':'')+(pl.bankrupt?' out':'')+'" style="--pc:'+PCOL[i]+'">'
+      +'<span class="dot">'+(i+1)+'</span><span class="pn">'+esc(pl.name)+'</span><span class="pcash">¥'+pl.cash+'</span>'
+      +'<span class="pinfo">地产 '+owned+' · 家产 ¥'+(pl.bankrupt?0:netWorth(S,i))+(pl.jail?' · 🔒监狱':'')+(pl.cards?' · 🎫出狱卡×'+pl.cards:'')+(pl.bankrupt?' · 已破产':'')+'</span></div>';
+  }).join('');
+  const lg=$('log'); lg.innerHTML=S.log.slice(-40).map(m=>'<div>'+esc(m)+'</div>').join(''); lg.scrollTop=lg.scrollHeight;
+  // 教练提示
+  const ct=coachText();
+  if(ct){ $('hintbox').innerHTML='<span class="ttl">💡 教练</span>'+ct; $('hintbox').classList.add('show'); }
+  else $('hintbox').classList.remove('show');
+  if(UI.manage)renderManage();
+  if(S.over&&!UI.resultShown){ UI.resultShown=true; showResult(); }
+}
+
+/* ---- 格子详情 ---- */
+function showCell(i){
+  if(!S)return;
+  const sq=BOARD[i], pr=S.props[i]; let h='';
+  if(sq.t==='prop'){
+    h+='<div class="chead" style="background:'+COLORS[sq.group]+'">'+sq.name+'</div>';
+    h+='<div class="rt">地价 ¥'+sq.price+' · 每栋房屋 ¥'+sq.house+' · 抵押可得 ¥'+sq.price/2+'</div>';
+    h+='<table class="rtab"><tr><td>空地租金</td><td>¥'+sq.rents[0]+'</td></tr><tr><td>集齐色组（空地）</td><td>¥'+sq.rents[0]*2+'</td></tr>';
+    for(let k=1;k<=4;k++)h+='<tr><td>'+k+' 栋房子</td><td>¥'+sq.rents[k]+'</td></tr>';
+    h+='<tr><td>酒店</td><td>¥'+sq.rents[5]+'</td></tr></table>';
+  }else if(sq.t==='station'){
+    h+='<div class="chead" style="background:#475569">🚉 '+sq.name+'</div>';
+    h+='<div class="rt">地价 ¥200 · 抵押可得 ¥100<br>租金随持有火车站数量：1 个 ¥25 · 2 个 ¥50 · 3 个 ¥100 · 4 个 ¥200</div>';
+  }else if(sq.t==='util'){
+    h+='<div class="chead" style="background:#475569">'+(sq.name==='电力公司'?'💡':'🚰')+' '+sq.name+'</div>';
+    h+='<div class="rt">地价 ¥150 · 抵押可得 ¥75<br>租金 = 骰子点数和 ×4；若同时拥有两家公用事业则 ×10</div>';
+  }else{
+    const D={go:'每次经过或停在起点，领取 ¥200。',jail:'路过监狱不受影响。被送进监狱后：掷出双数、付 ¥50 或用出狱卡可出狱；第 3 回合必须付 ¥50。监狱里仍然可以收租。',
+      park:'免费停车，什么也不会发生。',gojail:'直接进监狱，不经过起点。',chance:'抽一张机会/命运卡，可能得钱、罚款、移动或入狱。',
+      chest:'抽一张机会/命运卡，可能得钱、罚款、移动或入狱。',tax:'缴纳税款 ¥'+sq.amount+'，付给银行。'};
+    h+='<div class="chead" style="background:#475569">'+(ICONS[sq.t]||'')+' '+sq.name+'</div><div class="rt">'+D[sq.t]+'</div>';
+  }
+  if(isOwnable(i)){
+    h+='<div class="rt" style="margin-top:8px">'+(pr.owner>=0
+      ?'持有者：<b style="color:'+PCOL[pr.owner]+'">'+esc(S.players[pr.owner].name)+'</b>'+(pr.mortgaged?'（已抵押）':'')
+        +(sq.t==='prop'?(pr.houses===5?' · 酒店':pr.houses>0?' · '+pr.houses+' 栋房子':''):'')
+        +'<br>当前租金：¥'+rentFor(S,i,7)+(sq.t==='util'?'（按点数 7 估算）':'')
+      :'无人持有，可购买。')+'</div>';
+  }
+  h+='<div class="mfoot"><button class="backbtn" onclick="closeOv(\'ov-info\')">关闭</button></div>';
+  $('info-card').innerHTML=h;
+  $('ov-info').classList.add('show');
+}
+
+/* ---- 资产管理 ---- */
+function renderManage(){
+  if(!S||!human()){ closeOv('ov-manage'); UI.manage=false; return; }
+  const p=S.turn, pl=S.players[p];
+  let h='<h2>资产管理 · '+esc(pl.name)+'</h2>';
+  h+='<div class="mcash">现金 ¥'+pl.cash+(S.phase==='debt'?' · <b style="color:#f87171">欠款 ¥'+S.debt.amount+'</b>':'')+'</div>';
+  const owned=ownedBy(S,p);
+  if(!owned.length)h+='<p style="text-align:center;opacity:.8">你还没有地产。</p>';
+  const mb=(label,act,i,ok,cls)=>'<button class="mbtn '+(cls||'')+'" '+(ok?'':'disabled ')+'onclick="uiManage(\''+act+'\','+i+')">'+label+'</button>';
+  for(const i of owned){
+    const sq=BOARD[i], pr=S.props[i];
+    const ht=sq.t==='prop'?(pr.houses===5?' 🏨':pr.houses>0?' 🏠×'+pr.houses:''):'';
+    h+='<div class="mrow"><span class="mc" style="background:'+(sq.group?COLORS[sq.group]:'#64748b')+'"></span>'
+      +'<span class="mn">'+sq.name+(pr.mortgaged?'（已抵押）':'')+ht+'</span><span class="macts">';
+    if(sq.t==='prop'){
+      h+=mb('建房 ¥'+sq.house,'build',i,canBuild(S,p,i))+mb('卖房 +¥'+sq.house/2,'sell',i,canSellHouse(S,p,i),'sell');
+    }
+    h+=pr.mortgaged?mb('赎回 ¥'+unmortCost(i),'unmort',i,canUnmortgage(S,p,i),'unmort')
+                   :mb('抵押 +¥'+sq.price/2,'mort',i,canMortgage(S,p,i),'mort');
+    h+='</span></div>';
+  }
+  h+='<div class="mfoot">';
+  if(S.phase==='debt'){
+    h+='<button class="cbtn" '+(pl.cash>=S.debt.amount?'':'disabled ')+'style="font-size:15px;padding:0 18px" onclick="uiPay();closeManage()">还债 ¥'+S.debt.amount+'</button>';
+    h+='<button class="cbtn red" style="font-size:15px;padding:0 18px" onclick="uiBankrupt()">宣告破产</button>';
+  }
+  h+='<button class="backbtn" onclick="closeManage()">关闭</button></div>';
+  $('manage-card').innerHTML=h;
+}
+
+/* ---- 结果 ---- */
+function showResult(){
+  const r=S.result;
+  const quickEnd=alive(S).length>1;
+  let h='<h2>🏆 '+esc(S.players[r.winner].name)+' 获胜！</h2>';
+  h+='<p style="text-align:center;font-size:14px;opacity:.85;margin:0 0 10px">'+(quickEnd?'回合数已满，按家产（现金+地产+房屋）排名':'其他玩家全部破产')+'</p>';
+  r.ranking.forEach((x,k)=>{
+    h+='<div class="rkrow"><span>'+['🥇','🥈','🥉','4️⃣'][k]+' '+esc(S.players[x.p].name)+'</span><span>'+(x.bankrupt?'已破产':'家产 ¥'+x.worth)+'</span></div>';
+  });
+  h+='<div class="mfoot"><button class="bigbtn" style="width:auto;padding:12px 24px;font-size:17px" onclick="startGame(CFG)">再来一局</button>'
+    +'<button class="backbtn" onclick="exitToHome()">返回主页</button></div>';
+  $('res-card').innerHTML=h;
+  $('ov-result').classList.add('show');
+}
+
+/* ---- 教练提示 ---- */
+function coachText(){
+  if(!UI.coach||!S||S.over||CFG.mode!=='ai')return '';
+  const p=S.turn, pl=S.players[p]; if(pl.ai)return '';
+  switch(S.phase){
+    case 'roll':
+      if(pl.jail)return '你在监狱里。掷出双数、付 ¥50 或用出狱卡都能出狱。前期地盘还没买完时尽快出狱；后期别人的地盘盖满房子时，留在监狱反而安全（监狱里仍可收租）。';
+      return S.doubles>0?'掷出了双数，可以再掷一次！（连续三次双数会被送进监狱）'
+        :'点「掷骰子」前进。经过起点领 ¥200。未被购买的地产可以买下来，别人的地产要付租金。';
+    case 'buy': {
+      const a=adviseBuy(S,p), sq=BOARD[pl.pos];
+      return (a.buy?'建议<b>购买</b> ':'建议<b>放弃</b> ')+'「'+sq.name+'」：'+a.reason;
+    }
+    case 'debt':
+      return '现金不够付款！点「管理资产」，抵押地产（得到地价一半）或卖房筹钱；筹够了点「还债」。实在不行只能宣告破产。';
+    case 'after': {
+      const canB=ownedBy(S,p).some(i=>canBuild(S,p,i));
+      if(canB)return '你已经集齐了一个颜色组，可以点「管理资产」盖房子！房子越多租金越高（要均匀建造）。';
+      return '没有更多操作了，点「结束回合」。想了解某块地的租金，可以直接点棋盘上的格子。';
+    }
+  }
+  return '';
+}
+
+/* ================= 玩法说明 ================= */
+const sw=c=>'<span class="sw" style="background:'+c+'"></span>';
+const LESSONS=[
+ {t:'第 1 课 · 目标与准备',b:function(){return ''
+   +'<p>每位玩家开局有 <b>¥1500</b>，围着 40 格的棋盘走，<b>买地、收租、盖房子</b>，把对手逼到破产。</p>'
+   +'<p>两种对局长度：</p>'
+   +'<p>• <b>快速局</b>：打满 30 回合，按<b>家产</b>（现金 + 地产价值 + 房屋价值）排名，最高者赢。</p>'
+   +'<p>• <b>经典局</b>：一直打到只剩一个人没破产为止。</p>'
+   +'<p>棋盘上点任何一格，都能看到它的价格和租金表。</p>';}},
+ {t:'第 2 课 · 回合流程',b:function(){return ''
+   +'<p>1️⃣ 点「掷骰子」，两颗骰子点数之和就是前进格数。</p>'
+   +'<p>2️⃣ 根据落脚的格子处理：买地、付租、缴税、抽卡……</p>'
+   +'<p>3️⃣ 点「结束回合」交给下一位。</p>'
+   +'<p>• <b>经过或停在起点</b>：领取 ¥200 工资。</p>'
+   +'<p>• <b>掷出双数</b>（两颗点数相同）：走完后可以<b>再掷一次</b>；但<b>连续三次双数</b>会被送进监狱。</p>'
+   +'<p>• 你可以在自己回合的任何时候点「管理资产」盖房、抵押。</p>';}},
+ {t:'第 3 课 · 买地与租金',b:function(){return ''
+   +'<p>停在<b>无人持有</b>的地产上，可以按售价购买；不想买就点「放弃」（本游戏没有拍卖）。</p>'
+   +'<p>停在<b>别人的地产</b>上，必须付租金给对方：</p>'
+   +'<table><tr><th>类型</th><th>租金</th></tr>'
+   +'<tr><td>城市地产</td><td>按租金表；同色全拥有且没盖房 → <b>翻倍</b></td></tr>'
+   +'<tr><td>火车站 🚉</td><td>持有 1/2/3/4 个：¥25/50/100/200</td></tr>'
+   +'<tr><td>公用事业 💡🚰</td><td>骰子点数和 ×4；两家都有 ×10</td></tr></table>'
+   +'<p>城市地产按颜色分组：'+sw(COLORS.brown)+'棕 '+sw(COLORS.lblue)+'浅蓝 '+sw(COLORS.pink)+'粉 '+sw(COLORS.orange)+'橙 '
+   +sw(COLORS.red)+'红 '+sw(COLORS.yellow)+'黄 '+sw(COLORS.green)+'绿 '+sw(COLORS.dblue)+'深蓝。<b>集齐同色的全部地产</b>是赚大钱的关键。</p>';}},
+ {t:'第 4 课 · 盖房子',b:function(){return ''
+   +'<p>集齐一个颜色组（且没有被抵押的）后，就能在「管理资产」里<b>盖房</b>：</p>'
+   +'<p>• 每次花一笔房价，给一块地加 1 栋房子，租金大幅上涨。</p>'
+   +'<p>• 必须<b>均匀建造</b>：同色各块地的房子数相差不能超过 1。</p>'
+   +'<p>• 一块地最多 4 栋房子，再盖一次升级为<b>酒店 🏨</b>（租金最高）。</p>'
+   +'<p>• 房价：棕/浅蓝 ¥50，粉/橙 ¥100，红/黄 ¥150，绿/深蓝 ¥200。</p>'
+   +'<p>• 缺钱时可以把房子按<b>半价卖回</b>银行。</p>';}},
+ {t:'第 5 课 · 监狱',b:function(){return ''
+   +'<p>三种情况会进监狱：停在「入狱」格、抽到入狱卡、连续三次双数。</p>'
+   +'<p>在监狱里每个回合可以：</p>'
+   +'<p>• 掷骰：掷出<b>双数</b>就出狱并按点数前进；</p>'
+   +'<p>• 付 <b>¥50</b> 立刻出狱，然后正常掷骰；</p>'
+   +'<p>• 使用<b>出狱卡</b>（抽卡获得）。</p>'
+   +'<p>在监狱待满 3 个回合后，下一回合<b>必须</b>付 ¥50 出狱。注意：在监狱里<b>仍然可以收租</b>。</p>';}},
+ {t:'第 6 课 · 抵押与破产',b:function(){return ''
+   +'<p><b>抵押</b>：把一块地抵押给银行，立刻得到地价的一半；抵押期间收不到租金。赎回要付抵押款的 <b>110%</b>。同色组里有房子时，必须先卖房才能抵押。</p>'
+   +'<p><b>欠款</b>：现金不够付租金/税时，进入欠款状态——必须通过抵押、卖房凑够钱，再点「还债」。</p>'
+   +'<p><b>破产</b>：实在凑不够，只能宣告破产出局。资产归债主（欠银行则收归银行）。</p>';}},
+ {t:'第 7 课 · 机会与命运',b:function(){return ''
+   +'<p>停在 ❓机会 或 🎁命运 格会抽一张卡，可能是：</p>'
+   +'<p>• 得钱：红利、遗产、奖金、退税……</p>'
+   +'<p>• 罚款：医药费、学费、罚单……</p>'
+   +'<p>• 移动：前进到起点/某城市、后退三格（落点同样要处理，路过起点领 ¥200）；</p>'
+   +'<p>• 生日：每位玩家给你 ¥25；</p>'
+   +'<p>• 直接入狱，或获得一张「出狱卡」。</p>';}},
+ {t:'第 8 课 · 新手策略',b:function(){return ''
+   +'<p>① <b>前期多买地</b>：钱放着不会增值，地产才会持续收租。</p>'
+   +'<p>② <b>争取集齐色组</b>：同色三块地的橙色、红色最容易被踩到，性价比高。</p>'
+   +'<p>③ <b>留够备用金</b>：手里至少留 ¥100~200，防止踩到对手的豪宅一次破产。</p>'
+   +'<p>④ <b>盖房比多买地更赚</b>：集齐后马上盖房，对手路过就是大额租金。</p>'
+   +'<p>⑤ <b>快速局注意家产</b>：到最后一回合前，现金、地产、房屋都算分，别乱抵押。</p>'
+   +'<p>想边玩边学，点本页顶部的「开始引导对局」，教练会在每一步给你建议。</p>';}},
+];
+function openTutorial(){
+  const box=$('lessons');
+  if(!box.dataset.built){
+    box.innerHTML=LESSONS.map((L,i)=>'<div class="lesson" id="ls'+i+'"><button onclick="toggleLesson('+i+')"><span>'+esc(L.t)
+      +'</span><span>▾</span></button><div class="body">'+L.b()+'</div></div>').join('');
+    box.dataset.built='1';
+  }
+  showScreen('tut');
+}
+function toggleLesson(i){ $('ls'+i).classList.toggle('open'); }
+</script>
+</body>
+</html>
