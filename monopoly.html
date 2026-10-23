@@ -127,7 +127,7 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;
 #log div:last-child{opacity:1;color:#fde68a;}
 
 /* ===== 遮罩 ===== */
-.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:50;
+.overlay{--c:36px;display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:50;
   align-items:center;justify-content:center;flex-direction:column;padding:16px;text-align:center;}
 .overlay.show{display:flex;}
 .overlay .card{background:#1c2a22;border:1px solid rgba(255,255,255,.15);border-radius:16px;
@@ -148,6 +148,24 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;
 .mbtn:disabled{opacity:.3;cursor:default;}
 .mfoot{display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap;}
 .rkrow{display:flex;justify-content:space-between;font-size:15px;padding:7px 10px;background:rgba(255,255,255,.06);border-radius:8px;margin:4px 0;}
+
+/* ===== 交易 ===== */
+.tpick{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin:6px 0 10px;}
+.tpick button{background:rgba(255,255,255,.12);border:2px solid transparent;color:#fff;font-size:14px;font-weight:700;padding:8px 12px;border-radius:10px;cursor:pointer;}
+.tpick button.on{border-color:var(--gold);background:rgba(251,191,36,.2);}
+.tside{background:rgba(0,0,0,.25);border-radius:10px;padding:10px;margin:8px 0;}
+.tside .ttl{font-weight:700;font-size:14px;margin-bottom:6px;color:#fde68a;}
+.trow{display:flex;align-items:center;gap:8px;font-size:14px;margin:6px 0;flex-wrap:wrap;}
+.trow input{width:110px;padding:7px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.3);background:#0f1a14;color:#fff;font-size:16px;}
+.trow button{width:30px;height:30px;border-radius:8px;border:none;background:rgba(255,255,255,.16);color:#fff;font-size:18px;font-weight:800;cursor:pointer;}
+.tchips{display:flex;flex-wrap:wrap;gap:6px;}
+.tchip{display:inline-flex;align-items:center;gap:5px;padding:6px 9px;border-radius:8px;border:2px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);color:#fff;font-size:13px;}
+button.tchip{cursor:pointer;}
+.tchip.on{border-color:var(--gold);background:rgba(251,191,36,.2);}
+.tchip:disabled{opacity:.35;cursor:default;}
+.tchip .mc{display:inline-block;width:10px;height:18px;border-radius:2px;}
+.terr{min-height:18px;color:#f87171;font-size:13px;text-align:center;margin-top:6px;}
+.cell.auc{outline:3px dashed #dc2626;outline-offset:-3px;z-index:2;}
 
 /* ===== 教学 ===== */
 #scr-tut{padding:10px 12px calc(10px + env(safe-area-inset-bottom));overflow-y:auto;}
@@ -173,7 +191,7 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;
   <button class="bigbtn gold" onclick="openTutorial()">📖 玩法说明（新手必看）</button>
   <button class="bigbtn" onclick="openSetup('ai')">🤖 人机对战</button>
   <button class="bigbtn alt" onclick="openSetup('hotseat')">👥 真人对战（同屏轮流）</button>
-  <div class="note">简化规则：没有拍卖和玩家间交易。真人对战为同一台设备轮流操作，所有信息公开，不需要遮挡。支持手机与电脑浏览器。</div>
+  <div class="note">没人买的地产会公开拍卖，玩家之间可以交易地产、现金和出狱卡。真人对战为同一台设备轮流操作，所有信息公开，不需要遮挡。支持手机与电脑浏览器。</div>
 </div>
 
 <!-- 设置 -->
@@ -218,6 +236,14 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;
 <!-- 资产管理 -->
 <div id="ov-manage" class="overlay" onclick="if(event.target===this)closeManage()">
   <div class="card" id="manage-card"></div>
+</div>
+<!-- 发起交易 -->
+<div id="ov-trade" class="overlay">
+  <div class="card" id="trade-card"></div>
+</div>
+<!-- 回应交易 -->
+<div id="ov-traderesp" class="overlay">
+  <div class="card" id="traderesp-card"></div>
 </div>
 <!-- 结果 -->
 <div id="ov-result" class="overlay">
@@ -314,7 +340,8 @@ function shuffle(a,rand){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Mat
 function newGame(opt){
   const rand=opt.rand||Math.random;
   const s={players:[],props:[],turn:0,round:1,phase:'roll',dice:[0,0],rollCount:0,doubles:0,debt:null,
-           log:[],deck:[],maxRounds:opt.maxRounds||30,over:false,result:null,rand};
+           log:[],deck:[],maxRounds:opt.maxRounds||30,over:false,result:null,rand,
+           auction:null,trade:null,lastTradeRound:[],stats:{auctions:0,auctionSales:0,tradeOffers:0,trades:0}};
   for(let i=0;i<opt.names.length;i++)
     s.players.push({name:opt.names[i],ai:!!(opt.ai&&opt.ai[i]),pos:0,cash:1500,jail:false,jailTurns:0,cards:0,bankrupt:false});
   for(let i=0;i<40;i++)s.props.push({owner:-1,houses:0,mortgaged:false});
@@ -503,7 +530,7 @@ function doBuy(s){
 function doDecline(s){
   if(s.phase!=='buy')return false;
   logMsg(s,s.players[s.turn].name+' 放弃购买 '+BOARD[s.players[s.turn].pos].name);
-  finishLanding(s); return true;
+  startAuction(s,s.players[s.turn].pos); return true;
 }
 function jailPay(s){
   if(s.phase!=='roll')return false;
@@ -535,8 +562,8 @@ function finishGame(s){
   logMsg(s,'游戏结束！'+s.players[rk[0].p].name+' 获胜');
 }
 function declareBankrupt(s,p){
-  const pl=s.players[p]; if(pl.bankrupt||s.over)return false;
-  const to=s.debt?s.debt.to:-1;
+  const pl=s.players[p]; if(pl.bankrupt||s.over||s.phase!=='debt'||!s.debt||s.turn!==p)return false;   // 只能在欠款阶段由欠款人宣告
+  const to=s.debt.to;
   logMsg(s,pl.name+' 破产出局！'+(to>=0?'资产归 '+s.players[to].name:'资产收归银行'));
   for(const i of ownedBy(s,p)){
     const pr=s.props[i];
@@ -549,6 +576,201 @@ function declareBankrupt(s,p){
   if(alive(s).length<=1){ finishGame(s); return true; }
   if(s.turn===p)advanceTurn(s);
   return true;
+}
+
+/* ---------- 拍卖 ---------- */
+// 当前需要做决定的玩家：交易中是被提议方，拍卖中是轮到出价的人，其余阶段是回合玩家
+function actor(s){
+  if(s.phase==='trade'&&s.trade)return s.trade.to;
+  if(s.phase==='auction'&&s.auction)return s.auction.active[s.auction.cur];
+  return s.turn;
+}
+// 玩家放弃购买（或买不起）时，这块地进入拍卖，所有未破产玩家都可出价
+function startAuction(s,idx){
+  const n=s.players.length, order=[];
+  for(let k=1;k<=n;k++){ const q=(s.turn+k)%n; if(!s.players[q].bankrupt)order.push(q); }   // 从下家开始，放弃者排最后
+  s.auction={idx,bid:0,bidder:-1,active:order,cur:0};
+  s.phase='auction'; s.stats.auctions++;
+  logMsg(s,'「'+BOARD[idx].name+'」进入拍卖（每次至少加价 ¥10）');
+}
+function auctionNext(s,removed){
+  const a=s.auction;
+  if(a.bidder>=0&&a.active.every(q=>q===a.bidder))return auctionEnd(s);   // 只剩领先者
+  if(a.bidder<0&&a.active.length===0)return auctionEnd(s);               // 无人出价，流拍
+  const L=a.active.length; let c=a.cur;
+  if(!removed)c=(c+1)%L; else if(c>=L)c=0;
+  let guard=0; while(a.active[c]===a.bidder&&guard++<L)c=(c+1)%L;       // 领先者不用再出价
+  a.cur=c;
+}
+function auctionBid(s,p,amount){
+  if(s.phase!=='auction'||!s.auction)return false;
+  const a=s.auction;
+  if(a.active[a.cur]!==p)return false;
+  if(!Number.isInteger(amount)||amount<a.bid+10||amount>s.players[p].cash)return false;
+  a.bid=amount; a.bidder=p;
+  logMsg(s,s.players[p].name+' 出价 ¥'+amount);
+  auctionNext(s,false); return true;
+}
+function auctionPass(s,p){
+  if(s.phase!=='auction'||!s.auction)return false;
+  const a=s.auction;
+  if(a.active[a.cur]!==p)return false;
+  a.active.splice(a.cur,1);
+  logMsg(s,s.players[p].name+' 放弃竞拍');
+  auctionNext(s,true); return true;
+}
+function auctionEnd(s){
+  const a=s.auction, sq=BOARD[a.idx];
+  if(a.bidder>=0){
+    s.players[a.bidder].cash-=a.bid; s.props[a.idx].owner=a.bidder; s.stats.auctionSales++;
+    logMsg(s,s.players[a.bidder].name+' 以 ¥'+a.bid+' 拍得 '+sq.name+(a.bid<sq.price?'（比原价便宜 ¥'+(sq.price-a.bid)+'）':''));
+  }else logMsg(s,sq.name+' 流拍，仍无人持有');
+  s.auction=null;
+  finishLanding(s);
+}
+// 这块地对玩家 p 值多少钱（用于 AI 出价和教练提示）
+function auctionValue(s,p,i){
+  const sq=BOARD[i]; let v=sq.price;
+  if(sq.t==='prop'){
+    const g=GROUPS[sq.group], mine=g.filter(j=>s.props[j].owner===p).length;
+    if(mine===g.length-1)v*=1.6;
+    else if(mine>0)v*=1.2;
+    else{
+      const others=g.filter(j=>s.props[j].owner>=0&&s.props[j].owner!==p);
+      if(others.length===g.length-1&&others.every(j=>s.props[j].owner===s.props[others[0]].owner))v*=1.3;   // 堵住对手
+    }
+  }else if(sq.t==='station'){
+    v=v*(100+15*STATIONS.filter(j=>s.props[j].owner===p).length)/100;
+  }
+  return Math.round(v*100)/100;   // 避免浮点误差（如 200×1.15）
+}
+function aiAuction(s,p){
+  const a=s.auction, price=BOARD[a.idx].price;
+  const maxBid=Math.min(s.players[p].cash-60,Math.floor(auctionValue(s,p,a.idx)/10)*10);   // 至少留 ¥60 备用金
+  const step=Math.max(10,Math.round(price*0.08/10)*10);
+  let next=a.bid===0?Math.max(10,Math.round(price*0.4/10)*10):a.bid+step;
+  if(next>maxBid)next=maxBid;
+  if(next>=a.bid+10&&next>=10)auctionBid(s,p,next); else auctionPass(s,p);
+}
+
+/* ---------- 玩家交易 ---------- */
+// 地产能否参与交易：同色组里有房子时必须先卖房
+function tradeable(s,i){
+  if(!isOwnable(i))return false;
+  const sq=BOARD[i];
+  return !(sq.t==='prop'&&GROUPS[sq.group].some(j=>s.props[j].houses>0));
+}
+function normSide(o){ return{cash:o&&o.cash!=null?o.cash:0,cards:o&&o.cards!=null?o.cards:0,props:o&&o.props?o.props.slice():[]}; }
+function describeSide(o){
+  const parts=[]; if(o.cash>0)parts.push('¥'+o.cash);
+  for(const i of o.props)parts.push(BOARD[i].name);
+  if(o.cards>0)parts.push('出狱卡×'+o.cards);
+  return parts.length?parts.join('、'):'无';
+}
+// 返回错误说明；空字符串表示合法
+function tradeError(s,t){
+  const n=s.players.length;
+  if(!Number.isInteger(t.from)||!Number.isInteger(t.to)||t.from<0||t.to<0||t.from>=n||t.to>=n||t.from===t.to)return '请选择交易对象';
+  if(s.players[t.from].bankrupt||s.players[t.to].bankrupt)return '对方已破产';
+  for(const side of ['give','get']){
+    const who=side==='give'?t.from:t.to, o=t[side], me=side==='give'?'你':s.players[t.to].name;
+    if(!Number.isInteger(o.cash)||o.cash<0)return '现金必须是不小于 0 的整数';
+    if(o.cash>s.players[who].cash)return me+'的现金不足';
+    if(!Number.isInteger(o.cards)||o.cards<0||o.cards>s.players[who].cards)return me+'没有那么多出狱卡';
+    if(new Set(o.props).size!==o.props.length)return '地产重复选择';
+    for(const i of o.props){
+      if(!Number.isInteger(i)||i<0||i>=40||!isOwnable(i)||s.props[i].owner!==who)return BOARD[i]?BOARD[i].name+' 不属于'+me:'地产无效';
+      if(!tradeable(s,i))return BOARD[i].name+' 所在色组已盖房，需先卖掉房子';
+    }
+  }
+  const empty=o=>o.cash===0&&o.cards===0&&o.props.length===0;
+  if(empty(t.give)&&empty(t.get))return '交易内容为空';
+  return '';
+}
+// 发起交易：返回错误说明，空字符串表示已发出
+function proposeTrade(s,t){
+  const tr={from:t.from,to:t.to,give:normSide(t.give),get:normSide(t.get)};
+  if(!manageOK(s,tr.from,false))return '现在不能发起交易';
+  const err=tradeError(s,tr); if(err)return err;
+  tr.back=s.phase; s.trade=tr; s.phase='trade';
+  s.stats.tradeOffers++; s.lastTradeRound[tr.from]=s.round;
+  logMsg(s,s.players[tr.from].name+' 向 '+s.players[tr.to].name+' 提议：给出【'+describeSide(tr.give)+'】换【'+describeSide(tr.get)+'】');
+  return '';
+}
+function executeTrade(s,t){
+  const A=s.players[t.from], B=s.players[t.to];
+  A.cash+=t.get.cash-t.give.cash; B.cash+=t.give.cash-t.get.cash;
+  A.cards+=t.get.cards-t.give.cards; B.cards+=t.give.cards-t.get.cards;
+  for(const i of t.give.props)s.props[i].owner=t.to;
+  for(const i of t.get.props)s.props[i].owner=t.from;
+}
+function acceptTrade(s){
+  if(s.phase!=='trade'||!s.trade)return false;
+  const t=s.trade, err=tradeError(s,t);
+  if(err){ logMsg(s,'交易已失效：'+err); return declineTrade(s,true); }
+  executeTrade(s,t); s.stats.trades++;
+  logMsg(s,'交易达成：'+s.players[t.from].name+' 与 '+s.players[t.to].name+' 完成交换');
+  s.phase=t.back; s.trade=null; return true;
+}
+function declineTrade(s,silent){
+  if(s.phase!=='trade'||!s.trade)return false;
+  if(!silent)logMsg(s,s.players[s.trade.to].name+' 拒绝了 '+s.players[s.trade.from].name+' 的交易');
+  s.phase=s.trade.back; s.trade=null; return true;
+}
+// 估价：这笔交易对玩家 p 的价值（获得 / 付出 / 净收益）
+function tradeNet(s,p,t){
+  const mine=p===t.to, recv=mine?t.give:t.get, send=mine?t.get:t.give, other=mine?t.from:t.to;
+  const after=i=>recv.props.includes(i)?p:send.props.includes(i)?other:s.props[i].owner;
+  let gain=recv.cash+recv.cards*50, loss=send.cash+send.cards*50;
+  for(const i of recv.props){
+    const sq=BOARD[i]; let v=sq.price*(s.props[i].mortgaged?0.6:1);
+    if(sq.t==='prop'){
+      const g=GROUPS[sq.group], k=g.filter(j=>after(j)===p).length;
+      if(k===g.length)v+=sq.price*1.2;          // 换来后集齐色组
+      else if(k>=2)v+=sq.price*0.2;
+    }else if(sq.t==='station'){ v+=sq.price*0.1*STATIONS.filter(j=>after(j)===p).length; }
+    gain+=v;
+  }
+  for(const i of send.props){
+    const sq=BOARD[i]; let v=sq.price*(s.props[i].mortgaged?0.6:1);
+    if(sq.t==='prop'){
+      const g=GROUPS[sq.group], k=g.filter(j=>s.props[j].owner===p).length;
+      if(k===g.length)v+=sq.price*2;            // 拆散自己已集齐的色组
+      else if(k>=2)v+=sq.price*0.2;
+      if(g.filter(j=>after(j)===other).length===g.length)v+=sq.price*0.6;   // 成全对方集齐色组
+    }
+    loss+=v;
+  }
+  return{gain,loss,net:gain-loss};
+}
+function aiAcceptsTrade(s,p,t){
+  const mine=p===t.to, recv=mine?t.give:t.get, send=mine?t.get:t.give;
+  if(s.players[p].cash+recv.cash-send.cash<50)return false;       // 付完要留 ¥50
+  const v=tradeNet(s,p,t);
+  return v.net>=Math.max(10,v.loss*0.1);
+}
+// AI 主动提议：只差一块就能集齐色组时，出价向持有者购买
+function aiProposeTrade(s,p){
+  const pl=s.players[p];
+  const last=s.lastTradeRound[p]===undefined?-99:s.lastTradeRound[p];
+  if(s.round-last<4)return false;                                  // 冷却，避免频繁骚扰
+  for(const g of Object.keys(GROUPS)){
+    const mem=GROUPS[g];
+    if(mem.filter(j=>s.props[j].owner===p).length!==mem.length-1)continue;
+    const m=mem.find(j=>s.props[j].owner!==p), q=s.props[m].owner;
+    if(q<0||s.players[q].bankrupt||!tradeable(s,m))continue;
+    const price=BOARD[m].price, maxCash=pl.cash-150;
+    for(const mult of s.players[q].ai?[1.6,1.8,2.0,2.2]:[1.5]){
+      const cash=Math.ceil(price*mult/10)*10;
+      if(cash>maxCash)break;
+      const t={from:p,to:q,give:{cash,cards:0,props:[]},get:{cash:0,cards:0,props:[m]}};
+      if(tradeNet(s,p,t).net<0)continue;                           // 提议方自己也不能亏
+      if(s.players[q].ai&&!aiAcceptsTrade(s,q,t))continue;
+      if(s.rand()>=0.6)return false;                                // 不是每次都提
+      return proposeTrade(s,t)==='';
+    }
+  }
+  return false;
 }
 
 /* ---------- AI 与建议 ---------- */
@@ -597,9 +819,12 @@ function aiRaise(s,p){
 // AI 执行当前阶段的一个动作
 function aiStep(s){
   if(s.over)return;
+  if(s.phase==='trade'){ if(aiAcceptsTrade(s,s.trade.to,s.trade))acceptTrade(s); else declineTrade(s); return; }
+  if(s.phase==='auction'){ aiAuction(s,actor(s)); return; }
   const p=s.turn, pl=s.players[p];
   if(s.phase==='roll'){
     aiManage(s,p);
+    if(s.doubles===0&&aiProposeTrade(s,p))return;
     if(pl.jail){
       if(pl.cards>0){ jailCard(s); return; }
       if(pl.jailTurns>=2||(pl.cash>=400&&s.round<=15)){ jailPay(s); return; }
@@ -629,7 +854,7 @@ function showScreen(n){
 function closeOv(id){ $(id).classList.remove('show'); }
 
 let S=null, CFG=null;
-const UI={coach:false,timer:null,lastRoll:0,shake:false,manage:false,resultShown:false};
+const UI={coach:false,timer:null,lastRoll:0,shake:false,manage:false,resultShown:false,trade:null};
 let SET={mode:'ai',n:3,quick:true};
 
 /* ---- 设置 ---- */
@@ -660,7 +885,7 @@ function startGame(cfg){
   }
   S=newGame({names,ai,maxRounds:cfg.quick?30:200});
   UI.coach=!!cfg.coach; UI.lastRoll=0; UI.manage=false; UI.resultShown=false;
-  closeOv('ov-result'); closeOv('ov-manage'); closeOv('ov-info');
+  closeOv('ov-result'); closeOv('ov-manage'); closeOv('ov-info'); closeOv('ov-trade'); closeOv('ov-traderesp'); UI.trade=null;
   $('coachBtn').style.display=cfg.mode==='ai'?'':'none';
   showScreen('game');
   render(); schedule();
@@ -669,7 +894,7 @@ function toggleCoach(){ UI.coach=!UI.coach; render(); }
 function confirmExit(){ if(confirm('确定退出本局？进度将不会保存。'))exitToHome(); }
 function exitToHome(){
   clearTimeout(UI.timer); S=null; UI.manage=false;
-  closeOv('ov-result'); closeOv('ov-manage'); closeOv('ov-info');
+  closeOv('ov-result'); closeOv('ov-manage'); closeOv('ov-info'); closeOv('ov-trade'); closeOv('ov-traderesp'); UI.trade=null;
   showScreen('home');
 }
 
@@ -677,7 +902,7 @@ function exitToHome(){
 function schedule(){
   clearTimeout(UI.timer);
   if(!S||S.over)return;
-  if(!S.players[S.turn].ai)return;
+  if(!S.players[actor(S)].ai)return;                    // 轮到真人（回合、出价或回应交易）时等待
   UI.timer=setTimeout(aiTick,S.phase==='roll'?900:700);
 }
 function aiTick(){
@@ -685,7 +910,7 @@ function aiTick(){
   aiStep(S);
   render(); schedule();
 }
-function human(){ return S&&!S.over&&!S.players[S.turn].ai; }
+function human(){ return S&&!S.over&&!S.players[actor(S)].ai; }
 function afterAction(){ render(); schedule(); }
 
 /* ---- 玩家操作 ---- */
@@ -696,6 +921,10 @@ function uiEnd(){ if(!human())return; endTurn(S); afterAction(); }
 function uiPay(){ if(!human())return; payDebt(S); afterAction(); }
 function uiJailPay(){ if(!human())return; jailPay(S); afterAction(); }
 function uiJailCard(){ if(!human())return; jailCard(S); afterAction(); }
+function uiBid(amount){ if(!human()||S.phase!=='auction')return; auctionBid(S,actor(S),amount); afterAction(); }
+function uiAuctionPass(){ if(!human()||S.phase!=='auction')return; auctionPass(S,actor(S)); afterAction(); }
+function uiTradeAccept(){ if(!human()||S.phase!=='trade')return; acceptTrade(S); afterAction(); }
+function uiTradeDecline(){ if(!human()||S.phase!=='trade')return; declineTrade(S); afterAction(); }
 function uiBankrupt(){
   if(!human()||S.phase!=='debt')return;
   if(!confirm('确定宣告破产？你的所有资产将归债主（或银行），并退出游戏。'))return;
@@ -745,17 +974,29 @@ function cellHTML(i){
   let toks='';
   S.players.forEach((pl,k)=>{ if(!pl.bankrupt&&pl.pos===i)toks+='<div class="tok" style="background:'+PCOL[k]+'">'+(k+1)+'</div>'; });
   if(!S.over&&S.players[S.turn].pos===i)cls+=' cur';
+  if(S.phase==='auction'&&S.auction&&S.auction.idx===i)cls+=' auc';
   return '<div class="'+cls+'" style="'+style+'" onclick="showCell('+i+')">'+inner+'<div class="toks">'+toks+'</div></div>';
 }
 function btn(label,fn,cls,dis){ return '<button class="cbtn '+(cls||'')+'" '+(dis?'disabled ':'')+'onclick="'+fn+'">'+label+'</button>'; }
 function centerHTML(){
   let h='<div class="ctitle">东南亚大富翁</div>';
   if(S.over)return h+'<div class="cmsg">游戏结束</div>';
-  const p=S.turn, pl=S.players[p], sq=BOARD[pl.pos], isH=!pl.ai;
-  h+='<div class="cturn" style="color:'+PCOL[p]+'">● '+esc(pl.name)+(pl.jail?' 🔒':'')+'</div>';
+  const p=S.turn, pl=S.players[p], sq=BOARD[pl.pos];
+  const w=actor(S), wl=S.players[w], isH=!wl.ai;       // w：此刻需要做决定的人（出价者 / 被提议方 / 回合玩家）
+  h+='<div class="cturn" style="color:'+PCOL[w]+'">● '+esc(wl.name)+(wl.jail&&w===p?' 🔒':'')+'</div>';
   if(S.rollCount>0)h+='<div class="cdice'+(UI.shake?' shake':'')+'">'+dieHTML(S.dice[0])+dieHTML(S.dice[1])+'</div>';
   let msg='', b='';
-  if(!isH){
+  if(S.phase==='auction'){
+    const a=S.auction, asq=BOARD[a.idx];
+    msg='🔨 拍卖「'+asq.name+'」（原价 ¥'+asq.price+'）<br>'+(a.bid>0?'最高价 ¥'+a.bid+'（'+esc(S.players[a.bidder].name)+'）':'还没有人出价');
+    if(isH){
+      for(const inc of [10,50,100]){ const nb=a.bid+inc; b+=btn('出价 ¥'+nb,'uiBid('+nb+')','',nb>wl.cash); }
+      b+=btn('放弃竞拍','uiAuctionPass()','gray');
+    }else msg+='<br>'+esc(wl.name)+' 思考中…';
+  }else if(S.phase==='trade'){
+    const t=S.trade;
+    msg='🤝 '+esc(S.players[t.from].name)+' 向 '+esc(S.players[t.to].name)+' 提出交易'+(isH?'，请回应':'，等待回应…');
+  }else if(!isH){
     msg=esc(pl.name)+' 思考中…';
   }else if(S.phase==='roll'){
     if(pl.jail){
@@ -767,17 +1008,17 @@ function centerHTML(){
       msg=S.doubles>0?'双数！再掷一次':'轮到你了，请掷骰子';
       b+=btn(S.doubles>0?'🎲 再掷一次':'🎲 掷骰子','uiRoll()','gold');
     }
-    b+=btn('管理资产','openManage()','gray');
+    b+=btn('🤝 交易','openTrade()','blue')+btn('管理资产','openManage()','gray');
   }else if(S.phase==='buy'){
     msg='到达「'+sq.name+'」· 售价 ¥'+sq.price+'（你有 ¥'+pl.cash+'）';
-    b+=btn('购买 ¥'+sq.price,'uiBuy()','',pl.cash<sq.price)+btn('放弃','uiSkip()','gray');
+    b+=btn('购买 ¥'+sq.price,'uiBuy()','',pl.cash<sq.price)+btn('放弃（拍卖）','uiSkip()','gray');
   }else if(S.phase==='debt'){
     const d=S.debt;
     msg='欠款 ¥'+d.amount+(d.to>=0?'（付给 '+esc(S.players[d.to].name)+'）':'（付给银行）')+' · 现金 ¥'+pl.cash;
-    b+=btn('还债','uiPay()','',pl.cash<d.amount)+btn('管理资产','openManage()','blue')+btn('宣告破产','uiBankrupt()','red');
+    b+=btn('还债','uiPay()','',pl.cash<d.amount)+btn('管理资产','openManage()','blue')+btn('🤝 卖地','openTrade()','blue')+btn('宣告破产','uiBankrupt()','red');
   }else if(S.phase==='after'){
     msg='本回合行动完毕';
-    b+=btn('结束回合','uiEnd()','gold')+btn('管理资产','openManage()','gray');
+    b+=btn('结束回合','uiEnd()','gold')+btn('🤝 交易','openTrade()','blue')+btn('管理资产','openManage()','gray');
   }
   h+='<div class="cmsg">'+msg+'</div>';
   if(b)h+='<div class="cbtns">'+b+'</div>';
@@ -806,6 +1047,7 @@ function render(){
   if(ct){ $('hintbox').innerHTML='<span class="ttl">💡 教练</span>'+ct; $('hintbox').classList.add('show'); }
   else $('hintbox').classList.remove('show');
   if(UI.manage)renderManage();
+  renderTradeResp();
   if(S.over&&!UI.resultShown){ UI.resultShown=true; showResult(); }
 }
 
@@ -888,25 +1130,113 @@ function showResult(){
   $('ov-result').classList.add('show');
 }
 
+/* ---- 交易界面 ---- */
+function sideView(o){
+  let h='<div class="tchips">';
+  if(o.cash>0)h+='<span class="tchip">💰 ¥'+o.cash+'</span>';
+  for(const i of o.props){ const sq=BOARD[i]; h+='<span class="tchip"><span class="mc" style="background:'+(sq.group?COLORS[sq.group]:'#64748b')+'"></span>'+sq.name+(S.props[i].mortgaged?'（抵押）':'')+'</span>'; }
+  if(o.cards>0)h+='<span class="tchip">🎫 出狱卡×'+o.cards+'</span>';
+  if(o.cash<=0&&!o.props.length&&o.cards<=0)h+='<span style="opacity:.7;font-size:13px">（无）</span>';
+  return h+'</div>';
+}
+function openTrade(){
+  if(!human()||!(S.phase==='roll'||S.phase==='after'||S.phase==='debt'))return;
+  const others=alive(S).filter(i=>i!==S.turn);
+  if(!others.length)return;
+  UI.trade={to:others.length===1?others[0]:null,give:{cash:0,cards:0,props:[]},get:{cash:0,cards:0,props:[]},err:''};
+  renderTrade(); $('ov-trade').classList.add('show');
+}
+function closeTrade(){ UI.trade=null; closeOv('ov-trade'); }
+function tradeSideHTML(side,who,title){
+  const o=UI.trade[side], pl=S.players[who];
+  let h='<div class="tside"><div class="ttl">'+title+'（'+esc(pl.name)+'，现金 ¥'+pl.cash+'）</div>';
+  h+='<div class="trow">现金 ¥ <input type="number" inputmode="numeric" min="0" step="10" value="'+o.cash+'" oninput="tradeCash(\''+side+'\',this.value)"></div>';
+  if(pl.cards>0)h+='<div class="trow">出狱卡 <button onclick="tradeCards(\''+side+'\',-1)">−</button> '+o.cards+' / '+pl.cards+' <button onclick="tradeCards(\''+side+'\',1)">+</button></div>';
+  const list=ownedBy(S,who);
+  if(!list.length)h+='<div style="opacity:.7;font-size:13px">没有地产</div>';
+  h+='<div class="tchips">';
+  for(const i of list){
+    const sq=BOARD[i], ok=tradeable(S,i), on=o.props.includes(i);
+    h+='<button class="tchip'+(on?' on':'')+'" '+(ok?'':'disabled ')+'onclick="tradeProp(\''+side+'\','+i+')"><span class="mc" style="background:'
+      +(sq.group?COLORS[sq.group]:'#64748b')+'"></span>'+sq.name+(S.props[i].mortgaged?'（抵押）':'')+(ok?'':' 🏠')+'</button>';
+  }
+  return h+'</div></div>';
+}
+function renderTrade(){
+  const T=UI.trade; if(!T)return;
+  const me=S.turn;
+  let h='<h2>🤝 发起交易</h2><div class="rt" style="text-align:center">选择交易对象：</div><div class="tpick">';
+  for(const q of alive(S)){ if(q===me)continue;
+    h+='<button class="'+(T.to===q?'on':'')+'" onclick="tradeTo('+q+')"><span style="color:'+PCOL[q]+'">●</span> '+esc(S.players[q].name)+' · ¥'+S.players[q].cash+'</button>'; }
+  h+='</div>';
+  if(T.to!==null){ h+=tradeSideHTML('give',me,'我给出')+tradeSideHTML('get',T.to,'我想要'); }
+  h+='<div class="rt" style="font-size:12px;opacity:.7;text-align:center">🏠 = 所在色组已盖房，需先卖房才能交易。抵押中的地产可以交易，转手后仍保持抵押。</div>';
+  h+='<div class="terr" id="tr-err">'+esc(T.err)+'</div><div class="mfoot">';
+  if(T.to!==null)h+='<button class="cbtn" style="font-size:16px;padding:0 22px" onclick="tradeSend()">发送报价</button>';
+  h+='<button class="backbtn" onclick="closeTrade()">取消</button></div>';
+  $('trade-card').innerHTML=h;
+}
+function tradeTo(q){ const T=UI.trade; T.to=q; T.give={cash:0,cards:0,props:[]}; T.get={cash:0,cards:0,props:[]}; T.err=''; renderTrade(); }
+function tradeCash(side,v){ UI.trade[side].cash=Number(v)||0; }
+function tradeCards(side,d){
+  const T=UI.trade, who=side==='give'?S.turn:T.to;
+  T[side].cards=Math.max(0,Math.min(S.players[who].cards,T[side].cards+d)); renderTrade();
+}
+function tradeProp(side,i){
+  const o=UI.trade[side], k=o.props.indexOf(i);
+  if(k>=0)o.props.splice(k,1); else o.props.push(i);
+  renderTrade();
+}
+function tradeSend(){
+  const T=UI.trade; if(!T||T.to===null||!human())return;
+  const err=proposeTrade(S,{from:S.turn,to:T.to,give:T.give,get:T.get});
+  if(err){ T.err=err; $('tr-err').textContent=err; return; }
+  closeTrade(); afterAction();
+}
+// 被提议方是真人时，弹出回应窗口
+function renderTradeResp(){
+  const show=S&&!S.over&&S.phase==='trade'&&S.trade&&!S.players[S.trade.to].ai;
+  if(!show){ closeOv('ov-traderesp'); return; }
+  const t=S.trade, A=S.players[t.from], B=S.players[t.to];
+  let h='<h2>🤝 交易提议</h2><div class="rt" style="text-align:center"><b style="color:'+PCOL[t.from]+'">'+esc(A.name)+'</b> 向 <b style="color:'+PCOL[t.to]+'">'+esc(B.name)+'</b> 提议：</div>';
+  h+='<div class="tside"><div class="ttl">'+esc(B.name)+' 将得到</div>'+sideView(t.give)+'</div>';
+  h+='<div class="tside"><div class="ttl">'+esc(B.name)+' 将给出</div>'+sideView(t.get)+'</div>';
+  if(UI.coach&&CFG.mode==='ai')h+='<div class="rt" style="color:#7dd3fc;margin:8px 0">💡 '+tradeAdvice(S,t.to,t)+'</div>';
+  h+='<div class="mfoot"><button class="cbtn" style="font-size:16px;padding:0 24px" onclick="uiTradeAccept()">接受</button>'
+    +'<button class="cbtn red" style="font-size:16px;padding:0 24px" onclick="uiTradeDecline()">拒绝</button></div>';
+  $('traderesp-card').innerHTML=h; $('ov-traderesp').classList.add('show');
+}
+
 /* ---- 教练提示 ---- */
+function tradeAdvice(s,p,t){
+  const v=tradeNet(s,p,t), good=v.net>=Math.max(10,v.loss*0.1);
+  return '助手估价：你得到的价值约 ¥'+Math.round(v.gain)+'，付出约 ¥'+Math.round(v.loss)+'（已算入集齐/拆散色组的影响）。'
+    +(good?'<b>对你有利</b>，可以接受。':'<b>不太划算</b>，建议拒绝，或自己发起一个更好的报价。');
+}
 function coachText(){
   if(!UI.coach||!S||S.over||CFG.mode!=='ai')return '';
-  const p=S.turn, pl=S.players[p]; if(pl.ai)return '';
+  const w=actor(S); if(S.players[w].ai)return '';
+  const p=S.turn, pl=S.players[p];
   switch(S.phase){
+    case 'auction': {
+      const a=S.auction, v=Math.floor(auctionValue(S,w,a.idx)/10)*10;
+      return '拍卖：出价最高者买下。这块地对你大约值 <b>¥'+v+'</b>（集齐色组、堵住对手会更值钱），出价别超过它，也要给自己留点备用金。不想要就点「放弃竞拍」，放弃后不能再加入。';
+    }
+    case 'trade': return tradeAdvice(S,w,S.trade);
     case 'roll':
       if(pl.jail)return '你在监狱里。掷出双数、付 ¥50 或用出狱卡都能出狱。前期地盘还没买完时尽快出狱；后期别人的地盘盖满房子时，留在监狱反而安全（监狱里仍可收租）。';
       return S.doubles>0?'掷出了双数，可以再掷一次！（连续三次双数会被送进监狱）'
-        :'点「掷骰子」前进。经过起点领 ¥200。未被购买的地产可以买下来，别人的地产要付租金。';
+        :'点「掷骰子」前进。经过起点领 ¥200。未被购买的地产可以买下来，别人的地产要付租金。想集齐一个国家，也可以先点「交易」去买对手手里缺的那块。';
     case 'buy': {
       const a=adviseBuy(S,p), sq=BOARD[pl.pos];
-      return (a.buy?'建议<b>购买</b> ':'建议<b>放弃</b> ')+'「'+sq.name+'」：'+a.reason;
+      return (a.buy?'建议<b>购买</b> ':'建议<b>放弃</b> ')+'「'+sq.name+'」：'+a.reason+(a.buy?'':' 放弃后这块地会进入拍卖，现金多的对手可能低价拿走。');
     }
     case 'debt':
-      return '现金不够付款！点「管理资产」，抵押地产（得到地价一半）或卖房筹钱；筹够了点「还债」。实在不行只能宣告破产。';
+      return '现金不够付款！点「管理资产」抵押地产（得到地价一半）或卖房，也可以点「卖地」把地产卖给其他玩家换现金；筹够了点「还债」。实在不行只能宣告破产。';
     case 'after': {
       const canB=ownedBy(S,p).some(i=>canBuild(S,p,i));
-      if(canB)return '你已经集齐了一个颜色组，可以点「管理资产」盖房子！房子越多租金越高（要均匀建造）。';
-      return '没有更多操作了，点「结束回合」。想了解某块地的租金，可以直接点棋盘上的格子。';
+      if(canB)return '你已经集齐了一个国家，可以点「管理资产」盖房子！房子越多租金越高（要均匀建造）。';
+      return '没有更多操作了，点「结束回合」。想集齐某个国家？可以点「交易」向对手买下缺的那块地。想了解某块地的租金，直接点棋盘上的格子。';
     }
   }
   return '';
@@ -930,7 +1260,7 @@ const LESSONS=[
    +'<p>• <b>掷出双数</b>（两颗点数相同）：走完后可以<b>再掷一次</b>；但<b>连续三次双数</b>会被送进监狱。</p>'
    +'<p>• 你可以在自己回合的任何时候点「管理资产」盖房、抵押。</p>';}},
  {t:'第 3 课 · 买地与租金',b:function(){return ''
-   +'<p>停在<b>无人持有</b>的地产上，可以按售价购买；不想买就点「放弃」（本游戏没有拍卖）。</p>'
+   +'<p>停在<b>无人持有</b>的地产上，可以按售价购买；不想买或买不起就点「放弃」，这块地会进入<b>拍卖</b>（见第 4 课）。</p>'
    +'<p>停在<b>别人的地产</b>上，必须付租金给对方：</p>'
    +'<table><tr><th>类型</th><th>租金</th></tr>'
    +'<tr><td>城市地产</td><td>按租金表；同色全拥有且没盖房 → <b>翻倍</b></td></tr>'
@@ -938,37 +1268,54 @@ const LESSONS=[
    +'<tr><td>公用事业 💡🚰</td><td>骰子点数和 ×4；两家都有 ×10</td></tr></table>'
    +'<p>城市地产按国家分组，每个国家一种颜色：'+sw(COLORS.brown)+'缅甸 '+sw(COLORS.lblue)+'柬埔寨 '+sw(COLORS.pink)+'越南 '+sw(COLORS.orange)+'菲律宾 '
    +sw(COLORS.red)+'印尼 '+sw(COLORS.yellow)+'泰国 '+sw(COLORS.green)+'马来西亚 '+sw(COLORS.dblue)+'新加坡。<b>集齐一个国家的全部城市</b>是赚大钱的关键。</p>';}},
- {t:'第 4 课 · 盖房子',b:function(){return ''
+ {t:'第 4 课 · 拍卖',b:function(){return ''
+   +'<p><b>什么时候拍卖</b>：你停在无人持有的地产上，却选择「放弃」或买不起，这块地就会<b>公开拍卖</b>。</p>'
+   +'<p><b>怎么拍</b>：所有没破产的玩家（包括放弃的你）从你的下家开始轮流出价：</p>'
+   +'<p>• 每次出价至少比当前最高价多 <b>¥10</b>，而且不能超过自己的现金；</p>'
+   +'<p>• 不想要就点「放弃竞拍」，放弃后这一轮不能再加入；</p>'
+   +'<p>• 其他人都放弃后，<b>出价最高者按出价买下</b>；如果没人出价就流拍，地产仍无人持有。</p>'
+   +'<p><b>要点</b>：拍卖价可能比原价低很多，现金多时是捡便宜的好机会；也别因为抢红了眼出到远超价值——教练会告诉你这块地对你大约值多少钱。</p>';}},
+ {t:'第 5 课 · 玩家交易',b:function(){return ''
+   +'<p>在自己的回合里（掷骰前、行动后、欠款时都行），点「🤝 交易」，选一位玩家，设定：</p>'
+   +'<p>• <b>我给出</b>：现金、地产、出狱卡；</p>'
+   +'<p>• <b>我想要</b>：对方的现金、地产、出狱卡。</p>'
+   +'<p>点「发送报价」后，对方同意才成交，拒绝则什么都不变。电脑会按估值决定接受还是拒绝——它不会白送，也不肯低价拆散自己的色组或成全你集齐。</p>'
+   +'<p><b>限制</b>：色组里已经盖了房子的地产不能交易（先卖房）；抵押中的地产可以交易，转手后仍保持抵押。</p>'
+   +'<p><b>用途</b>：只差一块就能集齐一个国家？出个好价钱去买；缺钱欠款时，也可以把地产卖给别人换现金。电脑偶尔也会主动向你提议，你可以接受或拒绝。</p>';}},
+ {t:'第 6 课 · 盖房子',b:function(){return ''
    +'<p>集齐一个颜色组（且没有被抵押的）后，就能在「管理资产」里<b>盖房</b>：</p>'
    +'<p>• 每次花一笔房价，给一块地加 1 栋房子，租金大幅上涨。</p>'
    +'<p>• 必须<b>均匀建造</b>：同色各块地的房子数相差不能超过 1。</p>'
    +'<p>• 一块地最多 4 栋房子，再盖一次升级为<b>酒店 🏨</b>（租金最高）。</p>'
    +'<p>• 房价：棕/浅蓝 ¥50，粉/橙 ¥100，红/黄 ¥150，绿/深蓝 ¥200。</p>'
    +'<p>• 缺钱时可以把房子按<b>半价卖回</b>银行。</p>';}},
- {t:'第 5 课 · 监狱',b:function(){return ''
+ {t:'第 7 课 · 监狱',b:function(){return ''
    +'<p>三种情况会进监狱：停在「入狱」格、抽到入狱卡、连续三次双数。</p>'
    +'<p>在监狱里每个回合可以：</p>'
    +'<p>• 掷骰：掷出<b>双数</b>就出狱并按点数前进；</p>'
    +'<p>• 付 <b>¥50</b> 立刻出狱，然后正常掷骰；</p>'
    +'<p>• 使用<b>出狱卡</b>（抽卡获得）。</p>'
    +'<p>在监狱待满 3 个回合后，下一回合<b>必须</b>付 ¥50 出狱。注意：在监狱里<b>仍然可以收租</b>。</p>';}},
- {t:'第 6 课 · 抵押与破产',b:function(){return ''
+ {t:'第 8 课 · 抵押与破产',b:function(){return ''
    +'<p><b>抵押</b>：把一块地抵押给银行，立刻得到地价的一半；抵押期间收不到租金。赎回要付抵押款的 <b>110%</b>。同色组里有房子时，必须先卖房才能抵押。</p>'
    +'<p><b>欠款</b>：现金不够付租金/税时，进入欠款状态——必须通过抵押、卖房凑够钱，再点「还债」。</p>'
-   +'<p><b>破产</b>：实在凑不够，只能宣告破产出局。资产归债主（欠银行则收归银行）。</p>';}},
- {t:'第 7 课 · 机会与命运',b:function(){return ''
+   +'<p><b>破产</b>：实在凑不够，只能宣告破产出局。资产归债主（欠银行则收归银行）。</p>'
+   +'<p>💡 缺钱时除了抵押，也可以点「卖地」把地产卖给其他玩家换现金。</p>';}},
+ {t:'第 9 课 · 机会与命运',b:function(){return ''
    +'<p>停在 ❓机会 或 🎁命运 格会抽一张卡，可能是：</p>'
    +'<p>• 得钱：红利、遗产、奖金、退税……</p>'
    +'<p>• 罚款：医药费、学费、罚单……</p>'
    +'<p>• 移动：前进到起点/某城市、后退三格（落点同样要处理，路过起点领 ¥200）；</p>'
    +'<p>• 生日：每位玩家给你 ¥25；</p>'
    +'<p>• 直接入狱，或获得一张「出狱卡」。</p>';}},
- {t:'第 8 课 · 新手策略',b:function(){return ''
+ {t:'第 10 课 · 新手策略',b:function(){return ''
    +'<p>① <b>前期多买地</b>：钱放着不会增值，地产才会持续收租。</p>'
    +'<p>② <b>争取集齐一个国家</b>：三座城市的国家里，菲律宾（橙）、印尼（红）最容易被踩到，性价比高。</p>'
    +'<p>③ <b>留够备用金</b>：手里至少留 ¥100~200，防止踩到对手的豪宅一次破产。</p>'
    +'<p>④ <b>盖房比多买地更赚</b>：集齐后马上盖房，对手路过就是大额租金。</p>'
    +'<p>⑤ <b>快速局注意家产</b>：到最后一回合前，现金、地产、房屋都算分，别乱抵押。</p>'
+   +'<p>⑥ <b>拍卖是捡便宜的机会</b>：现金多时，别人放弃的地产可以低价拍下；但别出价超过它对你的价值。</p>'
+   +'<p>⑦ <b>用交易补上最后一块</b>：差一块集齐一个国家，就大方一点出价去买，集齐后盖房的回报远超这笔钱。</p>'
    +'<p>想边玩边学，点本页顶部的「开始引导对局」，教练会在每一步给你建议。</p>';}},
 ];
 function openTutorial(){
