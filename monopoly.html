@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>大富翁</title>
+<title>东南亚大富翁</title>
 <style>
 :root{
   --felt:#14532d; --felt2:#0c3b1f;
@@ -23,7 +23,7 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;
 
 /* ===== 首页 / 设置 ===== */
 #scr-home,#scr-setup{align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;}
-#scr-home h1{font-size:42px;margin:0 0 4px;letter-spacing:8px;color:var(--gold);text-shadow:0 2px 8px rgba(0,0,0,.5);}
+#scr-home h1{font-size:34px;margin:0 0 4px;letter-spacing:4px;color:var(--gold);text-shadow:0 2px 8px rgba(0,0,0,.5);}
 #scr-home .sub{opacity:.85;margin-bottom:18px;font-size:14px;line-height:1.7;}
 .bigbtn{display:block;width:min(320px,80vw);padding:16px 0;margin:0;border:none;border-radius:14px;
   font-size:19px;font-weight:700;cursor:pointer;color:#fff;
@@ -84,7 +84,7 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;
 .cell.cur{outline:3px solid var(--gold);outline-offset:-3px;z-index:2;}
 #center{grid-row:2/11;grid-column:2/11;display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:calc(var(--c)*.12);padding:calc(var(--c)*.15);text-align:center;color:var(--ink);min-width:0;min-height:0;}
-#center .ctitle{font-size:calc(var(--c)*.7);font-weight:900;letter-spacing:.15em;color:#b91c1c;line-height:1;}
+#center .ctitle{font-size:calc(var(--c)*.52);font-weight:900;letter-spacing:.08em;color:#b91c1c;line-height:1;}
 #center .cturn{font-size:calc(var(--c)*.4);font-weight:800;}
 #center .cdice{display:flex;}
 #center .cdice .die{width:calc(var(--c)*1.0);height:calc(var(--c)*1.0);padding:calc(var(--c)*.1);border-radius:calc(var(--c)*.18);}
@@ -168,8 +168,8 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;
 <!-- 首页 -->
 <div id="scr-home" class="screen active">
   <a class="lobbylink" href="games.html">← 游戏厅</a>
-  <h1>大富翁</h1>
-  <div class="sub">买地 · 收租 · 盖房子<br>2~4 人，破产者出局，家产最多者获胜</div>
+  <h1>东南亚大富翁</h1>
+  <div class="sub">环游东南亚 8 国 · 买地 · 收租 · 盖房子<br>2~4 人，破产者出局，家产最多者获胜</div>
   <button class="bigbtn gold" onclick="openTutorial()">📖 玩法说明（新手必看）</button>
   <button class="bigbtn" onclick="openSetup('ai')">🤖 人机对战</button>
   <button class="bigbtn alt" onclick="openSetup('hotseat')">👥 真人对战（同屏轮流）</button>
@@ -189,7 +189,7 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;
 <div id="scr-tut" class="screen">
   <header>
     <button class="backbtn" onclick="showScreen('home')">← 返回</button>
-    <h1>大富翁 玩法</h1>
+    <h1>东南亚大富翁 玩法</h1>
   </header>
   <button class="bigbtn gold" style="margin:0 auto 14px" onclick="startGame({mode:'ai',n:2,quick:true,coach:true})">🎓 开始引导对局（边玩边教）</button>
   <div id="lessons"></div>
@@ -228,55 +228,57 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;
 'use strict';
 /*===ENGINE-START===*/
 /* ================= 引擎：棋盘与规则 =================
-   40 格环形棋盘：0 起点；10 监狱（探监）；20 免费停车；30 入狱。
+   40 格环形棋盘：0 起点；10 监狱（探监）；20 海岛度假（免费停车）；30 入狱。
    玩法：掷骰前进 → 买地/付租/缴税/抽卡；同色全拥有可盖房；现金不足可抵押、卖房；付不起则破产。
    简化：无拍卖、无玩家间交易。
 */
 const COLORS={brown:'#92400e',lblue:'#38bdf8',pink:'#ec4899',orange:'#f97316',red:'#dc2626',yellow:'#eab308',green:'#16a34a',dblue:'#1d4ed8'};
 const GROUPNAME={brown:'棕色',lblue:'浅蓝',pink:'粉色',orange:'橙色',red:'红色',yellow:'黄色',green:'绿色',dblue:'深蓝'};
+// 每个颜色组 = 一个东南亚国家
+const COUNTRY={brown:'缅甸',lblue:'柬埔寨',pink:'越南',orange:'菲律宾',red:'印度尼西亚',yellow:'泰国',green:'马来西亚',dblue:'新加坡'};
 const PCOL=['#ef4444','#3b82f6','#16a34a','#f59e0b'];
 function P(name,price,group,rents,house){return{t:'prop',name,price,group,rents,house};}
 const BOARD=[
  {t:'go',name:'起点'},
- P('兰州',60,'brown',[2,10,30,90,160,250],50),
+ P('仰光',60,'brown',[2,10,30,90,160,250],50),
  {t:'chest',name:'命运'},
- P('西宁',60,'brown',[4,20,60,180,320,450],50),
+ P('曼德勒',60,'brown',[4,20,60,180,320,450],50),
  {t:'tax',name:'所得税',amount:200},
- {t:'station',name:'北站',price:200},
- P('南昌',100,'lblue',[6,30,90,270,400,550],50),
+ {t:'station',name:'新加坡港',price:200},
+ P('金边',100,'lblue',[6,30,90,270,400,550],50),
  {t:'chance',name:'机会'},
- P('贵阳',100,'lblue',[6,30,90,270,400,550],50),
- P('昆明',120,'lblue',[8,40,100,300,450,600],50),
+ P('暹粒',100,'lblue',[6,30,90,270,400,550],50),
+ P('西港',120,'lblue',[8,40,100,300,450,600],50),
  {t:'jail',name:'监狱'},
- P('长沙',140,'pink',[10,50,150,450,625,750],100),
- {t:'util',name:'电力公司',price:150},
- P('合肥',140,'pink',[10,50,150,450,625,750],100),
- P('武汉',160,'pink',[12,60,180,500,700,900],100),
- {t:'station',name:'东站',price:200},
- P('郑州',180,'orange',[14,70,200,550,750,950],100),
+ P('岘港',140,'pink',[10,50,150,450,625,750],100),
+ {t:'util',name:'湄公水电',icon:'💡',price:150},
+ P('河内',140,'pink',[10,50,150,450,625,750],100),
+ P('胡志明',160,'pink',[12,60,180,500,700,900],100),
+ {t:'station',name:'巴生港',price:200},
+ P('达沃',180,'orange',[14,70,200,550,750,950],100),
  {t:'chest',name:'命运'},
- P('济南',180,'orange',[14,70,200,550,750,950],100),
- P('西安',200,'orange',[16,80,220,600,800,1000],100),
- {t:'park',name:'免费停车'},
- P('成都',220,'red',[18,90,250,700,875,1050],150),
+ P('宿务',180,'orange',[14,70,200,550,750,950],100),
+ P('马尼拉',200,'orange',[16,80,220,600,800,1000],100),
+ {t:'park',name:'海岛度假'},
+ P('泗水',220,'red',[18,90,250,700,875,1050],150),
  {t:'chance',name:'机会'},
- P('杭州',220,'red',[18,90,250,700,875,1050],150),
- P('南京',240,'red',[20,100,300,750,925,1100],150),
- {t:'station',name:'南站',price:200},
- P('天津',260,'yellow',[22,110,330,800,975,1150],150),
- P('重庆',260,'yellow',[22,110,330,800,975,1150],150),
- {t:'util',name:'自来水厂',price:150},
- P('深圳',280,'yellow',[24,120,360,850,1025,1200],150),
+ P('万隆',220,'red',[18,90,250,700,875,1050],150),
+ P('雅加达',240,'red',[20,100,300,750,925,1100],150),
+ {t:'station',name:'林查班港',price:200},
+ P('清迈',260,'yellow',[22,110,330,800,975,1150],150),
+ P('普吉',260,'yellow',[22,110,330,800,975,1150],150),
+ {t:'util',name:'新生水厂',icon:'🚰',price:150},
+ P('曼谷',280,'yellow',[24,120,360,850,1025,1200],150),
  {t:'gojail',name:'入狱'},
- P('广州',300,'green',[26,130,390,900,1100,1275],200),
- P('北京',300,'green',[26,130,390,900,1100,1275],200),
+ P('槟城',300,'green',[26,130,390,900,1100,1275],200),
+ P('马六甲',300,'green',[26,130,390,900,1100,1275],200),
  {t:'chest',name:'命运'},
- P('上海',320,'green',[28,150,450,1000,1200,1400],200),
- {t:'station',name:'西站',price:200},
+ P('吉隆坡',320,'green',[28,150,450,1000,1200,1400],200),
+ {t:'station',name:'丹戎不碌',price:200},
  {t:'chance',name:'机会'},
- P('香港',350,'dblue',[35,175,500,1100,1300,1500],200),
- {t:'tax',name:'奢侈税',amount:100},
- P('澳门',400,'dblue',[50,200,600,1400,1700,2000],200),
+ P('乌节路',350,'dblue',[35,175,500,1100,1300,1500],200),
+ {t:'tax',name:'服务税',amount:100},
+ P('滨海湾',400,'dblue',[50,200,600,1400,1700,2000],200),
 ];
 const GROUPS={};
 BOARD.forEach((sq,i)=>{ if(sq.t==='prop'){ (GROUPS[sq.group]=GROUPS[sq.group]||[]).push(i); } });
@@ -287,19 +289,19 @@ function unmortCost(i){ return Math.ceil(BOARD[i].price/2*11/10); }   // 抵押�
 // 机会/命运 共用一副牌
 const CARDS=[
  {k:'cash',v:200,text:'银行出错，对你有利，收取 ¥200'},
- {k:'cash',v:100,text:'股票分红，收取 ¥100'},
+ {k:'cash',v:100,text:'榴莲丰收，出口获利 ¥100'},
  {k:'cash',v:100,text:'继承遗产，收取 ¥100'},
  {k:'cash',v:50,text:'退税，收取 ¥50'},
- {k:'cash',v:150,text:'项目奖金，收取 ¥150'},
+ {k:'cash',v:150,text:'旅游旺季，民宿爆满，收取 ¥150'},
  {k:'cash',v:-50,text:'医药费，支付 ¥50'},
  {k:'cash',v:-100,text:'学费，支付 ¥100'},
  {k:'cash',v:-50,text:'违章停车罚款，支付 ¥50'},
- {k:'cash',v:-150,text:'汽车维修费，支付 ¥150'},
+ {k:'cash',v:-150,text:'摩托车维修费，支付 ¥150'},
  {k:'collect',v:25,text:'生日快乐！每位玩家给你 ¥25'},
  {k:'moveto',v:0,text:'前进到起点，领取 ¥200'},
- {k:'moveto',v:11,text:'前进到长沙'},
- {k:'moveto',v:35,text:'前进到西站'},
- {k:'moveto',v:39,text:'前进到澳门'},
+ {k:'moveto',v:11,text:'前进到'+BOARD[11].name},
+ {k:'moveto',v:35,text:'前进到'+BOARD[35].name},
+ {k:'moveto',v:39,text:'前进到'+BOARD[39].name},
  {k:'back',v:3,text:'后退三格'},
  {k:'jail',v:0,text:'直接入狱，不经过起点'},
  {k:'jailcard',v:0,text:'获得「出狱卡」，可免费出狱一次'},
@@ -558,7 +560,7 @@ function adviseBuy(s,p){
   let reserve=sq.t==='station'?80:120;
   if(sq.t==='prop'){
     const g=GROUPS[sq.group], mine=g.filter(j=>s.props[j].owner===p).length;
-    if(mine===g.length-1)return{buy:true,reason:'买下它你就集齐整个'+GROUPNAME[sq.group]+'色组：之后可以盖房，空地租金也翻倍！'};
+    if(mine===g.length-1)return{buy:true,reason:'买下它你就集齐整个'+COUNTRY[sq.group]+'（'+GROUPNAME[sq.group]+'）色组：之后可以盖房，空地租金也翻倍！'};
     const others=g.filter(j=>s.props[j].owner>=0&&s.props[j].owner!==p);
     if(mine===0&&others.length===g.length-1&&others.every(j=>s.props[j].owner===s.props[others[0]].owner)){
       if(after>=60)return{buy:true,reason:'对手快集齐这个色组了，买下它能堵住他垄断。'};
@@ -715,7 +717,7 @@ function cellPos(i){
   if(i<=30)return[1,1+(i-20)];
   return[1+(i-30),11];
 }
-const ICONS={go:'🏁',jail:'🔒',park:'🅿️',gojail:'👮',tax:'💸',chance:'❓',chest:'🎁',station:'🚉'};
+const ICONS={go:'🏁',jail:'🔒',park:'🏝️',gojail:'👮',tax:'💸',chance:'❓',chest:'🎁',station:'🚢'};
 function dieHTML(v){
   const M={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]}[v]||[];
   let s='<div class="die">';
@@ -733,7 +735,7 @@ function cellHTML(i){
     inner='<div class="band" style="background:'+COLORS[sq.group]+'">'+hs+'</div>'
       +'<div class="nm" style="'+fs+'">'+sq.name+'</div><div class="pr">¥'+sq.price+'</div>';
   }else if(sq.t==='station'||sq.t==='util'){
-    const ic=sq.t==='station'?'🚉':(sq.name==='电力公司'?'💡':'🚰');
+    const ic=sq.icon||ICONS[sq.t];
     inner='<div class="ic">'+ic+'</div><div class="nm" style="'+fs+'">'+sq.name+'</div><div class="pr">¥'+sq.price+'</div>';
   }else{
     inner='<div class="ic">'+(ICONS[sq.t]||'')+'</div><div class="nm" style="'+fs+'">'+sq.name+'</div>'
@@ -747,7 +749,7 @@ function cellHTML(i){
 }
 function btn(label,fn,cls,dis){ return '<button class="cbtn '+(cls||'')+'" '+(dis?'disabled ':'')+'onclick="'+fn+'">'+label+'</button>'; }
 function centerHTML(){
-  let h='<div class="ctitle">大富翁</div>';
+  let h='<div class="ctitle">东南亚大富翁</div>';
   if(S.over)return h+'<div class="cmsg">游戏结束</div>';
   const p=S.turn, pl=S.players[p], sq=BOARD[pl.pos], isH=!pl.ai;
   h+='<div class="cturn" style="color:'+PCOL[p]+'">● '+esc(pl.name)+(pl.jail?' 🔒':'')+'</div>';
@@ -812,20 +814,20 @@ function showCell(i){
   if(!S)return;
   const sq=BOARD[i], pr=S.props[i]; let h='';
   if(sq.t==='prop'){
-    h+='<div class="chead" style="background:'+COLORS[sq.group]+'">'+sq.name+'</div>';
+    h+='<div class="chead" style="background:'+COLORS[sq.group]+'">'+sq.name+'<small style="display:block;font-size:12px;font-weight:600;opacity:.92">'+COUNTRY[sq.group]+'（'+GROUPNAME[sq.group]+'色组）</small></div>';
     h+='<div class="rt">地价 ¥'+sq.price+' · 每栋房屋 ¥'+sq.house+' · 抵押可得 ¥'+sq.price/2+'</div>';
     h+='<table class="rtab"><tr><td>空地租金</td><td>¥'+sq.rents[0]+'</td></tr><tr><td>集齐色组（空地）</td><td>¥'+sq.rents[0]*2+'</td></tr>';
     for(let k=1;k<=4;k++)h+='<tr><td>'+k+' 栋房子</td><td>¥'+sq.rents[k]+'</td></tr>';
     h+='<tr><td>酒店</td><td>¥'+sq.rents[5]+'</td></tr></table>';
   }else if(sq.t==='station'){
-    h+='<div class="chead" style="background:#475569">🚉 '+sq.name+'</div>';
-    h+='<div class="rt">地价 ¥200 · 抵押可得 ¥100<br>租金随持有火车站数量：1 个 ¥25 · 2 个 ¥50 · 3 个 ¥100 · 4 个 ¥200</div>';
+    h+='<div class="chead" style="background:#475569">🚢 '+sq.name+'</div>';
+    h+='<div class="rt">地价 ¥200 · 抵押可得 ¥100<br>租金随持有港口数量：1 个 ¥25 · 2 个 ¥50 · 3 个 ¥100 · 4 个 ¥200</div>';
   }else if(sq.t==='util'){
-    h+='<div class="chead" style="background:#475569">'+(sq.name==='电力公司'?'💡':'🚰')+' '+sq.name+'</div>';
+    h+='<div class="chead" style="background:#475569">'+sq.icon+' '+sq.name+'</div>';
     h+='<div class="rt">地价 ¥150 · 抵押可得 ¥75<br>租金 = 骰子点数和 ×4；若同时拥有两家公用事业则 ×10</div>';
   }else{
     const D={go:'每次经过或停在起点，领取 ¥200。',jail:'路过监狱不受影响。被送进监狱后：掷出双数、付 ¥50 或用出狱卡可出狱；第 3 回合必须付 ¥50。监狱里仍然可以收租。',
-      park:'免费停车，什么也不会发生。',gojail:'直接进监狱，不经过起点。',chance:'抽一张机会/命运卡，可能得钱、罚款、移动或入狱。',
+      park:'海岛度假（免费停车），什么也不会发生。',gojail:'直接进监狱，不经过起点。',chance:'抽一张机会/命运卡，可能得钱、罚款、移动或入狱。',
       chest:'抽一张机会/命运卡，可能得钱、罚款、移动或入狱。',tax:'缴纳税款 ¥'+sq.amount+'，付给银行。'};
     h+='<div class="chead" style="background:#475569">'+(ICONS[sq.t]||'')+' '+sq.name+'</div><div class="rt">'+D[sq.t]+'</div>';
   }
@@ -918,6 +920,7 @@ const LESSONS=[
    +'<p>两种对局长度：</p>'
    +'<p>• <b>快速局</b>：打满 30 回合，按<b>家产</b>（现金 + 地产价值 + 房屋价值）排名，最高者赢。</p>'
    +'<p>• <b>经典局</b>：一直打到只剩一个人没破产为止。</p>'
+   +'<p>棋盘是一场东南亚之旅：缅甸、柬埔寨、越南、菲律宾、印度尼西亚、泰国、马来西亚、新加坡 8 个国家的 22 座城市，加上 4 个国际港口和 2 个公用事业。</p>'
    +'<p>棋盘上点任何一格，都能看到它的价格和租金表。</p>';}},
  {t:'第 2 课 · 回合流程',b:function(){return ''
    +'<p>1️⃣ 点「掷骰子」，两颗骰子点数之和就是前进格数。</p>'
@@ -931,10 +934,10 @@ const LESSONS=[
    +'<p>停在<b>别人的地产</b>上，必须付租金给对方：</p>'
    +'<table><tr><th>类型</th><th>租金</th></tr>'
    +'<tr><td>城市地产</td><td>按租金表；同色全拥有且没盖房 → <b>翻倍</b></td></tr>'
-   +'<tr><td>火车站 🚉</td><td>持有 1/2/3/4 个：¥25/50/100/200</td></tr>'
+   +'<tr><td>港口 🚢</td><td>持有 1/2/3/4 个：¥25/50/100/200</td></tr>'
    +'<tr><td>公用事业 💡🚰</td><td>骰子点数和 ×4；两家都有 ×10</td></tr></table>'
-   +'<p>城市地产按颜色分组：'+sw(COLORS.brown)+'棕 '+sw(COLORS.lblue)+'浅蓝 '+sw(COLORS.pink)+'粉 '+sw(COLORS.orange)+'橙 '
-   +sw(COLORS.red)+'红 '+sw(COLORS.yellow)+'黄 '+sw(COLORS.green)+'绿 '+sw(COLORS.dblue)+'深蓝。<b>集齐同色的全部地产</b>是赚大钱的关键。</p>';}},
+   +'<p>城市地产按国家分组，每个国家一种颜色：'+sw(COLORS.brown)+'缅甸 '+sw(COLORS.lblue)+'柬埔寨 '+sw(COLORS.pink)+'越南 '+sw(COLORS.orange)+'菲律宾 '
+   +sw(COLORS.red)+'印尼 '+sw(COLORS.yellow)+'泰国 '+sw(COLORS.green)+'马来西亚 '+sw(COLORS.dblue)+'新加坡。<b>集齐一个国家的全部城市</b>是赚大钱的关键。</p>';}},
  {t:'第 4 课 · 盖房子',b:function(){return ''
    +'<p>集齐一个颜色组（且没有被抵押的）后，就能在「管理资产」里<b>盖房</b>：</p>'
    +'<p>• 每次花一笔房价，给一块地加 1 栋房子，租金大幅上涨。</p>'
@@ -962,7 +965,7 @@ const LESSONS=[
    +'<p>• 直接入狱，或获得一张「出狱卡」。</p>';}},
  {t:'第 8 课 · 新手策略',b:function(){return ''
    +'<p>① <b>前期多买地</b>：钱放着不会增值，地产才会持续收租。</p>'
-   +'<p>② <b>争取集齐色组</b>：同色三块地的橙色、红色最容易被踩到，性价比高。</p>'
+   +'<p>② <b>争取集齐一个国家</b>：三座城市的国家里，菲律宾（橙）、印尼（红）最容易被踩到，性价比高。</p>'
    +'<p>③ <b>留够备用金</b>：手里至少留 ¥100~200，防止踩到对手的豪宅一次破产。</p>'
    +'<p>④ <b>盖房比多买地更赚</b>：集齐后马上盖房，对手路过就是大额租金。</p>'
    +'<p>⑤ <b>快速局注意家产</b>：到最后一回合前，现金、地产、房屋都算分，别乱抵押。</p>'
